@@ -1,117 +1,56 @@
-use diesel::prelude::*;
-use dotenvy::dotenv;
-use schema::group_members;
-use schema::groups;
-use schema::transaction_debts;
-use schema::transactions;
-use schema::users;
 use std::env;
-use std::sync::Arc;
+pub mod entrypoints;
 pub mod models;
 pub mod schema;
+pub mod state_server;
 use self::models::*;
 
 use axum::{
-    extract::{Path, State},
     http::{HeaderValue, Method},
-    response::Json,
-    routing::get,
+    routing::{get, post},
     Router,
 };
-use diesel::r2d2::{self, ConnectionManager};
 use std::net::SocketAddr;
 use tower_http::cors::CorsLayer;
-type DbPool = r2d2::Pool<ConnectionManager<SqliteConnection>>;
-
-pub fn establish_connection() -> Arc<DbPool> {
-    dotenv().ok();
-    let database_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
-
-    let manager = ConnectionManager::<SqliteConnection>::new(&database_url);
-    let pool = r2d2::Pool::builder()
-        .build(manager)
-        .expect("Failed to create pool.");
-
-    // Wrap pool in Arc for Axum's State extractor
-    Arc::new(pool)
-}
-
-pub fn test_users(connection: &mut SqliteConnection) {
-    let results = users::table
-        .filter(users::name.eq("Bob"))
-        .limit(5)
-        .select(User::as_select())
-        .load(connection)
-        .expect("Error loading posts");
-
-    println!("Displaying {} posts", results.len());
-    for post in results {
-        println!("{}", post.name);
-        println!("-----------\n");
-        println!("{}", post.email);
-    }
-}
-
-pub fn test_transactions(connection: &mut SqliteConnection) {
-    let results = transaction_debts::table
-        .inner_join(transactions::table.on(transactions::id.eq(transaction_debts::transaction_id)))
-        .inner_join(users::table.on(users::id.eq(transaction_debts::user_id)))
-        .filter(users::name.eq("Bob"))
-        .limit(5)
-        .select((
-            TransactionDebt::as_select(),
-            User::as_select(),
-            Transaction::as_select(),
-        ))
-        .load::<(TransactionDebt, User, Transaction)>(connection)
-        .expect("Error loading posts");
-
-    println!("Displaying {} posts", results.len());
-    for post in results {
-        println!("{}", post.0.amount);
-        println!("-----------\n");
-    }
-}
 
 #[tokio::main]
-async fn main() {
-    let connection = establish_connection();
+async fn main() -> anyhow::Result<()> {
+    let connection = state_server::establish_connection()?;
+    let state_server = state_server::StateServer { pool: connection };
+    let front_url = env::var("FRONT_URL")?;
     // see https://docs.rs/tower-http/latest/tower_http/cors/index.html
     // for more details
     //
     // pay attention that for some request types like posting content-type: application/json
     // it is required to add ".allow_headers([http::header::CONTENT_TYPE])"
     // or see this issue https://github.com/tokio-rs/axum/issues/849
+    let port = env::var("PORT")?.parse::<u16>()?;
     let cors_layer = CorsLayer::new()
-        .allow_origin("http://localhost:3000".parse::<HeaderValue>().unwrap())
+        .allow_origin(front_url.parse::<HeaderValue>()?)
         .allow_methods([Method::GET]);
     let backend = async {
         let app = Router::new()
-            .route("/groups/{id}", get(handler_groups))
-            .with_state(connection)
+            .route(
+                "/users/{user_id}/groups",
+                get(entrypoints::handler_users_groups),
+            )
+            .route("/groups/{token_id}", get(entrypoints::handler_groups))
+            .route(
+                "/groups/{token_id}",
+                post(entrypoints::handler_create_groups),
+            )
+            .with_state(state_server)
             .layer(cors_layer);
-        serve(app, 4000).await;
+        let _ = serve(app, port).await;
     };
 
     tokio::join!(backend);
+    Ok(())
 }
 
-async fn serve(app: Router, port: u16) {
+async fn serve(app: Router, port: u16) -> anyhow::Result<()> {
     let addr = SocketAddr::from(([127, 0, 0, 1], port));
-    let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
-    axum::serve(listener, app).await.unwrap();
-}
-
-async fn handler_groups(State(pool): State<Arc<DbPool>>, Path(id): Path<i32>) -> Json<Vec<Group>> {
-    let mut conn = pool.get().expect("couldn't get db connection from pool");
-
-    let results = groups::table
-        .inner_join(group_members::table.on(groups::id.eq(group_members::group_id)))
-        .filter(group_members::user_id.eq(id))
-        .limit(5)
-        .select(Group::as_select())
-        .load::<Group>(&mut conn)
-        .expect("Error loading groups");
-
-    Json(results)
+    let listener = tokio::net::TcpListener::bind(addr).await?;
+    axum::serve(listener, app).await?;
+    Ok(())
 }

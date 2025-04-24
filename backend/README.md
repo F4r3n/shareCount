@@ -11,3 +11,4 @@ cargo install diesel_cli --no-default-features --features "sqlite-bundled"
 From a link, participate to a group.
 
 * Generate a link from a Group, UUID
+* 

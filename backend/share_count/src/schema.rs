@@ -6,7 +6,7 @@ diesel::table! {
         name -> Text,
         email -> Text,
         password_hash -> Text,
-        created_at -> Nullable<Timestamp>,
+        created_at -> Timestamp,
     }
 }
 
@@ -16,7 +16,7 @@ diesel::table! {
         name -> Text,
         currency -> Text,
         token -> Text,
-        created_at -> Nullable<Timestamp>,
+        created_at -> Timestamp,
     }
 }
 
@@ -36,7 +36,7 @@ diesel::table! {
         description -> Nullable<Text>,
         amount -> Integer,
         paid_by -> Integer,
-        created_at -> Nullable<Timestamp>,
+        created_at -> Timestamp,
     }
 }
 

@@ -4,7 +4,7 @@ CREATE TABLE users (
   name TEXT NOT NULL,
   email TEXT NOT NULL UNIQUE,
   password_hash TEXT NOT NULL,
-  created_at TIMESTAMP
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- GROUPS
@@ -13,7 +13,7 @@ CREATE TABLE groups (
   name TEXT NOT NULL,
   currency TEXT NOT NULL,           -- e.g., 'EUR', 'USD', 'JPY'
   token TEXT NOT NULL UNIQUE,
-  created_at TIMESTAMP
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- GROUP MEMBERS
@@ -34,7 +34,7 @@ CREATE TABLE transactions (
   description TEXT,
   amount INTEGER NOT NULL,
   paid_by INTEGER NOT NULL,
-  created_at TIMESTAMP,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (group_id) REFERENCES groups(id) ON DELETE CASCADE,
   FOREIGN KEY (paid_by) REFERENCES group_members(id)
 );
