@@ -1,6 +1,7 @@
-use diesel::prelude::*;
 use chrono::NaiveDateTime;
+use diesel::prelude::*;
 use serde::Serialize;
+
 #[derive(Queryable, Identifiable, Selectable, Debug, Serialize)]
 #[diesel(table_name = crate::schema::users)]
 #[diesel(check_for_backend(diesel::sqlite::Sqlite))]
@@ -9,20 +10,21 @@ pub struct User {
     pub name: String,
     pub email: String,
     pub password_hash: String,
-    pub salt: String,
+    pub created_at: Option<NaiveDateTime>,
 }
 
-#[derive(Queryable, Selectable,Identifiable, Debug, Serialize)]
+#[derive(Queryable, Selectable, Identifiable, Debug, Serialize)]
 #[diesel(table_name = crate::schema::groups)]
 #[diesel(check_for_backend(diesel::sqlite::Sqlite))]
 pub struct Group {
     pub id: i32,
     pub name: String,
     pub currency: String,
+    pub token: String,
     pub created_at: Option<NaiveDateTime>,
 }
 
-#[derive(Queryable, Identifiable, Selectable,Associations, Debug, Serialize)]
+#[derive(Queryable, Identifiable, Selectable, Associations, Debug, Serialize)]
 #[diesel(belongs_to(Group))]
 #[diesel(belongs_to(User))]
 #[diesel(table_name = crate::schema::group_members)]
@@ -30,13 +32,13 @@ pub struct Group {
 pub struct GroupMember {
     pub id: i32,
     pub group_id: i32,
-    pub user_id: i32,
-    pub nickname: Option<String>,
+    pub nickname: String,
+    pub user_id: Option<i32>,
 }
 
-#[derive(Queryable, Identifiable, Selectable,Associations, Debug, Serialize)]
+#[derive(Queryable, Identifiable, Selectable, Associations, Debug, Serialize)]
 #[diesel(belongs_to(Group))]
-#[diesel(belongs_to(User, foreign_key = paid_by))]
+#[diesel(belongs_to(GroupMember, foreign_key = paid_by))]
 #[diesel(table_name = crate::schema::transactions)]
 #[diesel(check_for_backend(diesel::sqlite::Sqlite))]
 pub struct Transaction {
@@ -50,12 +52,12 @@ pub struct Transaction {
 
 #[derive(Queryable, Identifiable, Selectable, Associations, Debug, Serialize)]
 #[diesel(belongs_to(Transaction))]
-#[diesel(belongs_to(User))]
+#[diesel(belongs_to(GroupMember, foreign_key = group_member_id))]
 #[diesel(table_name = crate::schema::transaction_debts)]
 #[diesel(check_for_backend(diesel::sqlite::Sqlite))]
 pub struct TransactionDebt {
     pub id: i32,
     pub transaction_id: i32,
-    pub user_id: i32,
+    pub group_member_id: i32,
     pub amount: i32,
 }

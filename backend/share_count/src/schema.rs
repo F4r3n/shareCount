@@ -1,11 +1,12 @@
 // @generated automatically by Diesel CLI.
 
 diesel::table! {
-    group_members (id) {
+    users (id) {
         id -> Integer,
-        group_id -> Integer,
-        user_id -> Integer,
-        nickname -> Nullable<Text>,
+        name -> Text,
+        email -> Text,
+        password_hash -> Text,
+        created_at -> Nullable<Timestamp>,
     }
 }
 
@@ -14,16 +15,17 @@ diesel::table! {
         id -> Integer,
         name -> Text,
         currency -> Text,
+        token -> Text,
         created_at -> Nullable<Timestamp>,
     }
 }
 
 diesel::table! {
-    transaction_debts (id) {
+    group_members (id) {
         id -> Integer,
-        transaction_id -> Integer,
-        user_id -> Integer,
-        amount -> Integer,
+        group_id -> Integer,
+        nickname -> Text,
+        user_id -> Nullable<Integer>,
     }
 }
 
@@ -39,26 +41,27 @@ diesel::table! {
 }
 
 diesel::table! {
-    users (id) {
+    transaction_debts (id) {
         id -> Integer,
-        name -> Text,
-        email -> Text,
-        password_hash -> Text,
-        salt -> Text,
+        transaction_id -> Integer,
+        group_member_id -> Integer,
+        amount -> Integer,
     }
 }
 
+// Define relationships
 diesel::joinable!(group_members -> groups (group_id));
 diesel::joinable!(group_members -> users (user_id));
-diesel::joinable!(transaction_debts -> transactions (transaction_id));
-diesel::joinable!(transaction_debts -> users (user_id));
 diesel::joinable!(transactions -> groups (group_id));
-diesel::joinable!(transactions -> users (paid_by));
+diesel::joinable!(transactions -> group_members (paid_by));
+diesel::joinable!(transaction_debts -> transactions (transaction_id));
+diesel::joinable!(transaction_debts -> group_members (group_member_id));
 
+// Enable Diesel’s ability to perform multi-table queries
 diesel::allow_tables_to_appear_in_same_query!(
-    group_members,
-    groups,
-    transaction_debts,
-    transactions,
     users,
+    groups,
+    group_members,
+    transactions,
+    transaction_debts,
 );

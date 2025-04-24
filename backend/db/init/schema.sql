@@ -1,49 +1,50 @@
 -- USERS
 CREATE TABLE users (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
   name TEXT NOT NULL,
   email TEXT NOT NULL UNIQUE,
   password_hash TEXT NOT NULL,
-  salt TEXT NOT NULL
+  created_at TIMESTAMP
 );
 
 -- GROUPS
 CREATE TABLE groups (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
   name TEXT NOT NULL,
   currency TEXT NOT NULL,           -- e.g., 'EUR', 'USD', 'JPY'
+  token TEXT NOT NULL UNIQUE,
   created_at TIMESTAMP
 );
 
 -- GROUP MEMBERS
 CREATE TABLE group_members (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
   group_id INTEGER NOT NULL,
-  user_id INTEGER NOT NULL,
-  nickname TEXT,
-  UNIQUE (group_id, user_id),
-  FOREIGN KEY (group_id) REFERENCES groups(id) ON DELETE CASCADE,
-  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+  nickname TEXT NOT NULL,
+  user_id INTEGER,  -- nullable
+  UNIQUE (group_id, nickname),
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL,
+  FOREIGN KEY (group_id) REFERENCES groups(id) ON DELETE CASCADE
 );
 
 -- TRANSACTIONS
 CREATE TABLE transactions (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
   group_id INTEGER NOT NULL,
   description TEXT,
   amount INTEGER NOT NULL,
   paid_by INTEGER NOT NULL,
   created_at TIMESTAMP,
   FOREIGN KEY (group_id) REFERENCES groups(id) ON DELETE CASCADE,
-  FOREIGN KEY (paid_by) REFERENCES users(id)
+  FOREIGN KEY (paid_by) REFERENCES group_members(id)
 );
 
 -- TRANSACTION DEBTS
 CREATE TABLE transaction_debts (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
   transaction_id INTEGER NOT NULL,
-  user_id INTEGER NOT NULL,
+  group_member_id INTEGER NOT NULL,
   amount INTEGER NOT NULL,
   FOREIGN KEY (transaction_id) REFERENCES transactions(id) ON DELETE CASCADE,
-  FOREIGN KEY (user_id) REFERENCES users(id)
+  FOREIGN KEY (group_member_id) REFERENCES group_members(id) ON DELETE CASCADE
 );

@@ -12,14 +12,13 @@ pub mod schema;
 use self::models::*;
 
 use axum::{
-    extract::{Path, Query, State},
+    extract::{Path, State},
     http::{HeaderValue, Method},
-    response::{IntoResponse, Json},
+    response::Json,
     routing::get,
     Router,
 };
 use diesel::r2d2::{self, ConnectionManager};
-use serde::Deserialize;
 use std::net::SocketAddr;
 use tower_http::cors::CorsLayer;
 type DbPool = r2d2::Pool<ConnectionManager<SqliteConnection>>;
@@ -72,11 +71,6 @@ pub fn test_transactions(connection: &mut SqliteConnection) {
         println!("{}", post.0.amount);
         println!("-----------\n");
     }
-}
-
-#[derive(Deserialize)]
-struct GroupQuery {
-    group_id: i32,
 }
 
 #[tokio::main]
