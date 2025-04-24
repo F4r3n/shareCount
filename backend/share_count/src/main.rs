@@ -27,7 +27,10 @@ async fn main() -> anyhow::Result<()> {
     let port = env::var("PORT")?.parse::<u16>()?;
     let cors_layer = CorsLayer::new()
         .allow_origin(front_url.parse::<HeaderValue>()?)
-        .allow_methods([Method::GET]);
+        .allow_credentials(true)
+        .allow_methods([axum::http::Method::GET, axum::http::Method::POST])
+        .allow_headers([axum::http::header::CONTENT_TYPE]);
+
     let backend = async {
         let app = Router::new()
             .route(

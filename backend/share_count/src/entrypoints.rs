@@ -43,7 +43,6 @@ pub async fn handler_users_groups(
     let results = groups::table
         .inner_join(group_members::table.on(groups::id.eq(group_members::group_id)))
         .filter(group_members::user_id.eq(user_id))
-        .limit(5)
         .select(Group::as_select())
         .load::<Group>(&mut conn)?;
 
@@ -58,7 +57,6 @@ pub async fn handler_groups(
 
     let results = groups::table
         .filter(groups::token.eq(token))
-        .limit(5)
         .select(Group::as_select())
         .load::<Group>(&mut conn)?;
 
