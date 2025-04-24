@@ -6,7 +6,7 @@ pub mod state_server;
 use self::models::*;
 
 use axum::{
-    http::{HeaderValue, Method},
+    http::HeaderValue,
     routing::{get, post},
     Router,
 };

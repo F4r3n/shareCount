@@ -48,11 +48,16 @@ pub async fn handler_users_groups(
 
     Ok(Json(results)).map_err(AppError)
 }
-
+#[derive(serde::Serialize)]
+pub struct GroupResponse {
+    name: String,
+    currency: String,
+    created_at: chrono::NaiveDateTime,
+}
 pub async fn handler_groups(
     State(state_server): State<state_server::StateServer>,
     Path(token): Path<String>,
-) -> Result<Json<Vec<Group>>, AppError> {
+) -> Result<Json<Vec<GroupResponse>>, AppError> {
     let mut conn = state_server.pool.get()?;
 
     let results = groups::table
@@ -60,7 +65,16 @@ pub async fn handler_groups(
         .select(Group::as_select())
         .load::<Group>(&mut conn)?;
 
-    Ok(Json(results)).map_err(AppError)
+    let simplified_results: Vec<GroupResponse> = results
+        .iter()
+        .map(|group| GroupResponse {
+            name: group.name.clone(),
+            currency: group.currency.clone(),
+            created_at: group.created_at,
+        })
+        .collect();
+
+    Ok(Json(simplified_results)).map_err(AppError)
 }
 
 use serde::Deserialize;
