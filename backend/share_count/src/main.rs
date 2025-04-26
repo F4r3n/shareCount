@@ -53,6 +53,7 @@ async fn main() -> anyhow::Result<()> {
 
 async fn serve(app: Router, port: u16) -> anyhow::Result<()> {
     let addr = SocketAddr::from(([127, 0, 0, 1], port));
+    println!("Backend run: 127.0.0.1:{}", port);
     let listener = tokio::net::TcpListener::bind(addr).await?;
     axum::serve(listener, app).await?;
     Ok(())

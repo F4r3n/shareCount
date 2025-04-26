@@ -1,8 +1,15 @@
 @import 'tailwindcss';
 @plugin '@tailwindcss/forms';
 @plugin '@tailwindcss/typography';
+@plugin "daisyui" {
+    themes: light --default, dark --prefersdark;
+    root: ":root";
+    include: ;
+    exclude: ;
+    prefix: ;
+    logs: true;
+  }
 
-
-body {
-    background-color: #303030;
-}
+  body {
+    background-color: var(--color-base-100);
+  }

@@ -1,4 +1,5 @@
 use crate::schema;
+use crate::schema::groups::{created_at, currency, name};
 pub use crate::state_server;
 use crate::Group;
 use axum::http::StatusCode;
@@ -6,6 +7,7 @@ use axum::{
     extract::{Path, Query, State},
     response::{IntoResponse, Json, Response},
 };
+use chrono::NaiveDateTime;
 use diesel::dsl::insert_into;
 use diesel::prelude::*;
 use schema::group_members;
@@ -34,26 +36,29 @@ where
     }
 }
 
+use serde::{Deserialize, Serialize};
+#[derive(Deserialize, Serialize, Queryable)]
+pub struct GroupResponse {
+    name: String,
+    currency: String,
+    created_at: NaiveDateTime,
+}
+
 pub async fn handler_users_groups(
     State(state_server): State<state_server::StateServer>,
     Path(user_id): Path<i32>,
-) -> Result<Json<Vec<Group>>, AppError> {
+) -> Result<Json<Vec<GroupResponse>>, AppError> {
     let mut conn = state_server.pool.get()?;
 
     let results = groups::table
         .inner_join(group_members::table.on(groups::id.eq(group_members::group_id)))
         .filter(group_members::user_id.eq(user_id))
-        .select(Group::as_select())
-        .load::<Group>(&mut conn)?;
+        .select((name, currency, created_at))
+        .load::<GroupResponse>(&mut conn)?;
 
     Ok(Json(results)).map_err(AppError)
 }
-#[derive(serde::Serialize)]
-pub struct GroupResponse {
-    name: String,
-    currency: String,
-    created_at: chrono::NaiveDateTime,
-}
+
 pub async fn handler_groups(
     State(state_server): State<state_server::StateServer>,
     Path(token): Path<String>,
@@ -61,23 +66,13 @@ pub async fn handler_groups(
     let mut conn = state_server.pool.get()?;
 
     let results = groups::table
+        .select((name, currency, created_at))
         .filter(groups::token.eq(token))
-        .select(Group::as_select())
-        .load::<Group>(&mut conn)?;
+        .load::<GroupResponse>(&mut conn)?;
 
-    let simplified_results: Vec<GroupResponse> = results
-        .iter()
-        .map(|group| GroupResponse {
-            name: group.name.clone(),
-            currency: group.currency.clone(),
-            created_at: group.created_at,
-        })
-        .collect();
-
-    Ok(Json(simplified_results)).map_err(AppError)
+    Ok(Json(results)).map_err(AppError)
 }
 
-use serde::Deserialize;
 #[derive(Deserialize)]
 pub struct CreateGroups {
     name: String,
