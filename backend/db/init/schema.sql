@@ -31,7 +31,7 @@ CREATE TABLE group_members (
 CREATE TABLE transactions (
   id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
   group_id INTEGER NOT NULL,
-  description TEXT,
+  description TEXT NOT NULL,
   amount INTEGER NOT NULL,
   paid_by INTEGER NOT NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

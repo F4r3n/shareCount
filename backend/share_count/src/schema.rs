@@ -33,7 +33,7 @@ diesel::table! {
     transactions (id) {
         id -> Integer,
         group_id -> Integer,
-        description -> Nullable<Text>,
+        description -> Text,
         amount -> Integer,
         paid_by -> Integer,
         created_at -> Timestamp,

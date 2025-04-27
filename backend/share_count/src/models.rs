@@ -44,7 +44,7 @@ pub struct GroupMember {
 pub struct Transaction {
     pub id: i32,
     pub group_id: i32,
-    pub description: Option<String>,
+    pub description: String,
     pub amount: i32,
     pub paid_by: i32,
     pub created_at: NaiveDateTime,

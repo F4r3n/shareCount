@@ -1,5 +1,9 @@
-use crate::schema;
-use crate::schema::groups::{created_at, currency, name};
+use std::collections::HashMap;
+
+use crate::schema::group_members;
+use crate::schema::groups;
+use crate::schema::transaction_debts;
+use crate::schema::transactions;
 pub use crate::state_server;
 use crate::Group;
 use axum::http::StatusCode;
@@ -10,8 +14,7 @@ use axum::{
 use chrono::NaiveDateTime;
 use diesel::dsl::insert_into;
 use diesel::prelude::*;
-use schema::group_members;
-use schema::groups;
+
 use uuid::Uuid;
 
 pub struct AppError(anyhow::Error);
@@ -53,7 +56,7 @@ pub async fn handler_users_groups(
     let results = groups::table
         .inner_join(group_members::table.on(groups::id.eq(group_members::group_id)))
         .filter(group_members::user_id.eq(user_id))
-        .select((name, currency, created_at))
+        .select((groups::name, groups::currency, groups::created_at))
         .load::<GroupResponse>(&mut conn)?;
 
     Ok(Json(results)).map_err(AppError)
@@ -66,7 +69,7 @@ pub async fn handler_groups(
     let mut conn = state_server.pool.get()?;
 
     let results = groups::table
-        .select((name, currency, created_at))
+        .select((groups::name, groups::currency, groups::created_at))
         .filter(groups::token.eq(token))
         .load::<GroupResponse>(&mut conn)?;
 
@@ -107,4 +110,82 @@ pub async fn handler_create_groups(
         .execute(&mut conn)?;
 
     Ok(Json(token)).map_err(AppError)
+}
+
+#[derive(Deserialize, Serialize, Queryable)]
+pub struct TransactionDebt {
+    amount: i32,
+    nickname: String,
+}
+
+#[derive(Deserialize, Serialize, Queryable)]
+pub struct TransactionResponse {
+    description: String,
+    currency: String,
+    paid_by: String,
+    created_at: NaiveDateTime,
+    amount: i32,
+    debtors: Vec<TransactionDebt>,
+}
+
+pub async fn handler_transactions(
+    State(state_server): State<state_server::StateServer>,
+    Path(token): Path<String>,
+) -> Result<Json<Vec<TransactionResponse>>, AppError> {
+    let mut conn = state_server.pool.get()?;
+
+    let transaction_result = groups::table
+        .inner_join(transactions::table.on(groups::id.eq(transactions::group_id)))
+        .inner_join(group_members::table.on(transactions::paid_by.eq(group_members::id)))
+        .select((
+            transactions::id,
+            transactions::description,
+            transactions::created_at,
+            transactions::amount,
+            groups::currency,
+            group_members::nickname,
+        ))
+        .filter(groups::token.eq(&token))
+        .load::<(i32, String, NaiveDateTime, i32, String, String)>(&mut conn)?;
+
+    let debts = transaction_debts::table
+        .inner_join(transactions::table.on(transaction_debts::transaction_id.eq(transactions::id)))
+        .inner_join(
+            group_members::table.on(transaction_debts::group_member_id.eq(group_members::id)),
+        )
+        .inner_join(groups::table.on(transactions::group_id.eq(groups::id)))
+        .filter(groups::token.eq(token))
+        .select((
+            transaction_debts::transaction_id,
+            transaction_debts::amount,
+            group_members::nickname,
+        ))
+        .load::<(i32, i32, String)>(&mut conn)?;
+
+    let mut map: HashMap<i32, TransactionResponse> = HashMap::new();
+    transaction_result
+        .into_iter()
+        .for_each(|(id, desc, time, amount, currency, nickname)| {
+            map.insert(
+                id,
+                TransactionResponse {
+                    description: desc,
+                    paid_by: nickname,
+                    created_at: time,
+                    currency,
+                    amount,
+                    debtors: Vec::new(),
+                },
+            );
+        });
+
+    debts.into_iter().for_each(|(id, amount, nickname)| {
+        if let Some(value) = map.get_mut(&id) {
+            value.debtors.push(TransactionDebt { amount, nickname });
+        }
+    });
+
+    let v = map.into_values().collect();
+
+    Ok(Json(v)).map_err(AppError)
 }

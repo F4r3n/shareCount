@@ -39,6 +39,10 @@ async fn main() -> anyhow::Result<()> {
             )
             .route("/groups/{token_id}", get(entrypoints::handler_groups))
             .route(
+                "/transactions/{token_id}",
+                get(entrypoints::handler_transactions),
+            )
+            .route(
                 "/groups/{token_id}",
                 post(entrypoints::handler_create_groups),
             )
