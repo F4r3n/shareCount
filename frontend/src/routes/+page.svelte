@@ -22,39 +22,32 @@
                 list_tokens = JSON.parse(list_tokens_string);
             }
             groups = [];
-            for(const token of list_tokens)
-            {
-                
+            for (const token of list_tokens) {
                 fetch(`http://127.0.0.1:4000/groups/${token}`, {
-                method: "GET",
-                credentials: "include", // include cookies if your backend sets any
-                headers: {
-                    "Content-Type": "application/json", // important for POST/JSON too
-                },
-            })
-                .then((res) => {
-                    if (!res.ok) throw new Error("Request failed");
-                    return res.json(); // or .text() depending on your response
+                    method: "GET",
+                    credentials: "include", // include cookies if your backend sets any
+                    headers: {
+                        "Content-Type": "application/json", // important for POST/JSON too
+                    },
                 })
-                .then((data) => {
-                    data = data[0];
-                    let group = {
-                        name: data.name,
-                        currency: data.currency,
-                        created_at: new Date(data.created_at),
-                        token:token
-                    };
-                    
-
-                    console.log(group)
-
-                    groups.push(group);
-                })
-                .catch((err) => {
-                    console.error("Error:", err);
-                });
+                    .then((res) => {
+                        if (!res.ok) throw new Error("Request failed");
+                        return res.json(); // or .text() depending on your response
+                    })
+                    .then((data) => {
+                        data = data[0];
+                        let group = {
+                            name: data.name,
+                            currency: data.currency,
+                            created_at: new Date(data.created_at),
+                            token: token,
+                        };
+                        groups.push(group);
+                    })
+                    .catch((err) => {
+                        console.error("Error:", err);
+                    });
             }
-
         }
     });
 </script>
@@ -80,7 +73,6 @@
     main {
         display: flex;
         width: 100%;
-        display: flex;
         justify-content: center;
     }
 
