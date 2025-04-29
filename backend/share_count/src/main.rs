@@ -26,7 +26,10 @@ async fn main() -> anyhow::Result<()> {
     // or see this issue https://github.com/tokio-rs/axum/issues/849
     let port = env::var("PORT")?.parse::<u16>()?;
     let cors_layer = CorsLayer::new()
-        .allow_origin(front_url.parse::<HeaderValue>()?)
+        .allow_origin(vec![
+            front_url.parse::<HeaderValue>()?,
+            "http://192.168.1.10:5173".parse::<HeaderValue>()?,
+        ])
         .allow_credentials(true)
         .allow_methods([
             axum::http::Method::GET,

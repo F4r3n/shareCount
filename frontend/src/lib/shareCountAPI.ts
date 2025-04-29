@@ -1,4 +1,4 @@
-import type {Group, Transaction, Debt} from "./types"
+import type {Group, Transaction} from "./types"
 const backendURL: string = import.meta.env.VITE_BACKEND_URL;
 
 export async function getGroup(tokenID : string)  : Promise<Group> {

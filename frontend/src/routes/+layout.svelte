@@ -13,11 +13,11 @@
 	onMount(()=>{
 		console.log(get(group_name));
 	})
-
+	let drawerState = $state(false)
 </script>
 
 <div class="drawer">
-	<input id="my-drawer-3" type="checkbox" class="drawer-toggle" />
+	<input id="my-drawer-3" type="checkbox" class="drawer-toggle" bind:checked={drawerState}/>
 	<div class="drawer-content flex flex-col">
 		<!-- Navbar -->
 		<div class="navbar bg-base-300 w-full banner">
@@ -42,9 +42,9 @@
 					</svg>
 				</label>
 			</div>
-			<div class="mx-2 flex-1 px-2">{`ShareCount${$group_name !== ""? ": "+$group_name : ""}`}</div>
+			<div class="mx-2 flex-1 px-2 lg:text-2xl md:text-xl sm:text-lg">{`ShareCount${$group_name !== ""? ": "+$group_name : ""}`}</div>
 			<div class="hidden flex-none lg:block">
-				<ul class="menu menu-horizontal">
+				<ul class="menu menu-horizontal lg:text-2xl md:text-xl sm:text-lg">
 					{#each sub_menus as sub}
 						<li>
 							<button
@@ -57,6 +57,7 @@
 									} else {
 										goto(`/?id=${page.url.searchParams.get("id")}`);
 									}
+									drawerState=false;
 								}}
 							>
 								{sub}
@@ -88,6 +89,7 @@
 							} else {
 								goto(`/id=${page.url.searchParams.get("id")}`);
 							}
+							drawerState=false;
 						}}
 					>
 						{sub}

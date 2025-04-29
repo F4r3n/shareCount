@@ -1,5 +1,5 @@
 <script lang="ts">
-    import type { Transaction, Debt } from "$lib/types";
+    import type { Transaction } from "$lib/types";
     import { onMount } from "svelte";
     import { slide } from "svelte/transition";
     import { CheckIcon, X, PencilIcon } from "lucide-svelte";
@@ -121,7 +121,7 @@
     {#if is_open}
         <div class="flex flex-col justify-between w-full pl-8" transition:slide>
             {#each transaction.debtors as debt}
-                <div class="flex flex-row mt-2 justify-between w-full">
+                <div class="flex flex-row mt-2 justify-between w-full items-center">
                     <div>{debt.nickname}</div>
                     {#if is_editing}
                         <input
