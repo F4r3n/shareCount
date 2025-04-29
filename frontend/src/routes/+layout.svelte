@@ -2,10 +2,18 @@
 	import "../app.css";
 	import { page } from "$app/state";
 	import { goto } from "$app/navigation";
+	import {group_name} from "$lib/store"
+	import {get} from "svelte/store"
+	import { onMount } from "svelte";
 
 	let { children } = $props();
 
 	let sub_menus: string[] = ["Transactions", "Statistics", "Groups"];
+
+	onMount(()=>{
+		console.log(get(group_name));
+	})
+
 </script>
 
 <div class="drawer">
@@ -34,10 +42,10 @@
 					</svg>
 				</label>
 			</div>
-			<div class="mx-2 flex-1 px-2">ShareCount</div>
+			<div class="mx-2 flex-1 px-2">{`ShareCount${$group_name !== ""? ": "+$group_name : ""}`}</div>
 			<div class="hidden flex-none lg:block">
 				<ul class="menu menu-horizontal">
-					{#each sub_menus as sub, index}
+					{#each sub_menus as sub}
 						<li>
 							<button
 								class="cursor-pointer"
@@ -68,7 +76,7 @@
 		></label>
 		<ul class="menu bg-base-200 min-h-full w-80 p-4">
 			<!-- Sidebar content here -->
-			{#each sub_menus as sub, index}
+			{#each sub_menus as sub}
 				<li>
 					<button
 						class="cursor-pointer"

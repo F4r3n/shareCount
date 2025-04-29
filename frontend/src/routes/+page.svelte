@@ -3,11 +3,13 @@
     import { goto } from "$app/navigation";
     import type { Group } from "$lib/types";
     import { getGroup } from "$lib/shareCountAPI";
+    import {group_name} from "$lib/store"
     let groups = $state([] as Group[]);
     let list_tokens: string[] = ["token_abc123"];
     let is_connected: boolean = false;
     onMount(async () => {
         let list_tokens_string;
+        group_name.set("");
 
         if (is_connected) {
             //get list groups
