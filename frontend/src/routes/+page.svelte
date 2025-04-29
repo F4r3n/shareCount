@@ -1,14 +1,9 @@
 <script lang="ts">
     import { onMount } from "svelte";
     import { goto } from "$app/navigation";
-    interface Group {
-        name: string;
-        currency: string;
-        created_at: Date;
-        token: string;
-    }
+    import type { Group } from "$lib/types";
+    import { getGroup } from "$lib/shareCountAPI";
     let groups = $state([] as Group[]);
-    const backendURL: string = import.meta.env.VITE_BACKEND_URL;
     let list_tokens: string[] = ["token_abc123"];
     let is_connected: boolean = false;
     onMount(async () => {
@@ -23,30 +18,9 @@
             }
             groups = [];
             for (const token of list_tokens) {
-                fetch(`http://127.0.0.1:4000/groups/${token}`, {
-                    method: "GET",
-                    credentials: "include", // include cookies if your backend sets any
-                    headers: {
-                        "Content-Type": "application/json", // important for POST/JSON too
-                    },
-                })
-                    .then((res) => {
-                        if (!res.ok) throw new Error("Request failed");
-                        return res.json(); // or .text() depending on your response
-                    })
-                    .then((data) => {
-                        data = data[0];
-                        let group = {
-                            name: data.name,
-                            currency: data.currency,
-                            created_at: new Date(data.created_at),
-                            token: token,
-                        };
-                        groups.push(group);
-                    })
-                    .catch((err) => {
-                        console.error("Error:", err);
-                    });
+                try {
+                    groups.push(await getGroup(token));
+                } catch (error) {}
             }
         }
     });

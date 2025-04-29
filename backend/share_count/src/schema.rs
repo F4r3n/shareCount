@@ -36,6 +36,7 @@ diesel::table! {
         description -> Text,
         amount -> Integer,
         paid_by -> Integer,
+        currency -> Text,
         created_at -> Timestamp,
     }
 }

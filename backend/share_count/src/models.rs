@@ -36,7 +36,9 @@ pub struct GroupMember {
     pub user_id: Option<i32>,
 }
 
-#[derive(Queryable, Identifiable, Selectable, Associations, Debug, Serialize, Insertable)]
+#[derive(
+    Queryable, Identifiable, Selectable, Associations, Debug, Serialize, Insertable, AsChangeset,
+)]
 #[diesel(belongs_to(Group))]
 #[diesel(belongs_to(GroupMember, foreign_key = paid_by))]
 #[diesel(table_name = crate::schema::transactions)]
@@ -47,6 +49,7 @@ pub struct Transaction {
     pub description: String,
     pub amount: i32,
     pub paid_by: i32,
+    pub currency: String,
     pub created_at: NaiveDateTime,
 }
 

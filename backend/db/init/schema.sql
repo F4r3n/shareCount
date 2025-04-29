@@ -34,6 +34,7 @@ CREATE TABLE transactions (
   description TEXT NOT NULL,
   amount INTEGER NOT NULL,
   paid_by INTEGER NOT NULL,
+  currency TEXT NOT NULL,           -- e.g., 'EUR', 'USD', 'JPY'
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (group_id) REFERENCES groups(id) ON DELETE CASCADE,
   FOREIGN KEY (paid_by) REFERENCES group_members(id)

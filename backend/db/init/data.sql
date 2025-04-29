@@ -25,16 +25,16 @@ VALUES
 
 -- TRANSACTIONS
 -- Transaction for "Travel Group"
-INSERT INTO transactions (group_id, description, amount, paid_by, created_at)
+INSERT INTO transactions (group_id, description, amount, paid_by, currency, created_at)
 VALUES 
-  (1, 'Hotel booking for group trip', 200, 1, CURRENT_TIMESTAMP),  -- Paid by John Doe
-  (1, 'Flight tickets for group trip', 500, 2, CURRENT_TIMESTAMP);  -- Paid by Alice Smith
+  (1, 'Hotel booking for group trip', 200, 1, 'USD', CURRENT_TIMESTAMP),  -- Paid by John Doe
+  (1, 'Flight tickets for group trip', 500, 2, 'USD', CURRENT_TIMESTAMP);  -- Paid by Alice Smith
 
 -- Transaction for "Foodies Group"
-INSERT INTO transactions (group_id, description, amount, paid_by, created_at)
+INSERT INTO transactions (group_id, description, amount, paid_by, currency, created_at)
 VALUES 
-  (2, 'Dinner at fancy restaurant', 100, 1, CURRENT_TIMESTAMP),  -- Paid by John Doe
-  (2, 'Cooking class for group', 150, 2, CURRENT_TIMESTAMP);  -- Paid by Alice Smith
+  (2, 'Dinner at fancy restaurant', 100, 1, 'USD',CURRENT_TIMESTAMP),  -- Paid by John Doe
+  (2, 'Cooking class for group', 150, 2, 'USD',CURRENT_TIMESTAMP);  -- Paid by Alice Smith
 
 -- TRANSACTION DEBTS
 -- Debts for "Travel Group"

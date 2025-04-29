@@ -7,7 +7,7 @@ use self::models::*;
 
 use axum::{
     http::HeaderValue,
-    routing::{get, post},
+    routing::{get, post, put},
     Router,
 };
 use std::net::SocketAddr;
@@ -28,7 +28,11 @@ async fn main() -> anyhow::Result<()> {
     let cors_layer = CorsLayer::new()
         .allow_origin(front_url.parse::<HeaderValue>()?)
         .allow_credentials(true)
-        .allow_methods([axum::http::Method::GET, axum::http::Method::POST])
+        .allow_methods([
+            axum::http::Method::GET,
+            axum::http::Method::POST,
+            axum::http::Method::PUT,
+        ])
         .allow_headers([axum::http::header::CONTENT_TYPE]);
 
     let backend = async {
@@ -41,6 +45,10 @@ async fn main() -> anyhow::Result<()> {
             .route(
                 "/transactions/{token_id}",
                 get(entrypoints::handler_transactions),
+            )
+            .route(
+                "/transaction/{transaction_id}",
+                put(entrypoints::handler_put_transaction),
             )
             .route(
                 "/groups/{token_id}",
