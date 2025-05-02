@@ -7,7 +7,7 @@ use self::models::*;
 
 use axum::{
     http::HeaderValue,
-    routing::{get, post, put},
+    routing::{get, post},
     Router,
 };
 use std::net::SocketAddr;
@@ -50,12 +50,16 @@ async fn main() -> anyhow::Result<()> {
                 get(entrypoints::handler_transactions),
             )
             .route(
-                "/transaction/{transaction_id}",
-                put(entrypoints::handler_put_transaction),
+                "/groups/{token_id}/transactions/{transaction_id}",
+                post(entrypoints::handler_post_transaction),
             )
             .route(
                 "/groups/{token_id}",
                 post(entrypoints::handler_create_groups),
+            )
+            .route(
+                "/groups/{token_id}/group_members",
+                get(entrypoints::handler_group_members),
             )
             .with_state(state_server)
             .layer(cors_layer);

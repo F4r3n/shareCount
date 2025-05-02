@@ -1,22 +1,78 @@
 <script lang="ts">
-    import type { Transaction } from "$lib/types";
+    import type { Transaction, Debt } from "$lib/types";
     import { onMount } from "svelte";
     import { slide } from "svelte/transition";
     import { CheckIcon, X, PencilIcon } from "lucide-svelte";
-    let { transaction }: { transaction: Transaction } = $props();
-    let original_transaction: Transaction = $state.snapshot(
+
+    let {
         transaction,
-    ) as Transaction;
+        members,
+        onSave
+    }: { transaction: Transaction, members: string[], onSave : (tx : Transaction)=>void } = $props();
+    let modified_transaction: Transaction = $state($state.snapshot(
+        transaction,
+    ) as Transaction);
+
+    class DebtContainer {
+        activated : boolean = $state(false)
+        debt : Debt
+        constructor(debt : Debt, activated : boolean) {
+            this.debt = debt;
+            this.activated = activated;
+            if(!this.activated)
+                this.activated = this.debt.amount > 0;
+        }
+
+        setDebt(inDebt : Debt) {
+            this.debt = inDebt;
+        }
+    }
 
     let is_open: boolean = $state(false);
     let is_same: boolean = $state(true);
     let is_editing: boolean = $state(false);
+    let mapDebt: Map<string, DebtContainer> = $state(new Map());
 
-    onMount(() => {});
+    function updateDebtors(newAmount: number) {
+        let number_people = 0;
+        for (const [key, debtContainer] of mapDebt) {
+            number_people += debtContainer.activated ? 1 : 0;
+        }
+
+        for (const [key, debtContainer] of mapDebt) {
+            if (debtContainer.activated) {
+                debtContainer.debt.amount = newAmount / number_people;
+            }
+            else {
+                debtContainer.debt.amount = 0;
+            }
+        }
+        for(let debtor of modified_transaction.debtors) {
+            const updatedDebt = mapDebt.get(debtor.nickname);
+            if(updatedDebt) {
+                debtor = updatedDebt.debt;
+            }
+        }
+        
+        console.log($state.snapshot(modified_transaction))
+    }
+
+    onMount(() => {
+        for (const member of members) {
+            mapDebt.set(member, new DebtContainer({nickname:member, amount:0} as Debt, false));
+        }
+
+        for (const debt of modified_transaction.debtors) {
+            mapDebt.set(debt.nickname, new DebtContainer(debt, true));
+            console.log(Object.is(debt, mapDebt.get(debt.nickname)?.debt))
+        }
+
+
+    });
 
     function hasChanged(): boolean {
         return (
-            JSON.stringify(original_transaction) ===
+            JSON.stringify($state.snapshot(modified_transaction)) ===
             JSON.stringify($state.snapshot(transaction))
         );
     }
@@ -30,7 +86,7 @@
                     type="text"
                     placeholder="Type here"
                     class="input input-ghost lg:text-2xl md:text-xl sm:text-lg flex-grow"
-                    bind:value={transaction.description}
+                    bind:value={modified_transaction.description}
                 />
 
                 <div class="flex items-center sm:text-lg">
@@ -38,13 +94,16 @@
                         type="number"
                         placeholder="Type here"
                         class="input input-ghost"
-                        bind:value={transaction.amount}
+                        bind:value={modified_transaction.amount}
+                        onchange={() => {
+                            updateDebtors(modified_transaction.amount);
+                        }}
                     />
                     <input
                         type="text"
                         placeholder="Type here"
                         class="input input-ghost"
-                        bind:value={transaction.currency}
+                        bind:value={modified_transaction.currency}
                     />
                 </div>
             </div>
@@ -55,17 +114,17 @@
                 onclick={() => {
                     is_open = !is_open;
                     is_editing = false;
-                    Object.assign(transaction, original_transaction);
+                    Object.assign(modified_transaction, transaction);
                 }}
             >
                 <div
                     class="flex flex-row items-center gap-x-2 lg:text-2xl md:text-xl sm:text-lg flex-grow"
                 >
-                    <div class="truncate">{transaction.description}</div>
+                    <div class="truncate">{modified_transaction.description}</div>
                 </div>
                 <div class="flex items-center sm:text-lg">
-                    <div>{transaction.amount}</div>
-                    <div>{transaction.currency}</div>
+                    <div>{modified_transaction.amount}</div>
+                    <div>{modified_transaction.currency}</div>
                 </div>
             </button>
         {/if}
@@ -78,11 +137,13 @@
                 class="ml-2 p-1 rounded-full flex items-center justify-center
                hover:bg-green-100 focus:outline-none focus:ring-2 focus:ring-green-400 transition"
                 onclick={() => {
-                    original_transaction = $state.snapshot(
-                        transaction,
-                    ) as Transaction;
+                    //TODO: Send event to parent
                     is_same = hasChanged();
                     is_editing = false;
+                    console.log($state.snapshot(modified_transaction))
+                    if(!is_same) {
+                        onSave($state.snapshot(modified_transaction) as Transaction)
+                    }
                 }}
             >
                 <CheckIcon
@@ -95,7 +156,7 @@
                 aria-label="Reject"
                 class="ml-2 p-1 rounded-full flex items-center justify-center hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-red-400 transition"
                 onclick={() => {
-                    Object.assign(transaction, original_transaction);
+                    Object.assign(modified_transaction, transaction);
                     is_same = hasChanged();
                     is_editing = false;
                     is_open = false;
@@ -120,27 +181,44 @@
 
     {#if is_open}
         <div class="flex flex-col justify-between w-full pl-8" transition:slide>
-            {#each transaction.debtors as debt}
-                <div class="flex flex-row mt-2 justify-between w-full items-center">
-                    <div>{debt.nickname}</div>
+            {#each mapDebt as [nickname, debtContainer]}
+                <div
+                    class="flex flex-row mt-2 justify-between w-full items-center"
+                >
                     {#if is_editing}
-                        <input
-                            type="number"
-                            class="input validator"
-                            required
-                            placeholder={String(debt.amount)}
-                            min="0"
-                            max={transaction.amount}
-                            title="Must be between be 0 to {String(
-                                transaction.amount,
-                            )}"
-                            bind:value={debt.amount}
-                            onchange={() => {
-                                is_same = hasChanged();
-                            }}
-                        />
+                        <label class="label">
+                            <input
+                                type="checkbox"
+                                class="checkbox"
+                                bind:checked={debtContainer.activated}
+                                onchange={(event) => {
+                                    updateDebtors(modified_transaction.amount);
+                                }}
+                            />
+                            {nickname}
+                        </label>
+                        {#if debtContainer.debt.amount >= 0}
+                            <input
+                                type="number"
+                                class="input validator"
+                                required
+                                placeholder={String(debtContainer.debt.amount)}
+                                min="0"
+                                max={modified_transaction.amount}
+                                title="Must be between be 0 to {String(
+                                    modified_transaction.amount,
+                                )}"
+                                bind:value={debtContainer.debt.amount}
+                                onchange={() => {
+                                    is_same = hasChanged();
+                                }}
+                            />
+                        {:else}
+                            <div>0</div>
+                        {/if}
                     {:else}
-                        <div>{debt.amount}</div>
+                        <div>{debtContainer.debt.nickname}</div>
+                        <div>{debtContainer.debt.amount}</div>
                     {/if}
                 </div>
             {/each}

@@ -51,3 +51,51 @@ export async function getTransactions(tokenID : string) : Promise<Transaction[]>
         throw err; // re-throw so the caller can handle the error
     }
 }
+
+
+export async function getGroupMembers(tokenID : string) : Promise<string[]> {
+    try {
+        const res = await fetch(`http://${backendURL}/groups/${tokenID}/group_members`, {
+            method: "GET",
+            credentials: "include",
+            headers: {
+                "Content-Type": "application/json",
+            },
+        });
+
+        if (!res.ok) {
+            throw new Error("Request failed");
+        }
+
+        const data = await res.json();
+        let members: string[] = data;
+        return members;
+        
+    } catch (err) {
+        console.error("Error:", err);
+        throw err; // re-throw so the caller can handle the error
+    }
+}
+
+export async function updateTransaction(tokenID : string, inTransaction : Transaction) {
+    try {
+        console.log("UPDATE")
+        const res = await fetch(`http://${backendURL}/groups/${tokenID}/transactions/${inTransaction.id}`, {
+            method: "POST",
+            credentials: "include",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify(inTransaction)
+        });
+
+        if (!res.ok) {
+            throw new Error("Request failed");
+        }
+        
+    } catch (err) {
+        console.error("Error:", err);
+        throw err; // re-throw so the caller can handle the error
+    }
+}
+

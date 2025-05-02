@@ -1,10 +1,10 @@
+use bigdecimal::BigDecimal;
 use chrono::NaiveDateTime;
 use diesel::prelude::*;
 use serde::Serialize;
-
 #[derive(Queryable, Identifiable, Selectable, Debug, Serialize, Insertable)]
 #[diesel(table_name = crate::schema::users)]
-#[diesel(check_for_backend(diesel::sqlite::Sqlite))]
+#[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct User {
     pub id: i32,
     pub name: String,
@@ -15,7 +15,7 @@ pub struct User {
 
 #[derive(Queryable, PartialEq, Debug, Selectable, Identifiable, Serialize, Insertable)]
 #[diesel(table_name = crate::schema::groups)]
-#[diesel(check_for_backend(diesel::sqlite::Sqlite))]
+#[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct Group {
     pub id: i32,
     pub name: String,
@@ -28,7 +28,7 @@ pub struct Group {
 #[diesel(belongs_to(Group))]
 #[diesel(belongs_to(User))]
 #[diesel(table_name = crate::schema::group_members)]
-#[diesel(check_for_backend(diesel::sqlite::Sqlite))]
+#[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct GroupMember {
     pub id: i32,
     pub group_id: i32,
@@ -42,12 +42,12 @@ pub struct GroupMember {
 #[diesel(belongs_to(Group))]
 #[diesel(belongs_to(GroupMember, foreign_key = paid_by))]
 #[diesel(table_name = crate::schema::transactions)]
-#[diesel(check_for_backend(diesel::sqlite::Sqlite))]
+#[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct Transaction {
     pub id: i32,
     pub group_id: i32,
     pub description: String,
-    pub amount: i32,
+    pub amount: BigDecimal,
     pub paid_by: i32,
     pub currency: String,
     pub created_at: NaiveDateTime,
@@ -57,10 +57,10 @@ pub struct Transaction {
 #[diesel(belongs_to(Transaction))]
 #[diesel(belongs_to(GroupMember, foreign_key = group_member_id))]
 #[diesel(table_name = crate::schema::transaction_debts)]
-#[diesel(check_for_backend(diesel::sqlite::Sqlite))]
+#[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct TransactionDebt {
     pub id: i32,
     pub transaction_id: i32,
     pub group_member_id: i32,
-    pub amount: i32,
+    pub amount: BigDecimal,
 }

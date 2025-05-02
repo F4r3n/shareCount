@@ -1,41 +1,58 @@
 <script lang="ts">
     import { onMount } from "svelte";
-    import type { Transaction } from "$lib/types";
+    import type { Debt, Transaction } from "$lib/types";
     import TransactionView from "$lib/TransactionView.svelte";
-
-    let { transactions }: { transactions: Transaction[] } = $props();
+    import {updateTransaction} from "$lib/shareCountAPI"
+    let {
+        transactions,
+        main_currency,
+        members,
+        token
+    }: {
+        transactions: Transaction[];
+        main_currency: string | undefined;
+        members: string[];
+        token : string | null
+    } = $props();
+    let creating_transaction: Transaction | null = null;
     onMount(async () => {});
-    let creating : boolean = $state(false);
+    let creating: boolean = $state(false);
 </script>
 
 <div class="flex flex-col h-dvh">
     <div class="transactions">
         <div class="flex flex-col w-full md:w-8/12">
             {#each transactions as transaction}
-                <TransactionView {transaction}></TransactionView>
+                <TransactionView {transaction} {members} onSave={async (newTransaction : Transaction)=>{
+                    try
+                    {
+                        await updateTransaction(token??"", newTransaction);
+                    }
+                    catch(e) {
+                        console.log(e);
+                    }
+                }}></TransactionView>
             {/each}
         </div>
     </div>
 
-    {#if creating}
-    <div class="card bg-base-100 w-full max-w-sm shrink-0 shadow-2xl">
-        <div class="card-body">
-          <fieldset class="fieldset">
-            <label class="label">Email</label>
-            <input type="email" class="input" placeholder="Email" />
-            <label class="label">Password</label>
-            <input type="password" class="input" placeholder="Password" />
-            <div><a class="link link-hover">Forgot password?</a></div>
-            <button class="btn btn-neutral mt-4">Save</button>
-            <button class="btn btn-neutral mt-4" onclick={()=>{creating=false;}}>Close</button>
-          </fieldset>
-        </div>
-      </div>
-    {/if}
-    <button class="btn btn-accent md:w-1/3 mx-auto add-button" onclick={()=>{creating=true;}}>
+    <button
+        class="btn btn-accent md:w-1/3 mx-auto add-button mt-5"
+        onclick={() => {
+            creating = true;
+            creating_transaction = {
+                id: -1,
+                amount: 0,
+                currency: main_currency ?? "USD",
+                created_at: new Date().getTime(),
+                debtors: [] as Debt[],
+                description: "",
+                paid_by: "",
+            };
+        }}
+    >
         Add transaction
     </button>
-
 </div>
 
 <style>
@@ -44,7 +61,6 @@
         width: 100%;
         justify-content: center;
         overflow-y: auto;
-        flex-grow: 1;
     }
 
     .add-button {

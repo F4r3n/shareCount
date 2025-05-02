@@ -4,7 +4,7 @@
     import type { Transaction, Group } from "../../lib/types";
     import TransactionsView from "$lib/TransactionsView.svelte";
 
-    import { getGroup, getTransactions } from "$lib/shareCountAPI";
+    import { getGroup, getGroupMembers, getTransactions } from "$lib/shareCountAPI";
     import { group_name } from "$lib/store";
 
     const current_token = page.url.searchParams.get("id");
@@ -13,11 +13,14 @@
     let transactions: Transaction[] = $state([]);
     let group_info: Group | null = $state(null);
     let current_error : string = $state("");
+    let group_members : string[] = [];
     onMount(async () => {
         if (current_token) {
             try {
                 group_info = await getGroup(current_token);
                 transactions = await getTransactions(current_token);
+                group_members = await getGroupMembers(current_token);
+
                 if(group_info) {
                     group_name.set(group_info.name);
                 }
@@ -38,7 +41,7 @@
 {/if}
 
 {#if cat === "Transactions"}
-    <TransactionsView {transactions}></TransactionsView>
+    <TransactionsView {transactions} main_currency={group_info?.currency} members={group_members} token={current_token}></TransactionsView>
 {/if}
 
 <style>

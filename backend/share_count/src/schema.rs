@@ -34,7 +34,7 @@ diesel::table! {
         id -> Integer,
         group_id -> Integer,
         description -> Text,
-        amount -> Integer,
+        amount -> Numeric,
         paid_by -> Integer,
         currency -> Text,
         created_at -> Timestamp,
@@ -46,7 +46,7 @@ diesel::table! {
         id -> Integer,
         transaction_id -> Integer,
         group_member_id -> Integer,
-        amount -> Integer,
+        amount -> Numeric,
     }
 }
 
