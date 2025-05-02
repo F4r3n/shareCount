@@ -1,7 +1,7 @@
 
 export interface Debt {
     id : number,
-    amount : number,
+    amount : string,
     nickname : string
 }
 
@@ -11,7 +11,7 @@ export interface Transaction {
     currency : string,
     paid_by: String,
     created_at: number
-    amount : number,
+    amount : string,
     debtors : Debt[]
 }
 

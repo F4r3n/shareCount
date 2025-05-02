@@ -42,7 +42,7 @@
             creating = true;
             creating_transaction = {
                 id: -1,
-                amount: 0,
+                amount: "0",
                 currency: main_currency ?? "USD",
                 created_at: new Date().getTime(),
                 debtors: [] as Debt[],

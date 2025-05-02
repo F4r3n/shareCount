@@ -2,7 +2,7 @@
     import type { Transaction, Debt } from "$lib/types";
     import { onMount } from "svelte";
     import { slide } from "svelte/transition";
-    import { CheckIcon, X, PencilIcon } from "lucide-svelte";
+    import { CheckIcon, X, PencilIcon, Ambulance } from "lucide-svelte";
 
     let {
         transaction,
@@ -20,7 +20,7 @@
             this.debt = debt;
             this.activated = activated;
             if(!this.activated)
-                this.activated = this.debt.amount > 0;
+                this.activated = parseFloat(this.debt.amount) > 0;
         }
 
         setDebt(inDebt : Debt) {
@@ -33,7 +33,9 @@
     let is_editing: boolean = $state(false);
     let mapDebt: Map<string, DebtContainer> = $state(new Map());
 
-    function updateDebtors(newAmount: number) {
+    function updateDebtors(newAmount: string) {
+        //TODO convert with big number
+        let amount = parseFloat(newAmount);
         let number_people = 0;
         for (const [key, debtContainer] of mapDebt) {
             number_people += debtContainer.activated ? 1 : 0;
@@ -41,16 +43,16 @@
 
         for (const [key, debtContainer] of mapDebt) {
             if (debtContainer.activated) {
-                debtContainer.debt.amount = newAmount / number_people;
+                debtContainer.debt.amount = String(amount / number_people);
             }
             else {
-                debtContainer.debt.amount = 0;
+                debtContainer.debt.amount = "0";
             }
         }
-        for(let debtor of modified_transaction.debtors) {
-            const updatedDebt = mapDebt.get(debtor.nickname);
+        for(let i = 0; i < modified_transaction.debtors.length; ++i) {
+            const updatedDebt = mapDebt.get(modified_transaction.debtors[i].nickname);
             if(updatedDebt) {
-                debtor = updatedDebt.debt;
+                modified_transaction.debtors[i] = updatedDebt.debt;
             }
         }
         
@@ -59,7 +61,7 @@
 
     onMount(() => {
         for (const member of members) {
-            mapDebt.set(member, new DebtContainer({nickname:member, amount:0} as Debt, false));
+            mapDebt.set(member, new DebtContainer({nickname:member, amount:"0"} as Debt, false));
         }
 
         for (const debt of modified_transaction.debtors) {
@@ -197,7 +199,7 @@
                             />
                             {nickname}
                         </label>
-                        {#if debtContainer.debt.amount >= 0}
+                        {#if parseFloat(debtContainer.debt.amount) >= 0}
                             <input
                                 type="number"
                                 class="input validator"
