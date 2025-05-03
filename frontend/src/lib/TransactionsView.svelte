@@ -2,17 +2,17 @@
     import { onMount } from "svelte";
     import type { Debt, Transaction } from "$lib/types";
     import TransactionView from "$lib/TransactionView.svelte";
-    import {updateTransaction} from "$lib/shareCountAPI"
+    import { updateTransaction } from "$lib/shareCountAPI";
     let {
         transactions,
         main_currency,
         members,
-        token
+        token,
     }: {
         transactions: Transaction[];
         main_currency: string | undefined;
         members: string[];
-        token : string | null
+        token: string | null;
     } = $props();
     let creating_transaction: Transaction | null = null;
     onMount(async () => {});
@@ -23,16 +23,37 @@
     <div class="transactions">
         <div class="flex flex-col w-full md:w-8/12">
             {#each transactions as transaction}
-                <TransactionView {transaction} {members} onSave={async (newTransaction : Transaction)=>{
-                    try
-                    {
-                        await updateTransaction(token??"", newTransaction);
-                    }
-                    catch(e) {
-                        console.log(e);
-                    }
-                }}></TransactionView>
+                <TransactionView
+                    {transaction}
+                    {members}
+                    is_editing={false}
+                    is_open={false}
+                    onSave={async (newTransaction: Transaction) => {
+                        try {
+                            await updateTransaction(
+                                token ?? "",
+                                newTransaction,
+                            );
+                        } catch (e) {
+                            console.log(e);
+                        }
+                    }}
+                ></TransactionView>
             {/each}
+            {#if creating && creating_transaction}
+                <TransactionView
+                    transaction={creating_transaction}
+                    {members}
+                    is_editing={true}
+                    is_open={true}
+                    onSave={async (newTransaction: Transaction) => {
+                        try {
+                        } catch (e) {
+                            console.log(e);
+                        }
+                    }}
+                ></TransactionView>
+            {/if}
         </div>
     </div>
 

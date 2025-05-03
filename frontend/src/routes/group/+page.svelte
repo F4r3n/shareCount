@@ -6,14 +6,15 @@
 
     import { getGroup, getGroupMembers, getTransactions } from "$lib/shareCountAPI";
     import { group_name } from "$lib/store";
+    import {MENU, menus} from "$lib/menus"
 
     const current_token = page.url.searchParams.get("id");
-    const cat = $derived(page.url.searchParams.get("cat") ?? "Transactions");
+    const cat = $derived(page.url.searchParams.get("cat") ?? menus[MENU.TRANSACTION].name);
 
     let transactions: Transaction[] = $state([]);
     let group_info: Group | null = $state(null);
     let current_error : string = $state("");
-    let group_members : string[] = [];
+    let group_members : string[] = $state([]);
     onMount(async () => {
         if (current_token) {
             try {

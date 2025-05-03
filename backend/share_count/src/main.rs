@@ -3,18 +3,15 @@ pub mod entrypoints;
 pub mod models;
 pub mod schema;
 pub mod state_server;
-use self::models::*;
 
-use axum::{
-    http::HeaderValue,
-    routing::{get, post},
-    Router,
-};
+use axum::Router;
 use std::net::SocketAddr;
-use tower_http::cors::CorsLayer;
+pub mod router;
+use dotenvy::dotenv;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    dotenv().ok();
     let connection = state_server::establish_connection()?;
     let state_server = state_server::StateServer { pool: connection };
     let front_url = env::var("FRONT_URL")?;
@@ -25,44 +22,8 @@ async fn main() -> anyhow::Result<()> {
     // it is required to add ".allow_headers([http::header::CONTENT_TYPE])"
     // or see this issue https://github.com/tokio-rs/axum/issues/849
     let port = env::var("PORT")?.parse::<u16>()?;
-    let cors_layer = CorsLayer::new()
-        .allow_origin(vec![
-            front_url.parse::<HeaderValue>()?,
-            "http://192.168.1.10:5173".parse::<HeaderValue>()?,
-        ])
-        .allow_credentials(true)
-        .allow_methods([
-            axum::http::Method::GET,
-            axum::http::Method::POST,
-            axum::http::Method::PUT,
-        ])
-        .allow_headers([axum::http::header::CONTENT_TYPE]);
-
+    let app: Router = router::create_router(&front_url, state_server)?;
     let backend = async {
-        let app = Router::new()
-            .route(
-                "/users/{user_id}/groups",
-                get(entrypoints::handler_users_groups),
-            )
-            .route("/groups/{token_id}", get(entrypoints::handler_groups))
-            .route(
-                "/transactions/{token_id}",
-                get(entrypoints::handler_transactions),
-            )
-            .route(
-                "/groups/{token_id}/transactions/{transaction_id}",
-                post(entrypoints::handler_post_transaction),
-            )
-            .route(
-                "/groups/{token_id}",
-                post(entrypoints::handler_create_groups),
-            )
-            .route(
-                "/groups/{token_id}/group_members",
-                get(entrypoints::handler_group_members),
-            )
-            .with_state(state_server)
-            .layer(cors_layer);
         let _ = serve(app, port).await;
     };
 

@@ -3,7 +3,6 @@ use crate::schema::groups;
 use crate::schema::transaction_debts;
 use crate::schema::transactions;
 pub use crate::state_server;
-use crate::Group;
 use axum::http::StatusCode;
 use axum::{
     extract::{Path, Query, State},
@@ -40,7 +39,7 @@ where
 }
 
 use serde::{Deserialize, Serialize};
-#[derive(Deserialize, Serialize, Queryable)]
+#[derive(Deserialize, Serialize, Queryable, Debug)]
 pub struct GroupResponse {
     name: String,
     currency: String,
@@ -88,6 +87,16 @@ pub async fn handler_create_groups(
 ) -> Result<Json<String>, AppError> {
     let mut conn = state_server.pool.get()?;
     let token = Uuid::new_v4().to_string();
+
+    #[derive(Queryable, PartialEq, Debug, Selectable, Identifiable, Serialize, Insertable)]
+    struct Group {
+        id: i32,
+        name: String,
+        currency: String,
+        token: String,
+        created_at: NaiveDateTime,
+    }
+
     let result = insert_into(groups::table)
         .values((
             groups::dsl::name.eq(create.name),
@@ -206,7 +215,7 @@ pub async fn handler_transactions(
     Ok(Json(v)).map_err(AppError)
 }
 
-#[derive(Debug, AsChangeset)]
+#[derive(Debug, AsChangeset, Insertable)]
 #[diesel(table_name = crate::schema::transactions)]
 pub struct TransactionChangeset {
     pub description: String,
@@ -244,49 +253,64 @@ pub struct TransactionQuery {
 
 pub async fn handler_post_transaction(
     State(state_server): State<state_server::StateServer>,
-    Path((token, transaction_id)): Path<(String, i32)>,
+    Path((token, transaction_id)): Path<(String, Option<i32>)>,
     Json(payload): Json<TransactionQuery>,
 ) -> Result<(), AppError> {
     dbg!(&payload);
 
     let mut conn = state_server.pool.get()?;
+    conn.transaction::<_, anyhow::Error, _>(|conn| {
+        let group_member_id = group_members::table
+            .select(group_members::id)
+            .inner_join(groups::table.on(groups::id.eq(group_members::id)))
+            .filter(groups::token.eq(token))
+            .get_result::<i32>(conn)?;
 
-    let group_member_id = group_members::table
-        .select(group_members::id)
-        .inner_join(groups::table.on(groups::id.eq(group_members::id)))
-        .filter(groups::token.eq(token))
-        .get_result::<i32>(&mut conn)?;
-
-    let changeset = TransactionChangeset {
-        description: payload.description,
-        amount: payload.amount,
-        paid_by: group_member_id,
-        currency: payload.currency,
-        created_at: payload.created_at,
-    };
-
-    diesel::update(transactions::table)
-        .filter(transactions::id.eq(transaction_id))
-        .set(&changeset)
-        .execute(&mut conn)?;
-
-    for debt in payload.debtors {
-        dbg!(&debt);
-
-        // Create the upsert struct with ID and amount
-        let upsert = TransactionDebtUpsert {
-            id: debt.id,
-            transaction_id,
-            group_member_id,
-            amount: debt.amount,
+        let changeset = TransactionChangeset {
+            description: payload.description,
+            amount: payload.amount,
+            paid_by: group_member_id,
+            currency: payload.currency,
+            created_at: payload.created_at,
         };
+
+        let transaction_id = match transaction_id {
+            Some(id) => {
+                diesel::update(transactions::table)
+                    .filter(transactions::id.eq(id))
+                    .set(&changeset)
+                    .execute(conn)?;
+                id
+            }
+            None => diesel::insert_into(transactions::table)
+                .values(&changeset)
+                .returning(transactions::id)
+                .get_result::<i32>(conn)?,
+        };
+
+        let debts = payload
+            .debtors
+            .into_iter()
+            .map(|debt| {
+                TransactionDebtUpsert {
+                    transaction_id,
+                    group_member_id,
+                    amount: debt.amount,
+                    // Include ID only for updates
+                    id: debt.id,
+                }
+            })
+            .collect::<Vec<_>>();
+
         diesel::insert_into(transaction_debts::table)
-            .values(&upsert)
-            .on_conflict(transaction_debts::id) // Conflict on the `id` column
+            .values(&debts)
+            .on_conflict((transaction_debts::id, transaction_debts::transaction_id))
             .do_update()
             .set(transaction_debts::amount.eq(diesel::upsert::excluded(transaction_debts::amount)))
-            .execute(&mut conn)?;
-    }
+            .execute(conn)?;
+        Ok(())
+    })
+    .map_err(AppError)?;
 
     Ok(()).map_err(AppError)
 }

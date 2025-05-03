@@ -16,3 +16,7 @@ anyhow = "1.0.98"
 uuid = { version = "1.16.0", features = ["v4"] }
 bigdecimal = { version = "0.4.8", features = ["serde"] }
 pq-sys = "0.7.1"
+
+[dev-dependencies]
+axum-test = "17.3.0"
+diesel_migrations = { version = "2.2.0", features = ["postgres"] }

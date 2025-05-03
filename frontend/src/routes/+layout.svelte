@@ -5,10 +5,9 @@
 	import {group_name} from "$lib/store"
 	import {get} from "svelte/store"
 	import { onMount } from "svelte";
-
+	import {MENU, menus} from "$lib/menus"
 	let { children } = $props();
 
-	let sub_menus: string[] = ["Transactions", "Statistics", "Groups"];
 
 	onMount(()=>{
 		console.log(get(group_name));
@@ -45,14 +44,14 @@
 			<div class="mx-2 flex-1 px-2 lg:text-2xl md:text-xl sm:text-lg">{`ShareCount${$group_name !== ""? ": "+$group_name : ""}`}</div>
 			<div class="hidden flex-none lg:block">
 				<ul class="menu menu-horizontal lg:text-2xl md:text-xl sm:text-lg">
-					{#each sub_menus as sub}
+					{#each menus as sub}
 						<li>
 							<button
 								class="cursor-pointer"
 								onclick={() => {
-									if (sub !== "Groups") {
+									if (sub.type !== MENU.GROUPS) {
 										goto(
-											`/group?id=${page.url.searchParams.get("id")}&cat=${sub}`,
+											`/group?id=${page.url.searchParams.get("id")}&cat=${sub.name}`,
 										);
 									} else {
 										goto(`/?id=${page.url.searchParams.get("id")}`);
@@ -60,7 +59,7 @@
 									drawerState=false;
 								}}
 							>
-								{sub}
+								{sub.name}
 							</button>
 						</li>
 					{/each}
@@ -77,14 +76,14 @@
 		></label>
 		<ul class="menu bg-base-200 min-h-full w-80 p-4">
 			<!-- Sidebar content here -->
-			{#each sub_menus as sub}
+			{#each menus as sub}
 				<li>
 					<button
 						class="cursor-pointer"
 						onclick={() => {
-							if (sub !== "Groups") {
+							if (sub.type !== MENU.GROUPS) {
 								goto(
-									`/group?id=${page.url.searchParams.get("id")}&cat=${sub}`,
+									`/group?id=${page.url.searchParams.get("id")}&cat=${sub.name}`,
 								);
 							} else {
 								goto(`/id=${page.url.searchParams.get("id")}`);
@@ -92,7 +91,7 @@
 							drawerState=false;
 						}}
 					>
-						{sub}
+						{sub.name}
 					</button>
 				</li>
 			{/each}

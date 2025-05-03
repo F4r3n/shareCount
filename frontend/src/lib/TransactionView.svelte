@@ -2,20 +2,22 @@
     import type { Transaction, Debt } from "$lib/types";
     import { onMount } from "svelte";
     import { slide } from "svelte/transition";
-    import { CheckIcon, X, PencilIcon, Ambulance } from "lucide-svelte";
-
+    import { CheckIcon, X, PencilIcon } from "lucide-svelte";
+    import {SvelteMap} from "svelte/reactivity"
     let {
         transaction,
         members,
+        is_editing,
+        is_open,
         onSave
-    }: { transaction: Transaction, members: string[], onSave : (tx : Transaction)=>void } = $props();
+    }: { transaction: Transaction, members: string[], is_editing : boolean, is_open : boolean, onSave : (tx : Transaction)=>void } = $props();
     let modified_transaction: Transaction = $state($state.snapshot(
         transaction,
     ) as Transaction);
 
     class DebtContainer {
         activated : boolean = $state(false)
-        debt : Debt
+        debt = $state({ nickname: "", amount: "0" } as Debt);
         constructor(debt : Debt, activated : boolean) {
             this.debt = debt;
             this.activated = activated;
@@ -28,10 +30,8 @@
         }
     }
 
-    let is_open: boolean = $state(false);
     let is_same: boolean = $state(true);
-    let is_editing: boolean = $state(false);
-    let mapDebt: Map<string, DebtContainer> = $state(new Map());
+    let mapDebt: SvelteMap<string, DebtContainer> = $state(new SvelteMap());
 
     function updateDebtors(newAmount: string) {
         //TODO convert with big number
@@ -55,8 +55,6 @@
                 modified_transaction.debtors[i] = updatedDebt.debt;
             }
         }
-        
-        console.log($state.snapshot(modified_transaction))
     }
 
     onMount(() => {
@@ -66,10 +64,7 @@
 
         for (const debt of modified_transaction.debtors) {
             mapDebt.set(debt.nickname, new DebtContainer(debt, true));
-            console.log(Object.is(debt, mapDebt.get(debt.nickname)?.debt))
         }
-
-
     });
 
     function hasChanged(): boolean {
@@ -226,6 +221,7 @@
             {/each}
         </div>
     {/if}
+
 </main>
 
 <style>

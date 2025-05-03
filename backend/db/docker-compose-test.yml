@@ -1,0 +1,12 @@
+# docker-compose.yml
+services:
+  test_db:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: testuser
+      POSTGRES_PASSWORD: testpass
+      POSTGRES_DB: testdb
+    ports:
+      - "5433:5432"
+    volumes:
+      - ./init/init.sql:/docker-entrypoint-initdb.d/init.sql:ro

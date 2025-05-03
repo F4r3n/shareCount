@@ -1,12 +1,10 @@
 use diesel::r2d2::{self, ConnectionManager};
 type DbPool = r2d2::Pool<ConnectionManager<PgConnection>>;
 use diesel::PgConnection;
-use dotenvy::dotenv;
 use std::env;
 use std::sync::Arc;
 
 pub fn establish_connection() -> anyhow::Result<Arc<DbPool>> {
-    dotenv().ok();
     let database_url = env::var("DATABASE_URL")?;
 
     let manager = ConnectionManager::<PgConnection>::new(&database_url);
