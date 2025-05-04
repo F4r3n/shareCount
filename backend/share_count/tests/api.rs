@@ -3,7 +3,7 @@ use axum_test::TestServer;
 use chrono::{self, Datelike};
 use diesel::Connection;
 use share_count::state_server;
-use share_count::{entrypoints::GroupResponse, router::create_router};
+use share_count::{entrypoint::groups::GroupResponse, router::create_router};
 use std::env;
 //use diesel_migrations::FileBasedMigrations;
 use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
@@ -31,7 +31,7 @@ async fn test_full_crud_flow() -> Result<(), anyhow::Error> {
     let server = TestServer::new(app)?;
     let response = server.get("/users/1/groups").await;
     assert_eq!(response.status_code(), 200);
-    let json = response.json::<Vec<share_count::entrypoints::GroupResponse>>();
+    let json = response.json::<Vec<GroupResponse>>();
 
     assert_eq!(json.len(), 2);
     for group in json {

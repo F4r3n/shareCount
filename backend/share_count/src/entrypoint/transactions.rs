@@ -1,150 +1,18 @@
+use crate::entrypoint::AppError;
 use crate::schema::group_members;
 use crate::schema::groups;
 use crate::schema::transaction_debts;
 use crate::schema::transactions;
 pub use crate::state_server;
-use axum::http::StatusCode;
 use axum::{
     extract::{Path, State},
-    response::{IntoResponse, Json, Response},
+    response::Json,
 };
 use bigdecimal::BigDecimal;
 use chrono::NaiveDateTime;
-use diesel::dsl::insert_into;
 use diesel::prelude::*;
-use std::collections::HashMap;
-
-use uuid::Uuid;
-
-pub struct AppError(anyhow::Error);
-
-// Tell axum how to convert `AppError` into a response.
-impl IntoResponse for AppError {
-    fn into_response(self) -> Response {
-        if let Some(diesel_error) = self.0.downcast_ref() {
-            return match diesel_error {
-                diesel::NotFound => (
-                    StatusCode::NOT_FOUND,
-                    format!("Something went wrong: {}", self.0),
-                )
-                    .into_response(),
-                _ => (
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    format!("Database error: {}", diesel_error),
-                )
-                    .into_response(),
-            };
-        }
-
-        (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            format!("Something went wrong: {}", self.0),
-        )
-            .into_response()
-    }
-}
-
-impl<E> From<E> for AppError
-where
-    E: Into<anyhow::Error>,
-{
-    fn from(err: E) -> Self {
-        Self(err.into())
-    }
-}
-
 use serde::{Deserialize, Serialize};
-#[derive(Deserialize, Serialize, Queryable, Debug)]
-pub struct GroupResponse {
-    pub name: String,
-    pub currency: String,
-    pub created_at: NaiveDateTime,
-}
-
-//users/{user_id}/groups
-pub async fn handler_users_groups(
-    State(state_server): State<state_server::StateServer>,
-    Path(user_id): Path<i32>,
-) -> Result<Json<Vec<GroupResponse>>, AppError> {
-    let mut conn = state_server.pool.get()?;
-
-    let results = groups::table
-        .inner_join(group_members::table.on(groups::id.eq(group_members::group_id)))
-        .filter(group_members::user_id.eq(user_id))
-        .select((groups::name, groups::currency, groups::created_at))
-        .load::<GroupResponse>(&mut conn)?;
-
-    Ok(Json(results)).map_err(AppError)
-}
-
-///groups/{token_id}
-pub async fn handler_groups(
-    State(state_server): State<state_server::StateServer>,
-    Path(token): Path<String>,
-) -> Result<Json<GroupResponse>, AppError> {
-    let mut conn = state_server.pool.get()?;
-
-    let results = groups::table
-        .select((groups::name, groups::currency, groups::created_at))
-        .filter(groups::token.eq(token))
-        .first::<GroupResponse>(&mut conn)?;
-    Ok(Json(results)).map_err(AppError)
-}
-
-#[derive(Deserialize)]
-pub struct CreateGroups {
-    name: String,
-    currency: String,
-    nicknames: Vec<String>,
-}
-
-///groups
-pub async fn handler_create_groups(
-    State(state_server): State<state_server::StateServer>,
-    Json(create): Json<CreateGroups>,
-) -> Result<Json<String>, AppError> {
-    println!("Create groups");
-    let mut conn = state_server.pool.get()?;
-    let token = Uuid::new_v4().to_string();
-
-    #[derive(Queryable, PartialEq, Debug, Selectable, Identifiable, Serialize, Insertable)]
-    struct Group {
-        id: i32,
-        name: String,
-        currency: String,
-        token: String,
-        created_at: NaiveDateTime,
-    }
-    let token = conn
-        .transaction::<String, anyhow::Error, _>(|conn| {
-            let result = insert_into(groups::table)
-                .values((
-                    groups::dsl::name.eq(create.name),
-                    groups::dsl::currency.eq(create.currency),
-                    groups::dsl::token.eq(token.clone()),
-                ))
-                .get_result::<Group>(conn)?;
-
-            if !create.nicknames.is_empty() {
-                let mut vec = vec![];
-
-                for n in create.nicknames {
-                    vec.push((
-                        group_members::dsl::group_id.eq(result.id),
-                        group_members::dsl::nickname.eq(n),
-                    ));
-                }
-
-                insert_into(group_members::table)
-                    .values(&vec)
-                    .execute(conn)?;
-            }
-            Ok(token)
-        })
-        .map_err(AppError);
-
-    Ok(Json(token?)).map_err(AppError)
-}
+use std::collections::HashMap;
 
 #[derive(Deserialize, Serialize, Queryable, Debug)]
 pub struct TransactionDebtQuery {
@@ -339,19 +207,4 @@ pub async fn handler_post_transaction(
     .map_err(AppError)?;
 
     Ok(()).map_err(AppError)
-}
-
-pub async fn handler_group_members(
-    State(state_server): State<state_server::StateServer>,
-    Path(token): Path<String>,
-) -> Result<Json<Vec<String>>, AppError> {
-    let mut conn = state_server.pool.get()?;
-
-    let results = groups::table
-        .inner_join(group_members::table.on(groups::id.eq(group_members::group_id)))
-        .filter(groups::token.eq(token))
-        .select(group_members::nickname)
-        .load::<String>(&mut conn)?;
-
-    Ok(Json(results)).map_err(AppError)
 }

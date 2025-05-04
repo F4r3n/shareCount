@@ -1,6 +1,5 @@
-use crate::entrypoints;
+use crate::entrypoint::{group_members, groups, transactions};
 use crate::state_server;
-
 use axum::{
     http::HeaderValue,
     routing::{get, post},
@@ -24,27 +23,24 @@ pub fn create_router(url: &str, state_server: StateServer) -> Result<Router, any
         .allow_headers([axum::http::header::CONTENT_TYPE]);
 
     let app = Router::new()
-        .route(
-            "/users/{user_id}/groups",
-            get(entrypoints::handler_users_groups),
-        )
-        .route("/groups/{token_id}", get(entrypoints::handler_groups))
-        .route("/groups", post(entrypoints::handler_create_groups))
+        .route("/users/{user_id}/groups", get(groups::handler_users_groups))
+        .route("/groups/{token_id}", get(groups::handler_groups))
+        .route("/groups", post(groups::handler_create_groups))
         .route(
             "/transactions/{token_id}",
-            get(entrypoints::handler_transactions),
+            get(transactions::handler_transactions),
         )
         .route(
             "/groups/{token_id}/transactions/{transaction_id}",
-            post(entrypoints::handler_post_transaction),
+            post(transactions::handler_post_transaction),
         )
         .route(
             "/groups/{token_id}/transactions",
-            post(entrypoints::handler_post_transaction),
+            post(transactions::handler_post_transaction),
         )
         .route(
             "/groups/{token_id}/group_members",
-            get(entrypoints::handler_group_members),
+            get(group_members::handler_group_members),
         )
         .with_state(state_server)
         .layer(cors_layer);

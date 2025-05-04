@@ -1,9 +1,8 @@
 use std::env;
-pub mod entrypoints;
+pub mod entrypoint;
 pub mod models;
 pub mod schema;
 pub mod state_server;
-
 use axum::Router;
 use std::net::SocketAddr;
 pub mod router;
