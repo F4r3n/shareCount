@@ -1,4 +1,10 @@
 -- USERS
+drop TABLE IF EXISTS transaction_debts;
+drop TABLE IF EXISTS transactions;
+drop TABLE IF EXISTS group_members;
+drop TABLE IF EXISTS groups;
+drop TABLE IF EXISTS users;
+
 CREATE TABLE users (
   id SERIAL PRIMARY KEY,
   name TEXT NOT NULL,

@@ -29,6 +29,7 @@ pub fn create_router(url: &str, state_server: StateServer) -> Result<Router, any
             get(entrypoints::handler_users_groups),
         )
         .route("/groups/{token_id}", get(entrypoints::handler_groups))
+        .route("/groups", post(entrypoints::handler_create_groups))
         .route(
             "/transactions/{token_id}",
             get(entrypoints::handler_transactions),
@@ -40,10 +41,6 @@ pub fn create_router(url: &str, state_server: StateServer) -> Result<Router, any
         .route(
             "/groups/{token_id}/transactions",
             post(entrypoints::handler_post_transaction),
-        )
-        .route(
-            "/groups/{token_id}",
-            post(entrypoints::handler_create_groups),
         )
         .route(
             "/groups/{token_id}/group_members",

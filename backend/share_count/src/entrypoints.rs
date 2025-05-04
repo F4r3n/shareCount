@@ -5,7 +5,7 @@ use crate::schema::transactions;
 pub use crate::state_server;
 use axum::http::StatusCode;
 use axum::{
-    extract::{Path, Query, State},
+    extract::{Path, State},
     response::{IntoResponse, Json, Response},
 };
 use bigdecimal::BigDecimal;
@@ -21,6 +21,21 @@ pub struct AppError(anyhow::Error);
 // Tell axum how to convert `AppError` into a response.
 impl IntoResponse for AppError {
     fn into_response(self) -> Response {
+        if let Some(diesel_error) = self.0.downcast_ref() {
+            return match diesel_error {
+                diesel::NotFound => (
+                    StatusCode::NOT_FOUND,
+                    format!("Something went wrong: {}", self.0),
+                )
+                    .into_response(),
+                _ => (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    format!("Database error: {}", diesel_error),
+                )
+                    .into_response(),
+            };
+        }
+
         (
             StatusCode::INTERNAL_SERVER_ERROR,
             format!("Something went wrong: {}", self.0),
@@ -41,11 +56,12 @@ where
 use serde::{Deserialize, Serialize};
 #[derive(Deserialize, Serialize, Queryable, Debug)]
 pub struct GroupResponse {
-    name: String,
-    currency: String,
-    created_at: NaiveDateTime,
+    pub name: String,
+    pub currency: String,
+    pub created_at: NaiveDateTime,
 }
 
+//users/{user_id}/groups
 pub async fn handler_users_groups(
     State(state_server): State<state_server::StateServer>,
     Path(user_id): Path<i32>,
@@ -61,6 +77,7 @@ pub async fn handler_users_groups(
     Ok(Json(results)).map_err(AppError)
 }
 
+///groups/{token_id}
 pub async fn handler_groups(
     State(state_server): State<state_server::StateServer>,
     Path(token): Path<String>,
@@ -81,10 +98,12 @@ pub struct CreateGroups {
     nicknames: Vec<String>,
 }
 
+///groups
 pub async fn handler_create_groups(
     State(state_server): State<state_server::StateServer>,
-    Query(create): Query<CreateGroups>,
+    Json(create): Json<CreateGroups>,
 ) -> Result<Json<String>, AppError> {
+    println!("Create groups");
     let mut conn = state_server.pool.get()?;
     let token = Uuid::new_v4().to_string();
 
@@ -96,28 +115,35 @@ pub async fn handler_create_groups(
         token: String,
         created_at: NaiveDateTime,
     }
+    let token = conn
+        .transaction::<String, anyhow::Error, _>(|conn| {
+            let result = insert_into(groups::table)
+                .values((
+                    groups::dsl::name.eq(create.name),
+                    groups::dsl::currency.eq(create.currency),
+                    groups::dsl::token.eq(token.clone()),
+                ))
+                .get_result::<Group>(conn)?;
 
-    let result = insert_into(groups::table)
-        .values((
-            groups::dsl::name.eq(create.name),
-            groups::dsl::currency.eq(create.currency),
-            groups::dsl::token.eq(token.clone()),
-        ))
-        .get_result::<Group>(&mut conn)?;
+            if !create.nicknames.is_empty() {
+                let mut vec = vec![];
 
-    let mut vec = vec![];
-    for n in create.nicknames {
-        vec.push((
-            group_members::dsl::group_id.eq(result.id),
-            group_members::dsl::nickname.eq(n),
-        ));
-    }
+                for n in create.nicknames {
+                    vec.push((
+                        group_members::dsl::group_id.eq(result.id),
+                        group_members::dsl::nickname.eq(n),
+                    ));
+                }
 
-    insert_into(group_members::table)
-        .values(&vec)
-        .execute(&mut conn)?;
+                insert_into(group_members::table)
+                    .values(&vec)
+                    .execute(conn)?;
+            }
+            Ok(token)
+        })
+        .map_err(AppError);
 
-    Ok(Json(token)).map_err(AppError)
+    Ok(Json(token?)).map_err(AppError)
 }
 
 #[derive(Deserialize, Serialize, Queryable, Debug)]
