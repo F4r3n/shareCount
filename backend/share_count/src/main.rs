@@ -14,12 +14,7 @@ async fn main() -> anyhow::Result<()> {
     let connection = state_server::establish_connection()?;
     let state_server = state_server::StateServer { pool: connection };
     let front_url = env::var("FRONT_URL")?;
-    // see https://docs.rs/tower-http/latest/tower_http/cors/index.html
-    // for more details
-    //
-    // pay attention that for some request types like posting content-type: application/json
-    // it is required to add ".allow_headers([http::header::CONTENT_TYPE])"
-    // or see this issue https://github.com/tokio-rs/axum/issues/849
+
     let port = env::var("PORT")?.parse::<u16>()?;
     let app: Router = router::create_router(&front_url, state_server)?;
     let backend = async {

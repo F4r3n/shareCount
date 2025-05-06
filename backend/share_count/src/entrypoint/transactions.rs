@@ -1,3 +1,4 @@
+use crate::entrypoint::group_members::GroupMember;
 use crate::entrypoint::AppError;
 use crate::schema::group_members;
 use crate::schema::groups;
@@ -18,14 +19,14 @@ use std::collections::HashMap;
 pub struct TransactionDebtQuery {
     id: i32,
     amount: BigDecimal,
-    nickname: String,
+    nickname: GroupMember,
 }
 
 #[derive(Deserialize, Serialize, Queryable, Debug)]
 pub struct TransactionDebtResponse {
     id: i32,
     amount: BigDecimal,
-    nickname: String,
+    nickname: GroupMember,
 }
 
 #[derive(Deserialize, Serialize, Queryable)]
@@ -33,7 +34,7 @@ pub struct TransactionResponse {
     id: i32,
     description: String,
     currency: String,
-    paid_by: String,
+    paid_by: GroupMember,
     created_at: NaiveDateTime,
     amount: BigDecimal,
     debtors: Vec<TransactionDebtResponse>,
@@ -54,10 +55,11 @@ pub async fn handler_transactions(
             transactions::created_at,
             transactions::amount,
             transactions::currency,
+            group_members::id,
             group_members::nickname,
         ))
         .filter(groups::token.eq(&token))
-        .load::<(i32, String, NaiveDateTime, BigDecimal, String, String)>(&mut conn)?;
+        .load::<(i32, String, NaiveDateTime, BigDecimal, String, i32, String)>(&mut conn)?;
 
     let debts = transaction_debts::table
         .inner_join(transactions::table.on(transaction_debts::transaction_id.eq(transactions::id)))
@@ -70,36 +72,43 @@ pub async fn handler_transactions(
             transaction_debts::id,
             transaction_debts::transaction_id,
             transaction_debts::amount,
+            group_members::id,
             group_members::nickname,
         ))
-        .load::<(i32, i32, BigDecimal, String)>(&mut conn)?;
+        .load::<(i32, i32, BigDecimal, i32, String)>(&mut conn)?;
 
     let mut map: HashMap<i32, TransactionResponse> = HashMap::new();
-    transaction_result
-        .into_iter()
-        .for_each(|(id, desc, time, amount, currency, nickname)| {
+    transaction_result.into_iter().for_each(
+        |(id, desc, time, amount, currency, member_id, nickname)| {
             map.insert(
                 id,
                 TransactionResponse {
                     id,
                     description: desc,
-                    paid_by: nickname,
+                    paid_by: GroupMember {
+                        id: member_id,
+                        nickname,
+                    },
                     created_at: time,
                     currency,
                     amount,
                     debtors: Vec::new(),
                 },
             );
-        });
+        },
+    );
 
     debts
         .into_iter()
-        .for_each(|(debt_id, transaction_id, amount, nickname)| {
+        .for_each(|(debt_id, transaction_id, amount, member_id, nickname)| {
             if let Some(value) = map.get_mut(&transaction_id) {
                 value.debtors.push(TransactionDebtResponse {
                     id: debt_id,
                     amount,
-                    nickname,
+                    nickname: GroupMember {
+                        id: member_id,
+                        nickname,
+                    },
                 });
             }
         });
@@ -139,7 +148,7 @@ pub struct TransactionQuery {
     id: i32,
     description: String,
     currency: String,
-    paid_by: String,
+    paid_by: GroupMember,
     created_at: NaiveDateTime,
     amount: BigDecimal,
     debtors: Vec<TransactionDebtQuery>,

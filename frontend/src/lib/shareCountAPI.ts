@@ -30,7 +30,7 @@ export async function getGroup(tokenID : string)  : Promise<Group> {
 
 export async function getTransactions(tokenID : string) : Promise<Transaction[]> {
     try {
-        const res = await fetch(`http://${backendURL}/transactions/${tokenID}`, {
+        const res = await fetch(`http://${backendURL}/groups/${tokenID}/transactions`, {
             method: "GET",
             credentials: "include",
             headers: {

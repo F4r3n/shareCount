@@ -27,20 +27,18 @@ pub fn create_router(url: &str, state_server: StateServer) -> Result<Router, any
         .route("/groups/{token_id}", get(groups::handler_groups))
         .route("/groups", post(groups::handler_create_groups))
         .route(
-            "/transactions/{token_id}",
-            get(transactions::handler_transactions),
+            "/groups/{group_id}/transactions",
+            get(transactions::handler_transactions).post(transactions::handler_post_transaction),
         )
         .route(
             "/groups/{token_id}/transactions/{transaction_id}",
             post(transactions::handler_post_transaction),
         )
         .route(
-            "/groups/{token_id}/transactions",
-            post(transactions::handler_post_transaction),
-        )
-        .route(
             "/groups/{token_id}/group_members",
-            get(group_members::handler_group_members),
+            get(group_members::handler_group_members)
+                .post(group_members::handler_add_group_members)
+                .patch(group_members::handler_rename_group_members),
         )
         .with_state(state_server)
         .layer(cors_layer);
