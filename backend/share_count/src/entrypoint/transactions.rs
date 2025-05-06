@@ -26,7 +26,7 @@ pub struct TransactionDebtQuery {
 pub struct TransactionDebtResponse {
     id: i32,
     amount: BigDecimal,
-    nickname: GroupMember,
+    member: GroupMember,
 }
 
 #[derive(Deserialize, Serialize, Queryable)]
@@ -47,8 +47,8 @@ pub async fn handler_transactions(
     let mut conn = state_server.pool.get()?;
 
     let transaction_result = groups::table
-        .inner_join(transactions::table.on(groups::id.eq(transactions::group_id)))
-        .inner_join(group_members::table.on(transactions::paid_by.eq(group_members::id)))
+        .inner_join(transactions::table)
+        .inner_join(group_members::table)
         .select((
             transactions::id,
             transactions::description,
@@ -62,10 +62,8 @@ pub async fn handler_transactions(
         .load::<(i32, String, NaiveDateTime, BigDecimal, String, i32, String)>(&mut conn)?;
 
     let debts = transaction_debts::table
-        .inner_join(transactions::table.on(transaction_debts::transaction_id.eq(transactions::id)))
-        .inner_join(
-            group_members::table.on(transaction_debts::group_member_id.eq(group_members::id)),
-        )
+        .inner_join(transactions::table)
+        .inner_join(group_members::table)
         .inner_join(groups::table.on(transactions::group_id.eq(groups::id)))
         .filter(groups::token.eq(token))
         .select((
@@ -105,7 +103,7 @@ pub async fn handler_transactions(
                 value.debtors.push(TransactionDebtResponse {
                     id: debt_id,
                     amount,
-                    nickname: GroupMember {
+                    member: GroupMember {
                         id: member_id,
                         nickname,
                     },
@@ -165,7 +163,7 @@ pub async fn handler_post_transaction(
     conn.transaction::<_, anyhow::Error, _>(|conn| {
         let group_member_id = group_members::table
             .select(group_members::id)
-            .inner_join(groups::table.on(groups::id.eq(group_members::id)))
+            .inner_join(groups::table)
             .filter(groups::token.eq(token))
             .get_result::<i32>(conn)?;
 
@@ -216,4 +214,50 @@ pub async fn handler_post_transaction(
     .map_err(AppError)?;
 
     Ok(()).map_err(AppError)
+}
+
+#[derive(Deserialize, Serialize, Queryable, Debug)]
+pub struct TransactionPaidByResponse {
+    pub id: i32,
+    pub description: String,
+    pub currency: String,
+    pub created_at: NaiveDateTime,
+    pub amount: BigDecimal,
+}
+
+use diesel::r2d2::ConnectionManager;
+use diesel::r2d2::PooledConnection;
+pub fn get_transaction_paid_by(
+    group_id: i32,
+    group_member_id: i32,
+    conn: &mut PooledConnection<ConnectionManager<PgConnection>>,
+) -> Result<Vec<TransactionPaidByResponse>, anyhow::Error> {
+    let transaction_result = transactions::table
+        .inner_join(groups::table)
+        .select((
+            transactions::id,
+            transactions::description,
+            transactions::currency,
+            transactions::created_at,
+            transactions::amount,
+        ))
+        .filter(groups::id.eq(group_id))
+        .filter(transactions::paid_by.eq(group_member_id))
+        .load::<TransactionPaidByResponse>(conn)?;
+    Ok(transaction_result)
+}
+
+pub fn get_transaction_debt(
+    group_id: i32,
+    group_member_id: i32,
+    conn: &mut PooledConnection<ConnectionManager<PgConnection>>,
+) -> Result<Vec<(i32, BigDecimal)>, anyhow::Error> {
+    let transaction_result = transaction_debts::table
+        .inner_join(group_members::table)
+        .inner_join(groups::table.on(group_members::group_id.eq(groups::id)))
+        .select((transaction_debts::id, transaction_debts::amount))
+        .filter(transaction_debts::group_member_id.eq(group_member_id))
+        .filter(groups::id.eq(group_id))
+        .load::<(i32, BigDecimal)>(conn)?;
+    Ok(transaction_result)
 }

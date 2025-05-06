@@ -1,4 +1,4 @@
-import type {Group, Transaction} from "./types"
+import type {Group, Transaction, GroupMember} from "./types"
 const backendURL: string = import.meta.env.VITE_BACKEND_URL;
 
 export async function getGroup(tokenID : string)  : Promise<Group> {
@@ -53,7 +53,7 @@ export async function getTransactions(tokenID : string) : Promise<Transaction[]>
 }
 
 
-export async function getGroupMembers(tokenID : string) : Promise<string[]> {
+export async function getGroupMembers(tokenID : string) : Promise<GroupMember[]> {
     try {
         const res = await fetch(`http://${backendURL}/groups/${tokenID}/group_members`, {
             method: "GET",
@@ -68,7 +68,7 @@ export async function getGroupMembers(tokenID : string) : Promise<string[]> {
         }
 
         const data = await res.json();
-        let members: string[] = data;
+        let members: GroupMember[] = data;
         return members;
         
     } catch (err) {

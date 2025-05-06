@@ -1,7 +1,7 @@
 <script lang="ts">
     import { onMount } from "svelte";
     import { page } from "$app/state";
-    import type { Transaction, Group } from "../../lib/types";
+    import type { Transaction, Group, GroupMember } from "../../lib/types";
     import TransactionsView from "$lib/TransactionsView.svelte";
 
     import { getGroup, getGroupMembers, getTransactions } from "$lib/shareCountAPI";
@@ -14,7 +14,7 @@
     let transactions: Transaction[] = $state([]);
     let group_info: Group | null = $state(null);
     let current_error : string = $state("");
-    let group_members : string[] = $state([]);
+    let group_members : GroupMember[] = $state([]);
     onMount(async () => {
         if (current_token) {
             try {
@@ -41,7 +41,7 @@
   </div>
 {/if}
 
-{#if cat === "Transactions"}
+{#if cat === menus[MENU.TRANSACTION].name}
     <TransactionsView {transactions} main_currency={group_info?.currency} members={group_members} token={current_token}></TransactionsView>
 {/if}
 

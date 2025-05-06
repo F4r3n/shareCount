@@ -1,6 +1,6 @@
 <script lang="ts">
     import { onMount } from "svelte";
-    import type { Debt, Transaction } from "$lib/types";
+    import type { Debt, Transaction, GroupMember } from "$lib/types";
     import TransactionView from "$lib/TransactionView.svelte";
     import { updateTransaction } from "$lib/shareCountAPI";
     let {
@@ -11,7 +11,7 @@
     }: {
         transactions: Transaction[];
         main_currency: string | undefined;
-        members: string[];
+        members: GroupMember[];
         token: string | null;
     } = $props();
     let creating_transaction: Transaction | null = null;
@@ -68,7 +68,7 @@
                 created_at: new Date().getTime(),
                 debtors: [] as Debt[],
                 description: "",
-                paid_by: "",
+                paid_by: {id:0, nickname:""},
             };
         }}
     >

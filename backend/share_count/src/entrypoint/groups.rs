@@ -9,6 +9,8 @@ use axum::{
 use chrono::NaiveDateTime;
 use diesel::dsl::insert_into;
 use diesel::prelude::*;
+use diesel::r2d2::ConnectionManager;
+use diesel::r2d2::PooledConnection;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -17,6 +19,18 @@ pub struct GroupResponse {
     pub name: String,
     pub currency: String,
     pub created_at: NaiveDateTime,
+}
+
+pub fn get_group_id(
+    token_id: String,
+    conn: &mut PooledConnection<ConnectionManager<PgConnection>>,
+) -> Result<i32, anyhow::Error> {
+    let group_id = groups::table
+        .select(groups::id)
+        .filter(groups::token.eq(token_id))
+        .get_result::<i32>(conn)?;
+
+    Ok(group_id)
 }
 
 //users/{user_id}/groups
@@ -61,7 +75,6 @@ pub async fn handler_create_groups(
     State(state_server): State<state_server::StateServer>,
     Json(create): Json<CreateGroups>,
 ) -> Result<Json<String>, AppError> {
-    println!("Create groups");
     let mut conn = state_server.pool.get()?;
     let token = Uuid::new_v4().to_string();
 

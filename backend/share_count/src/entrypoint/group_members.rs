@@ -8,6 +8,7 @@ use axum::{
     response::Json,
 };
 
+use crate::entrypoint::groups::get_group_id;
 use diesel::prelude::*;
 use serde::Deserialize;
 use serde::Serialize;
@@ -40,10 +41,7 @@ pub async fn handler_add_group_members(
 ) -> Result<(), AppError> {
     let mut conn = state_server.pool.get()?;
     conn.transaction::<_, anyhow::Error, _>(|conn| {
-        let group_id = groups::table
-            .select(groups::id)
-            .filter(groups::token.eq(token))
-            .get_result::<i32>(conn)?;
+        let group_id = get_group_id(token, conn)?;
 
         #[derive(Insertable)]
         #[diesel(table_name = group_members)]
@@ -88,10 +86,7 @@ pub async fn handler_rename_group_members(
     let mut conn = state_server.pool.get()?;
 
     conn.transaction::<_, anyhow::Error, _>(|conn| {
-        let group_id = groups::table
-            .select(groups::id)
-            .filter(groups::token.eq(&token))
-            .first::<i32>(conn)?;
+        let group_id = get_group_id(token, conn)?;
 
         for rename in members {
             let update = GroupMember {
@@ -106,6 +101,41 @@ pub async fn handler_rename_group_members(
             )
             .set(&update)
             .execute(conn)?;
+        }
+
+        Ok(())
+    })
+    .map_err(AppError)?;
+
+    Ok(()).map_err(AppError)
+}
+
+use crate::entrypoint::transactions::{get_transaction_debt, get_transaction_paid_by};
+
+use bigdecimal::num_traits::Zero;
+
+pub async fn handler_delete_group_members(
+    State(state_server): State<state_server::StateServer>,
+    Path(token): Path<String>,
+    Json(members): Json<Vec<GroupMember>>,
+) -> Result<(), AppError> {
+    let mut conn = state_server.pool.get()?;
+    conn.transaction::<(), anyhow::Error, _>(|conn| {
+        let group_id = get_group_id(token, conn)?;
+        for member in members {
+            let transaction_debts = get_transaction_debt(group_id, member.id, conn)?;
+            let has_debt = transaction_debts
+                .iter()
+                .any(|(_id, number)| !number.is_zero());
+
+            let transaction_paid = get_transaction_paid_by(group_id, member.id, conn)?;
+            let has_paid = transaction_paid.iter().any(|tr| !tr.amount.is_zero());
+
+            if !has_debt && !has_paid {
+                diesel::delete(group_members::table)
+                    .filter(group_members::id.eq(member.id))
+                    .execute(conn)?;
+            }
         }
 
         Ok(())

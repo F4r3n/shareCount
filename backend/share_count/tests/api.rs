@@ -97,5 +97,18 @@ async fn test_full_crud_flow() -> Result<(), anyhow::Error> {
         .iter()
         .any(|name| name.nickname.eq(&String::from("JAJA"))));
 
+    let response = server
+        .delete(format!("/groups/{}/group_members", token).as_str())
+        .json(&json!([{"id": id_jojo, "nickname": "JAJA"}]))
+        .await;
+    assert_eq!(response.status_code(), 200);
+
+    let response = server
+        .get(format!("/groups/{}/group_members", token).as_str())
+        .await;
+    assert_eq!(response.status_code(), 200);
+    let group = response.json::<Vec<GroupMember>>();
+    assert_eq!(group.len(), 2);
+
     Ok(())
 }

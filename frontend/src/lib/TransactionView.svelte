@@ -1,5 +1,5 @@
 <script lang="ts">
-    import type { Transaction, Debt } from "$lib/types";
+    import type { Transaction, Debt, GroupMember } from "$lib/types";
     import { onMount } from "svelte";
     import { slide } from "svelte/transition";
     import { CheckIcon, X, PencilIcon } from "lucide-svelte";
@@ -10,14 +10,14 @@
         is_editing,
         is_open,
         onSave
-    }: { transaction: Transaction, members: string[], is_editing : boolean, is_open : boolean, onSave : (tx : Transaction)=>void } = $props();
+    }: { transaction: Transaction, members: GroupMember[], is_editing : boolean, is_open : boolean, onSave : (tx : Transaction)=>void } = $props();
     let modified_transaction: Transaction = $state($state.snapshot(
         transaction,
     ) as Transaction);
 
     class DebtContainer {
         activated : boolean = $state(false)
-        debt = $state({ nickname: "", amount: "0" } as Debt);
+        debt = $state({ member: {id:0, nickname:""} as GroupMember, amount: "0" } as Debt);
         constructor(debt : Debt, activated : boolean) {
             this.debt = debt;
             this.activated = activated;
@@ -50,7 +50,7 @@
             }
         }
         for(let i = 0; i < modified_transaction.debtors.length; ++i) {
-            const updatedDebt = mapDebt.get(modified_transaction.debtors[i].nickname);
+            const updatedDebt = mapDebt.get(modified_transaction.debtors[i].member.nickname);
             if(updatedDebt) {
                 modified_transaction.debtors[i] = updatedDebt.debt;
             }
@@ -59,11 +59,11 @@
 
     onMount(() => {
         for (const member of members) {
-            mapDebt.set(member, new DebtContainer({nickname:member, amount:"0"} as Debt, false));
+            mapDebt.set(member.nickname, new DebtContainer({member:member, amount:"0"} as Debt, false));
         }
 
         for (const debt of modified_transaction.debtors) {
-            mapDebt.set(debt.nickname, new DebtContainer(debt, true));
+            mapDebt.set(debt.member.nickname, new DebtContainer(debt, true));
         }
     });
 
@@ -214,7 +214,7 @@
                             <div>0</div>
                         {/if}
                     {:else}
-                        <div>{debtContainer.debt.nickname}</div>
+                        <div>{debtContainer.debt.member.nickname}</div>
                         <div>{debtContainer.debt.amount}</div>
                     {/if}
                 </div>

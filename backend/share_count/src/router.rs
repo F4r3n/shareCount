@@ -5,6 +5,7 @@ use axum::{
     routing::{get, post},
     Router,
 };
+
 use state_server::StateServer;
 use tower_http::cors::CorsLayer;
 
@@ -38,7 +39,8 @@ pub fn create_router(url: &str, state_server: StateServer) -> Result<Router, any
             "/groups/{token_id}/group_members",
             get(group_members::handler_group_members)
                 .post(group_members::handler_add_group_members)
-                .patch(group_members::handler_rename_group_members),
+                .patch(group_members::handler_rename_group_members)
+                .delete(group_members::handler_delete_group_members),
         )
         .with_state(state_server)
         .layer(cors_layer);
