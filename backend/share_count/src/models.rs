@@ -19,9 +19,20 @@ pub struct User {
 pub struct Group {
     pub id: i32,
     pub name: String,
-    pub currency: String,
+    pub currency_id: String,
     pub token: String,
     pub created_at: NaiveDateTime,
+}
+
+#[derive(Queryable, PartialEq, Debug, Selectable, Identifiable, Serialize)]
+#[diesel(table_name = crate::schema::currency)]
+#[diesel(check_for_backend(diesel::pg::Pg))]
+#[diesel(primary_key(code))]
+pub struct Currency {
+    pub code: String,
+    pub name: String,
+    pub symbol: String,
+    pub minor_units: i32,
 }
 
 #[derive(Queryable, Identifiable, Selectable, Associations, Debug, Serialize, Insertable)]
@@ -49,7 +60,8 @@ pub struct Transaction {
     pub description: String,
     pub amount: BigDecimal,
     pub paid_by: i32,
-    pub currency: String,
+    pub currency_id: String,
+    pub exchange_rate: BigDecimal,
     pub created_at: NaiveDateTime,
 }
 

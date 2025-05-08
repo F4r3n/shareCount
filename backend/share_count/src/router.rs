@@ -20,6 +20,8 @@ pub fn create_router(url: &str, state_server: StateServer) -> Result<Router, any
             axum::http::Method::GET,
             axum::http::Method::POST,
             axum::http::Method::PUT,
+            axum::http::Method::DELETE,
+            axum::http::Method::PATCH,
         ])
         .allow_headers([axum::http::header::CONTENT_TYPE]);
 
@@ -29,7 +31,9 @@ pub fn create_router(url: &str, state_server: StateServer) -> Result<Router, any
         .route("/groups", post(groups::handler_create_groups))
         .route(
             "/groups/{group_id}/transactions",
-            get(transactions::handler_transactions).post(transactions::handler_post_transaction),
+            get(transactions::handler_transactions)
+                .post(transactions::handler_post_transaction)
+                .delete(transactions::handler_delete_transaction),
         )
         .route(
             "/groups/{token_id}/transactions/{transaction_id}",

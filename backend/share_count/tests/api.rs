@@ -97,6 +97,7 @@ async fn test_full_crud_flow() -> Result<(), anyhow::Error> {
         .iter()
         .any(|name| name.nickname.eq(&String::from("JAJA"))));
 
+    //delete members
     let response = server
         .delete(format!("/groups/{}/group_members", token).as_str())
         .json(&json!([{"id": id_jojo, "nickname": "JAJA"}]))

@@ -21,6 +21,7 @@
                 group_info = await getGroup(current_token);
                 transactions = await getTransactions(current_token);
                 group_members = await getGroupMembers(current_token);
+                console.log(transactions)
 
                 if(group_info) {
                     group_name.set(group_info.name);
@@ -42,7 +43,7 @@
 {/if}
 
 {#if cat === menus[MENU.TRANSACTION].name}
-    <TransactionsView {transactions} main_currency={group_info?.currency} members={group_members} token={current_token}></TransactionsView>
+    <TransactionsView {transactions} main_currency={group_info?.currency_id} members={group_members} token={current_token}></TransactionsView>
 {/if}
 
 <style>

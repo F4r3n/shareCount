@@ -37,6 +37,7 @@ pub struct TransactionResponse {
     paid_by: GroupMember,
     created_at: NaiveDateTime,
     amount: BigDecimal,
+    exchange_rate: BigDecimal,
     debtors: Vec<TransactionDebtResponse>,
 }
 
@@ -54,12 +55,22 @@ pub async fn handler_transactions(
             transactions::description,
             transactions::created_at,
             transactions::amount,
-            transactions::currency,
+            transactions::exchange_rate,
+            transactions::currency_id,
             group_members::id,
             group_members::nickname,
         ))
         .filter(groups::token.eq(&token))
-        .load::<(i32, String, NaiveDateTime, BigDecimal, String, i32, String)>(&mut conn)?;
+        .load::<(
+            i32,
+            String,
+            NaiveDateTime,
+            BigDecimal,
+            BigDecimal,
+            String,
+            i32,
+            String,
+        )>(&mut conn)?;
 
     let debts = transaction_debts::table
         .inner_join(transactions::table)
@@ -77,7 +88,7 @@ pub async fn handler_transactions(
 
     let mut map: HashMap<i32, TransactionResponse> = HashMap::new();
     transaction_result.into_iter().for_each(
-        |(id, desc, time, amount, currency, member_id, nickname)| {
+        |(id, desc, time, amount, exchange_rate, currency, member_id, nickname)| {
             map.insert(
                 id,
                 TransactionResponse {
@@ -90,6 +101,7 @@ pub async fn handler_transactions(
                     created_at: time,
                     currency,
                     amount,
+                    exchange_rate,
                     debtors: Vec::new(),
                 },
             );
@@ -122,7 +134,8 @@ pub struct TransactionChangeset {
     pub description: String,
     pub amount: BigDecimal,
     pub paid_by: i32,
-    pub currency: String,
+    pub currency_id: String,
+    pub exchange_rate: BigDecimal,
     pub created_at: NaiveDateTime,
 }
 
@@ -145,9 +158,10 @@ pub struct TransactionDebtUpsert {
 pub struct TransactionQuery {
     id: i32,
     description: String,
-    currency: String,
+    currency_id: String,
     paid_by: GroupMember,
     created_at: NaiveDateTime,
+    exchange_rate: BigDecimal,
     amount: BigDecimal,
     debtors: Vec<TransactionDebtQuery>,
 }
@@ -157,8 +171,6 @@ pub async fn handler_post_transaction(
     Path((token, transaction_id)): Path<(String, Option<i32>)>,
     Json(payload): Json<TransactionQuery>,
 ) -> Result<(), AppError> {
-    dbg!(&payload);
-
     let mut conn = state_server.pool.get()?;
     conn.transaction::<_, anyhow::Error, _>(|conn| {
         let group_member_id = group_members::table
@@ -171,7 +183,8 @@ pub async fn handler_post_transaction(
             description: payload.description,
             amount: payload.amount,
             paid_by: group_member_id,
-            currency: payload.currency,
+            currency_id: payload.currency_id,
+            exchange_rate: payload.exchange_rate,
             created_at: payload.created_at,
         };
 
@@ -216,6 +229,26 @@ pub async fn handler_post_transaction(
     Ok(()).map_err(AppError)
 }
 
+pub async fn handler_delete_transaction(
+    State(state_server): State<state_server::StateServer>,
+    Path((token, transaction_id)): Path<(String, i32)>,
+) -> Result<(), AppError> {
+    let mut conn = state_server.pool.get()?;
+    conn.transaction::<_, anyhow::Error, _>(|conn| {
+        let groud_id = get_group_id(token, conn)?;
+
+        diesel::delete(transactions::table)
+            .filter(transactions::group_id.eq(groud_id))
+            .filter(transactions::id.eq(transaction_id))
+            .execute(conn)?;
+
+        Ok(())
+    })
+    .map_err(AppError)?;
+
+    Ok(()).map_err(AppError)
+}
+
 #[derive(Deserialize, Serialize, Queryable, Debug)]
 pub struct TransactionPaidByResponse {
     pub id: i32,
@@ -227,6 +260,8 @@ pub struct TransactionPaidByResponse {
 
 use diesel::r2d2::ConnectionManager;
 use diesel::r2d2::PooledConnection;
+
+use super::groups::get_group_id;
 pub fn get_transaction_paid_by(
     group_id: i32,
     group_member_id: i32,
@@ -237,7 +272,7 @@ pub fn get_transaction_paid_by(
         .select((
             transactions::id,
             transactions::description,
-            transactions::currency,
+            transactions::currency_id,
             transactions::created_at,
             transactions::amount,
         ))

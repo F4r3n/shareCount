@@ -18,7 +18,7 @@ export async function getGroup(tokenID : string)  : Promise<Group> {
         const data = await res.json();
         return {
             name: data.name,
-            currency: data.currency,
+            currency_id: data.currency_id,
             created_at: new Date(data.created_at),
             token: tokenID,
         };
@@ -39,7 +39,7 @@ export async function getTransactions(tokenID : string) : Promise<Transaction[]>
         });
 
         if (!res.ok) {
-            throw new Error("Request failed");
+            throw new Error(`Request failed ${res.status}`);
         }
 
         const data = await res.json();
@@ -64,7 +64,7 @@ export async function getGroupMembers(tokenID : string) : Promise<GroupMember[]>
         });
 
         if (!res.ok) {
-            throw new Error("Request failed");
+            throw new Error(`Request failed ${res.status}`);
         }
 
         const data = await res.json();
@@ -90,7 +90,28 @@ export async function updateTransaction(tokenID : string, inTransaction : Transa
         });
 
         if (!res.ok) {
-            throw new Error("Request failed");
+            throw new Error(`Request failed ${res.status}`);
+        }
+        
+    } catch (err) {
+        console.error("Error:", err);
+        throw err; // re-throw so the caller can handle the error
+    }
+}
+
+export async function deleteTransaction(tokenID : string, inTransactionID : number) {
+    try {
+        console.log("UPDATE")
+        const res = await fetch(`http://${backendURL}/groups/${tokenID}/transactions/${inTransactionID}`, {
+            method: "DELETE",
+            credentials: "include",
+            headers: {
+                "Content-Type": "application/json",
+            },
+        });
+
+        if (!res.ok) {
+            throw new Error(`Request failed ${res.status}`);
         }
         
     } catch (err) {

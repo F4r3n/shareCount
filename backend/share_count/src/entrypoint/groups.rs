@@ -1,6 +1,8 @@
 use crate::entrypoint::AppError;
+use crate::schema::currency;
 use crate::schema::group_members;
 use crate::schema::groups;
+
 pub use crate::state_server;
 use axum::{
     extract::{Path, State},
@@ -43,7 +45,7 @@ pub async fn handler_users_groups(
     let results = groups::table
         .inner_join(group_members::table.on(groups::id.eq(group_members::group_id)))
         .filter(group_members::user_id.eq(user_id))
-        .select((groups::name, groups::currency, groups::created_at))
+        .select((groups::name, groups::currency_id, groups::created_at))
         .load::<GroupResponse>(&mut conn)?;
 
     Ok(Json(results)).map_err(AppError)
@@ -57,7 +59,7 @@ pub async fn handler_groups(
     let mut conn = state_server.pool.get()?;
 
     let results = groups::table
-        .select((groups::name, groups::currency, groups::created_at))
+        .select((groups::name, groups::currency_id, groups::created_at))
         .filter(groups::token.eq(token))
         .first::<GroupResponse>(&mut conn)?;
     Ok(Json(results)).map_err(AppError)
@@ -66,7 +68,7 @@ pub async fn handler_groups(
 #[derive(Deserialize)]
 pub struct CreateGroups {
     name: String,
-    currency: String,
+    currency_id: String,
     nicknames: Vec<String>,
 }
 
@@ -82,7 +84,7 @@ pub async fn handler_create_groups(
     struct Group {
         id: i32,
         name: String,
-        currency: String,
+        currency_id: String,
         token: String,
         created_at: NaiveDateTime,
     }
@@ -91,7 +93,7 @@ pub async fn handler_create_groups(
             let result = insert_into(groups::table)
                 .values((
                     groups::dsl::name.eq(create.name),
-                    groups::dsl::currency.eq(create.currency),
+                    groups::dsl::currency_id.eq(create.currency_id),
                     groups::dsl::token.eq(token.clone()),
                 ))
                 .get_result::<Group>(conn)?;

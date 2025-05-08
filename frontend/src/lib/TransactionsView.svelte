@@ -2,7 +2,7 @@
     import { onMount } from "svelte";
     import type { Debt, Transaction, GroupMember } from "$lib/types";
     import TransactionView from "$lib/TransactionView.svelte";
-    import { updateTransaction } from "$lib/shareCountAPI";
+    import { updateTransaction, deleteTransaction } from "$lib/shareCountAPI";
     let {
         transactions,
         main_currency,
@@ -14,14 +14,14 @@
         members: GroupMember[];
         token: string | null;
     } = $props();
-    let creating_transaction: Transaction | null = null;
+    let creating_transaction: Transaction | null = $state(null);
     onMount(async () => {});
     let creating: boolean = $state(false);
-</script>
+    </script>
 
 <div class="flex flex-col h-dvh">
     <div class="transactions">
-        <div class="flex flex-col w-full md:w-8/12">
+        <div class="flex flex-col w-full md:w-8/12 mx-1">
             {#each transactions as transaction}
                 <TransactionView
                     {transaction}
@@ -34,6 +34,14 @@
                                 token ?? "",
                                 newTransaction,
                             );
+                        } catch (e) {
+                            console.log(e);
+                        }
+                    }}
+                    onDelete={async (newTransaction: Transaction) => {
+                        try {
+                            console.log(newTransaction)
+                            await deleteTransaction(token ?? "", newTransaction.id);
                         } catch (e) {
                             console.log(e);
                         }
@@ -52,6 +60,12 @@
                             console.log(e);
                         }
                     }}
+                    onDelete={async (newTransaction: Transaction) => {
+                        try {
+                        } catch (e) {
+                            console.log(e);
+                        }
+                    }}
                 ></TransactionView>
             {/if}
         </div>
@@ -64,17 +78,22 @@
             creating_transaction = {
                 id: -1,
                 amount: "0",
-                currency: main_currency ?? "USD",
-                created_at: new Date().getTime(),
+                currency_id: main_currency ?? "USD",
+                created_at: new Date().toDateString(),
                 debtors: [] as Debt[],
                 description: "",
-                paid_by: {id:0, nickname:""},
+                exchange_rate:"1",
+                paid_by: { id: 0, nickname: "" },
             };
         }}
     >
         Add transaction
     </button>
 </div>
+
+
+
+
 
 <style>
     .transactions {
@@ -87,6 +106,6 @@
     .add-button {
         position: sticky;
         bottom: 0;
-        z-index: 10;
+        z-index: 1;
     }
 </style>
