@@ -8,7 +8,6 @@
     let list_tokens: string[] = ["token_abc123"];
     let is_connected: boolean = false;
     let current_error : string = $state("");
-
     onMount(async () => {
         let list_tokens_string;
         group_name.set("");

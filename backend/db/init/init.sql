@@ -46,7 +46,7 @@ CREATE TABLE transactions (
   description TEXT NOT NULL,
   amount NUMERIC NOT NULL,
   paid_by INTEGER NOT NULL REFERENCES group_members(id),
-  currency TEXT NOT NULL REFERENCES currency(code),
+  currency_id TEXT NOT NULL REFERENCES currency(code),
   exchange_rate NUMERIC NOT NULL DEFAULT 1,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -87,7 +87,7 @@ VALUES
   ('John Doe', 'john.doe@example.com', 'hashed_password_123', CURRENT_TIMESTAMP),
   ('Alice Smith', 'alice.smith@example.com', 'hashed_password_456', CURRENT_TIMESTAMP);
 
-INSERT INTO groups (name, currency, token, created_at)
+INSERT INTO groups (name, currency_id, token, created_at)
 VALUES 
   ('Travel Group', 'USD', 'token_abc123', CURRENT_TIMESTAMP),
   ('Foodies Group', 'EUR', 'token_def456', CURRENT_TIMESTAMP);
@@ -99,7 +99,7 @@ VALUES
   (2, 'foodlover', 1),
   (2, 'alicethechef', 2);
 
-INSERT INTO transactions (group_id, description, amount, paid_by, currency, created_at)
+INSERT INTO transactions (group_id, description, amount, paid_by, currency_id, created_at)
 VALUES 
   (1, 'Hotel booking for group trip', 200.00, 1, 'USD', CURRENT_TIMESTAMP),
   (1, 'Flight tickets for group trip', 500.00, 2, 'USD', CURRENT_TIMESTAMP),

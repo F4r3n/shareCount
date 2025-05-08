@@ -4,3 +4,4 @@ drop TABLE IF EXISTS transactions;
 drop TABLE IF EXISTS group_members;
 drop TABLE IF EXISTS groups;
 drop TABLE IF EXISTS users;
+drop TABLE IF EXISTS currency;

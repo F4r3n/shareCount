@@ -8,9 +8,11 @@
 	import {MENU, menus} from "$lib/menus"
 	let { children } = $props();
 
-
+	let token_id = $state("");
 	onMount(()=>{
 		console.log(get(group_name));
+		const params = new URLSearchParams(window.location.search);
+		token_id = params.get('id') ?? "";
 	})
 	let drawerState = $state(false)
 </script>
@@ -51,10 +53,10 @@
 								onclick={() => {
 									if (sub.type !== MENU.GROUPS) {
 										goto(
-											`/group?id=${page.url.searchParams.get("id")}&cat=${sub.name}`,
+											`/group?id=${token_id}&cat=${sub.name}`,
 										);
 									} else {
-										goto(`/?id=${page.url.searchParams.get("id")}`);
+										goto(`/?id=${token_id}`);
 									}
 									drawerState=false;
 								}}
@@ -83,10 +85,10 @@
 						onclick={() => {
 							if (sub.type !== MENU.GROUPS) {
 								goto(
-									`/group?id=${page.url.searchParams.get("id")}&cat=${sub.name}`,
+									`/group?id=${token_id}&cat=${sub.name}`,
 								);
 							} else {
-								goto(`/id=${page.url.searchParams.get("id")}`);
+								goto(`/id=${token_id}`);
 							}
 							drawerState=false;
 						}}
