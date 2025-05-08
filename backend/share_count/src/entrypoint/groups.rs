@@ -1,5 +1,4 @@
 use crate::entrypoint::AppError;
-use crate::schema::currency;
 use crate::schema::group_members;
 use crate::schema::groups;
 
@@ -19,7 +18,7 @@ use uuid::Uuid;
 #[derive(Deserialize, Serialize, Queryable, Debug)]
 pub struct GroupResponse {
     pub name: String,
-    pub currency: String,
+    pub currency_id: String,
     pub created_at: NaiveDateTime,
 }
 

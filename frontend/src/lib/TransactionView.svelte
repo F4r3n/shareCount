@@ -61,12 +61,25 @@
                 debtContainer.debt.amount = "0";
             }
         }
+
+        const set_current_debtors : Set<String> = new Set();
+
         for (let i = 0; i < modified_transaction.debtors.length; ++i) {
             const updatedDebt = mapDebt.get(
                 modified_transaction.debtors[i].member.nickname,
             );
             if (updatedDebt) {
                 modified_transaction.debtors[i] = updatedDebt.debt;
+            }
+            set_current_debtors.add(modified_transaction.debtors[i].member.nickname);
+        }
+
+
+        for (const [key, debtContainer] of mapDebt) {
+            if(debtContainer.activated) {
+                if(!set_current_debtors.has(debtContainer.debt.member.nickname)) {
+                    modified_transaction.debtors.push(debtContainer.debt);
+                }
             }
         }
     }
@@ -90,6 +103,12 @@
     });
 
     function hasChanged(): boolean {
+        console.log("Modified")
+        console.log($state.snapshot(modified_transaction));
+
+        console.log("original")
+        console.log($state.snapshot(transaction));
+
         return (
             JSON.stringify($state.snapshot(modified_transaction)) ===
             JSON.stringify($state.snapshot(transaction))
@@ -158,7 +177,7 @@
                     //TODO: Send event to parent
                     is_same = hasChanged();
                     is_editing = false;
-                    console.log($state.snapshot(modified_transaction));
+                    console.log(is_same);
                     if (!is_same) {
                         onSave(
                             $state.snapshot(
@@ -205,30 +224,28 @@
             <div class="flex items-center">
                 <fieldset class="fieldset">
                     <legend class="fieldset-legend">Amount</legend>
-
-
-                <div class="join">
-                    <input
-                    type="text"
-                    placeholder="USD"
-                    class="input input-ghost md:input-md lg:input-lg"
-                    bind:value={modified_transaction.currency_id}
-                />
-                    <input
-                    type="number"
-                    placeholder="0"
-                    class="input input-ghost md:input-md lg:input-lg"
-                    bind:value={modified_transaction.amount}
-                    onchange={() => {
-                        updateDebtors(modified_transaction.amount);
-                    }}
-                />
-                  </div>
+                    <div class="join">
+                        <input
+                            readonly={!is_editing}
+                            type="text"
+                            placeholder="USD"
+                            class="input input-ghost md:input-md lg:input-lg"
+                            bind:value={modified_transaction.currency_id}
+                        />
+                        <input
+                            readonly={!is_editing}
+                            type="number"
+                            placeholder="0"
+                            class="input input-ghost md:input-md lg:input-lg"
+                            bind:value={modified_transaction.amount}
+                            onchange={() => {
+                                updateDebtors(modified_transaction.amount);
+                            }}
+                        />
+                    </div>
                 </fieldset>
             </div>
-            <div
-                class="flex flex-col sm:flex-row sm:items-center sm:gap-4"
-            >
+            <div class="flex flex-col sm:flex-row sm:items-center sm:gap-4">
                 <div class="flex items-center sm:space-x-8 space-x-4">
                     <fieldset class="fieldset">
                         <legend class="fieldset-legend">Paid by</legend>
@@ -262,7 +279,6 @@
                         />
                     </fieldset>
                 </div>
-
             </div>
             <div
                 class="flex flex-col justify-between w-full pl-4 pr-4"

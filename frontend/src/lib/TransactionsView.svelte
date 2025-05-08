@@ -29,6 +29,7 @@
                     is_editing={false}
                     is_open={false}
                     onSave={async (newTransaction: Transaction) => {
+                        console.log("update")
                         try {
                             await updateTransaction(
                                 token ?? "",
@@ -55,7 +56,12 @@
                     is_editing={true}
                     is_open={true}
                     onSave={async (newTransaction: Transaction) => {
+                        console.log("create")
                         try {
+                            await updateTransaction(
+                                token ?? "",
+                                newTransaction,
+                            );
                         } catch (e) {
                             console.log(e);
                         }
@@ -79,7 +85,7 @@
                 id: -1,
                 amount: "0",
                 currency_id: main_currency ?? "USD",
-                created_at: new Date().toDateString(),
+                created_at: new Date().toISOString().replace("Z", ""),
                 debtors: [] as Debt[],
                 description: "",
                 exchange_rate:"1",

@@ -44,6 +44,7 @@ export async function getTransactions(tokenID : string) : Promise<Transaction[]>
 
         const data = await res.json();
         let transactions: Transaction[] = data;
+        console.log(transactions);
         return transactions;
         
     } catch (err) {
@@ -80,7 +81,11 @@ export async function getGroupMembers(tokenID : string) : Promise<GroupMember[]>
 export async function updateTransaction(tokenID : string, inTransaction : Transaction) {
     try {
         console.log("UPDATE")
-        const res = await fetch(`http://${backendURL}/groups/${tokenID}/transactions/${inTransaction.id}`, {
+        let url = `http://${backendURL}/groups/${tokenID}/transactions`
+        if(inTransaction.id > 0) {
+            url += "/" + String(inTransaction.id);
+        }
+        const res = await fetch(url, {
             method: "POST",
             credentials: "include",
             headers: {

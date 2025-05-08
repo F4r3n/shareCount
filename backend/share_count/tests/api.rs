@@ -30,15 +30,16 @@ async fn test_full_crud_flow() -> Result<(), anyhow::Error> {
     assert_eq!(json.len(), 2);
     for group in json {
         assert_ne!(group.name, "");
-        assert_ne!(group.currency, "");
+        assert_ne!(group.currency_id, "");
         assert!(group.created_at.date().day() > 0);
     }
+
     //get groups per token
     let response = server.get("/groups/token_abc123").await;
     assert_eq!(response.status_code(), 200);
     let group = response.json::<GroupResponse>();
     assert_ne!(group.name, "");
-    assert_ne!(group.currency, "");
+    assert_ne!(group.currency_id, "");
     assert!(group.created_at.date().day() > 0);
 
     let response = server.get("/groups/token_unknown").await;
@@ -49,7 +50,7 @@ async fn test_full_crud_flow() -> Result<(), anyhow::Error> {
         .post("/groups")
         .json(&serde_json::json!({
             "name": "Tokyo",
-            "currency": "USD",
+            "currency_id": "USD",
             "nicknames":["waluigi", "mario", "JOJO"]
         }))
         .await;
@@ -61,7 +62,7 @@ async fn test_full_crud_flow() -> Result<(), anyhow::Error> {
     assert_eq!(response.status_code(), 200);
     let group = response.json::<GroupResponse>();
     assert_eq!(group.name, "Tokyo");
-    assert_eq!(group.currency, "USD");
+    assert_eq!(group.currency_id, "USD");
     assert!(group.created_at.date().day() > 0);
 
     //Get members
@@ -97,6 +98,7 @@ async fn test_full_crud_flow() -> Result<(), anyhow::Error> {
         .iter()
         .any(|name| name.nickname.eq(&String::from("JAJA"))));
 
+    println!("Delete members...");
     //delete members
     let response = server
         .delete(format!("/groups/{}/group_members", token).as_str())
@@ -110,6 +112,18 @@ async fn test_full_crud_flow() -> Result<(), anyhow::Error> {
     assert_eq!(response.status_code(), 200);
     let group = response.json::<Vec<GroupMember>>();
     assert_eq!(group.len(), 2);
+
+    //Transactions
+    let first_member = group.first().unwrap();
+    dbg!(&first_member);
+
+    let response = server
+    .post(format!("/groups/{}/transactions", token).as_str())
+    .json(&json!({"id":-1,"amount":1111,"currency_id":"USD","created_at":"2025-05-08T19:17:41.819",
+    "debtors":[{"member":{"id":first_member.id,"nickname":first_member.nickname},"amount":"1111"}],
+    "description":"AAAA","exchange_rate":"1","paid_by":{"id":first_member.id,"nickname":first_member.nickname}}))
+    .await;
+    assert_eq!(response.status_code(), 200);
 
     Ok(())
 }
