@@ -9,6 +9,7 @@ use std::env;
 use diesel_migrations::{embed_migrations, EmbeddedMigrations};
 pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!();
 use share_count::entrypoint::group_members::GroupMember;
+use share_count::entrypoint::transactions::TransactionResponse;
 
 async fn get_group_members(
     token: &str,
@@ -122,8 +123,29 @@ async fn test_full_crud_flow() -> Result<(), anyhow::Error> {
     "debtors":[{"member":{"id":first_member.id,"nickname":first_member.nickname},"amount":"1111"}],
     "description":"AAAA","exchange_rate":"1","paid_by":{"id":first_member.id,"nickname":first_member.nickname}}))
     .await;
-    let new_id = response.json::<TransactionIDResponse>().id;
-    assert!(new_id > 0);
+    let new_transaction_id = response.json::<TransactionIDResponse>().id;
+    assert!(new_transaction_id > 0);
+    assert_eq!(response.status_code(), 200);
+
+    let response = server
+        .get(format!("/groups/{}/transactions/{}", token, new_transaction_id).as_str())
+        .await;
+    let transaction = response.json::<TransactionResponse>();
+    assert_eq!(transaction.description, "AAAA");
+
+    let response = server
+    .post(format!("/groups/{}/transactions/{}", token, new_transaction_id).as_str())
+    .json(&json!({"id":new_transaction_id,"amount":1111,"currency_id":"USD","created_at":"2025-05-08T19:17:41.819",
+    "debtors":[{"member":{"id":first_member.id,"nickname":first_member.nickname},"amount":"1111"}],
+    "description":"BBBB","exchange_rate":"1","paid_by":{"id":first_member.id,"nickname":first_member.nickname}}))
+    .await;
+    assert_eq!(response.status_code(), 200);
+
+    let response = server
+        .get(format!("/groups/{}/transactions/{}", token, new_transaction_id).as_str())
+        .await;
+    let transaction = response.json::<TransactionResponse>();
+    assert_eq!(transaction.description, "BBBB");
     assert_eq!(response.status_code(), 200);
 
     let response = server
@@ -133,6 +155,27 @@ async fn test_full_crud_flow() -> Result<(), anyhow::Error> {
     "description":"AAAA","exchange_rate":1,"paid_by":{"id":first_member.id,"nickname":first_member.nickname}}))
     .await;
     assert_eq!(response.status_code(), 500);
+
+    let response = server
+    .post(format!("/groups/{}/transactions", token).as_str())
+    .json(&json!({"id":-1,"amount":0,"currency_id":"USD","created_at":"2025-05-08T19:17:41.819",
+    "debtors":[{"member":{"id":first_member.id,"nickname":first_member.nickname},"amount":111}],
+    "description":"AAAA","exchange_rate":1,"paid_by":{"id":first_member.id,"nickname":first_member.nickname}}))
+    .await;
+    assert_eq!(response.status_code(), 500);
+
+    let response = server
+    .post(format!("/groups/{}/transactions", token).as_str())
+    .json(&json!({"id":-1,"amount":-10,"currency_id":"USD","created_at":"2025-05-08T19:17:41.819",
+    "debtors":[{"member":{"id":first_member.id,"nickname":first_member.nickname},"amount":111}],
+    "description":"AAAA","exchange_rate":1,"paid_by":{"id":first_member.id,"nickname":first_member.nickname}}))
+    .await;
+    assert_eq!(response.status_code(), 500);
+
+    let response = server
+        .delete(format!("/groups/{}/transactions/{}", token, new_transaction_id).as_str())
+        .await;
+    assert_eq!(response.status_code(), 200);
 
     Ok(())
 }

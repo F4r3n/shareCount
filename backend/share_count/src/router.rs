@@ -36,7 +36,8 @@ pub fn create_router(url: &str, state_server: StateServer) -> Result<Router, any
         .route(
             "/groups/{token_id}/transactions/{transaction_id}",
             post(transactions::handler_modify_transaction)
-                .delete(transactions::handler_delete_transaction),
+                .delete(transactions::handler_delete_transaction)
+                .get(transactions::handler_get_transaction),
         )
         .route(
             "/groups/{token_id}/group_members",

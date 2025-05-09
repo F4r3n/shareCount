@@ -33,14 +33,14 @@ pub struct TransactionDebtResponse {
 
 #[derive(Deserialize, Serialize, Queryable)]
 pub struct TransactionResponse {
-    id: i32,
-    description: String,
-    currency_id: String,
-    paid_by: GroupMember,
-    created_at: NaiveDateTime,
-    amount: BigDecimal,
-    exchange_rate: BigDecimal,
-    debtors: Vec<TransactionDebtResponse>,
+    pub id: i32,
+    pub description: String,
+    pub currency_id: String,
+    pub paid_by: GroupMember,
+    pub created_at: NaiveDateTime,
+    pub amount: BigDecimal,
+    pub exchange_rate: BigDecimal,
+    pub debtors: Vec<TransactionDebtResponse>,
 }
 
 pub async fn handler_transactions(
@@ -130,6 +130,82 @@ pub async fn handler_transactions(
     Ok(Json(v))
 }
 
+pub async fn handler_get_transaction(
+    State(state_server): State<state_server::StateServer>,
+    Path((token, transaction_id)): Path<(String, i32)>,
+) -> Result<Json<TransactionResponse>, AppError> {
+    let mut conn = state_server.pool.get()?;
+
+    let (id, description, created_at, amount, exchange_rate, currency_id, member_id, nickname) =
+        groups::table
+            .inner_join(transactions::table)
+            .inner_join(group_members::table)
+            .select((
+                transactions::id,
+                transactions::description,
+                transactions::created_at,
+                transactions::amount,
+                transactions::exchange_rate,
+                transactions::currency_id,
+                group_members::id,
+                group_members::nickname,
+            ))
+            .filter(groups::token.eq(&token))
+            .filter(transactions::id.eq(transaction_id))
+            .get_result::<(
+                i32,
+                String,
+                NaiveDateTime,
+                BigDecimal,
+                BigDecimal,
+                String,
+                i32,
+                String,
+            )>(&mut conn)?;
+    let mut transaction_response = TransactionResponse {
+        amount,
+        created_at,
+        currency_id,
+        description,
+        debtors: Vec::new(),
+        exchange_rate,
+        id,
+        paid_by: GroupMember {
+            id: member_id,
+            nickname,
+        },
+    };
+
+    let debts = transaction_debts::table
+        .inner_join(transactions::table)
+        .inner_join(group_members::table)
+        .inner_join(groups::table.on(transactions::group_id.eq(groups::id)))
+        .filter(groups::token.eq(token))
+        .filter(transactions::id.eq(transaction_id))
+        .select((
+            transaction_debts::id,
+            transaction_debts::amount,
+            group_members::id,
+            group_members::nickname,
+        ))
+        .load::<(i32, BigDecimal, i32, String)>(&mut conn)?;
+
+    debts
+        .into_iter()
+        .for_each(|(debt_id, amount, member_id, nickname)| {
+            transaction_response.debtors.push(TransactionDebtResponse {
+                id: debt_id,
+                amount,
+                member: GroupMember {
+                    id: member_id,
+                    nickname,
+                },
+            });
+        });
+
+    Ok(Json(transaction_response))
+}
+
 #[derive(Debug, AsChangeset, Insertable)]
 #[diesel(table_name = crate::schema::transactions)]
 pub struct TransactionChangeset {
@@ -170,6 +246,15 @@ pub struct TransactionQuery {
 }
 
 fn check_transaction_validity(transaction: &TransactionQuery) -> Result<(), String> {
+    if transaction.amount.le(&BigDecimal::zero()) {
+        return Err("An amount should be strictly positive".to_string());
+    }
+
+    for debt in &transaction.debtors {
+        if debt.amount.lt(&BigDecimal::zero()) {
+            return Err("An amount cannot be negative".to_string());
+        }
+    }
     let debt_amount = transaction
         .debtors
         .iter()
