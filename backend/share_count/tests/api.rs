@@ -1,6 +1,7 @@
 use axum_test::TestServer;
 use chrono::{self, Datelike};
 use serde_json::json;
+use share_count::entrypoint::transactions::TransactionIDResponse;
 use share_count::state_server;
 use share_count::{entrypoint::groups::GroupResponse, router::create_router};
 use std::env;
@@ -8,6 +9,17 @@ use std::env;
 use diesel_migrations::{embed_migrations, EmbeddedMigrations};
 pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!();
 use share_count::entrypoint::group_members::GroupMember;
+
+async fn get_group_members(
+    token: &str,
+    server: &TestServer,
+) -> Result<Vec<GroupMember>, anyhow::Error> {
+    let response = server
+        .get(format!("/groups/{}/group_members", token).as_str())
+        .await;
+    assert_eq!(response.status_code(), 200);
+    Ok(response.json::<Vec<GroupMember>>())
+}
 
 #[tokio::test]
 async fn test_full_crud_flow() -> Result<(), anyhow::Error> {
@@ -66,11 +78,7 @@ async fn test_full_crud_flow() -> Result<(), anyhow::Error> {
     assert!(group.created_at.date().day() > 0);
 
     //Get members
-    let response = server
-        .get(format!("/groups/{}/group_members", token).as_str())
-        .await;
-    assert_eq!(response.status_code(), 200);
-    let group = response.json::<Vec<GroupMember>>();
+    let group = get_group_members(&token, &server).await?;
     assert_eq!(group.len(), 3);
     let id_jojo = group
         .iter()
@@ -88,11 +96,7 @@ async fn test_full_crud_flow() -> Result<(), anyhow::Error> {
         .await;
     assert_eq!(response.status_code(), 200);
 
-    let response = server
-        .get(format!("/groups/{}/group_members", token).as_str())
-        .await;
-    assert_eq!(response.status_code(), 200);
-    let group = response.json::<Vec<GroupMember>>();
+    let group = get_group_members(&token, &server).await?;
     assert_eq!(group.len(), 3);
     assert!(group
         .iter()
@@ -106,16 +110,11 @@ async fn test_full_crud_flow() -> Result<(), anyhow::Error> {
         .await;
     assert_eq!(response.status_code(), 200);
 
-    let response = server
-        .get(format!("/groups/{}/group_members", token).as_str())
-        .await;
-    assert_eq!(response.status_code(), 200);
-    let group = response.json::<Vec<GroupMember>>();
+    let group = get_group_members(&token, &server).await?;
     assert_eq!(group.len(), 2);
 
     //Transactions
     let first_member = group.first().unwrap();
-    dbg!(&first_member);
 
     let response = server
     .post(format!("/groups/{}/transactions", token).as_str())
@@ -123,7 +122,17 @@ async fn test_full_crud_flow() -> Result<(), anyhow::Error> {
     "debtors":[{"member":{"id":first_member.id,"nickname":first_member.nickname},"amount":"1111"}],
     "description":"AAAA","exchange_rate":"1","paid_by":{"id":first_member.id,"nickname":first_member.nickname}}))
     .await;
+    let new_id = response.json::<TransactionIDResponse>().id;
+    assert!(new_id > 0);
     assert_eq!(response.status_code(), 200);
+
+    let response = server
+    .post(format!("/groups/{}/transactions", token).as_str())
+    .json(&json!({"id":-1,"amount":1111,"currency_id":"USD","created_at":"2025-05-08T19:17:41.819",
+    "debtors":[{"member":{"id":first_member.id,"nickname":first_member.nickname},"amount":111}],
+    "description":"AAAA","exchange_rate":1,"paid_by":{"id":first_member.id,"nickname":first_member.nickname}}))
+    .await;
+    assert_eq!(response.status_code(), 500);
 
     Ok(())
 }

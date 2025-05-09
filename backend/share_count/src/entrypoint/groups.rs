@@ -47,7 +47,7 @@ pub async fn handler_users_groups(
         .select((groups::name, groups::currency_id, groups::created_at))
         .load::<GroupResponse>(&mut conn)?;
 
-    Ok(Json(results)).map_err(AppError)
+    Ok(Json(results))
 }
 
 ///groups/{token_id}
@@ -61,7 +61,7 @@ pub async fn handler_groups(
         .select((groups::name, groups::currency_id, groups::created_at))
         .filter(groups::token.eq(token))
         .first::<GroupResponse>(&mut conn)?;
-    Ok(Json(results)).map_err(AppError)
+    Ok(Json(results))
 }
 
 #[derive(Deserialize)]
@@ -113,7 +113,7 @@ pub async fn handler_create_groups(
             }
             Ok(token)
         })
-        .map_err(AppError);
+        .map_err(AppError::from);
 
-    Ok(Json(token?)).map_err(AppError)
+    Ok(Json(token?))
 }

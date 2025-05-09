@@ -31,7 +31,7 @@ pub async fn handler_group_members(
         .select((group_members::id, group_members::nickname))
         .load::<GroupMember>(&mut conn)?;
 
-    Ok(Json(results)).map_err(AppError)
+    Ok(Json(results))
 }
 
 pub async fn handler_add_group_members(
@@ -67,9 +67,9 @@ pub async fn handler_add_group_members(
             .execute(conn)?;
         Ok(())
     })
-    .map_err(AppError)?;
+    .map_err(AppError::from)?;
 
-    Ok(()).map_err(AppError)
+    Ok(())
 }
 
 #[derive(Serialize, Deserialize, Queryable, Debug)]
@@ -105,9 +105,9 @@ pub async fn handler_rename_group_members(
 
         Ok(())
     })
-    .map_err(AppError)?;
+    .map_err(AppError::from)?;
 
-    Ok(()).map_err(AppError)
+    Ok(())
 }
 
 use crate::entrypoint::transactions::{get_transaction_debt, get_transaction_paid_by};
@@ -140,7 +140,7 @@ pub async fn handler_delete_group_members(
 
         Ok(())
     })
-    .map_err(AppError)?;
+    .map_err(AppError::from)?;
 
-    Ok(()).map_err(AppError)
+    Ok(())
 }

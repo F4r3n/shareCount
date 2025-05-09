@@ -56,7 +56,8 @@ CREATE TABLE transaction_debts (
   id SERIAL PRIMARY KEY,
   transaction_id INTEGER NOT NULL REFERENCES transactions(id) ON DELETE CASCADE,
   group_member_id INTEGER NOT NULL REFERENCES group_members(id) ON DELETE CASCADE,
-  amount NUMERIC NOT NULL
+  amount NUMERIC NOT NULL,
+  UNIQUE (transaction_id, group_member_id)
 );
 
 INSERT INTO currency (code, name, symbol, minor_units) VALUES

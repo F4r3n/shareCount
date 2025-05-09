@@ -10,3 +10,6 @@ services:
       - "5433:5432"
     volumes:
       - ./init/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+
+volumes:
+  db_test:

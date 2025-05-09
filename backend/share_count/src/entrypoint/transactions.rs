@@ -5,11 +5,13 @@ use crate::schema::groups;
 use crate::schema::transaction_debts;
 use crate::schema::transactions;
 pub use crate::state_server;
+use axum::http::StatusCode;
 use axum::{
     extract::{Path, State},
     response::Json,
 };
 use bigdecimal::BigDecimal;
+use bigdecimal::Zero;
 use chrono::NaiveDateTime;
 use diesel::prelude::*;
 use serde::{Deserialize, Serialize};
@@ -125,7 +127,7 @@ pub async fn handler_transactions(
 
     let v = map.into_values().collect();
 
-    Ok(Json(v)).map_err(AppError)
+    Ok(Json(v))
 }
 
 #[derive(Debug, AsChangeset, Insertable)]
@@ -146,7 +148,7 @@ pub struct TransactionDebtChangeset {
     pub amount: BigDecimal,
 }
 
-#[derive(Insertable, AsChangeset)]
+#[derive(Insertable, AsChangeset, Clone, Debug)]
 #[diesel(table_name = transaction_debts)]
 pub struct TransactionDebtUpsert {
     id: Option<i32>,
@@ -167,12 +169,27 @@ pub struct TransactionQuery {
     debtors: Vec<TransactionDebtQuery>,
 }
 
+fn check_transaction_validity(transaction: &TransactionQuery) -> Result<(), String> {
+    let debt_amount = transaction
+        .debtors
+        .iter()
+        .fold(BigDecimal::zero(), |acc, x| acc + &x.amount);
+    if debt_amount == transaction.amount {
+        Ok(())
+    } else {
+        Err(format!(
+            "The amount of debtors {} are not equivalent to the transaction {}",
+            debt_amount, transaction.amount
+        ))
+    }
+}
+
 pub fn modify_create_transaction(
     token_id: String,
     transaction: TransactionQuery,
     transaction_id: Option<i32>,
     conn: &mut PooledConnection<ConnectionManager<PgConnection>>,
-) -> Result<(), anyhow::Error> {
+) -> Result<i32, anyhow::Error> {
     let group_id = get_group_id(token_id, conn)?;
     let changeset = TransactionChangeset {
         description: transaction.description,
@@ -207,18 +224,22 @@ pub fn modify_create_transaction(
                 group_member_id: debt.member.id,
                 amount: debt.amount,
                 // Include ID only for updates
-                id: debt.id,
+                id: debt.id, //can be optional,
             }
         })
         .collect::<Vec<_>>();
 
     diesel::insert_into(transaction_debts::table)
         .values(&debts)
-        .on_conflict((transaction_debts::id, transaction_debts::transaction_id))
+        .on_conflict((
+            transaction_debts::transaction_id,
+            transaction_debts::group_member_id,
+        ))
         .do_update()
         .set(transaction_debts::amount.eq(diesel::upsert::excluded(transaction_debts::amount)))
         .execute(conn)?;
-    Ok(())
+
+    Ok(transaction_id)
 }
 
 pub async fn handler_modify_transaction(
@@ -226,29 +247,39 @@ pub async fn handler_modify_transaction(
     Path((token, transaction_id)): Path<(String, i32)>,
     Json(payload): Json<TransactionQuery>,
 ) -> Result<(), AppError> {
-    dbg!("Create transaction");
+    dbg!("Modify transaction");
     let mut conn = state_server.pool.get()?;
     conn.transaction::<_, anyhow::Error, _>(|conn| {
         modify_create_transaction(token, payload, Some(transaction_id), conn)
     })
-    .map_err(AppError)?;
+    .map_err(AppError::from)?;
 
-    Ok(()).map_err(AppError)
+    Ok(())
+}
+
+#[derive(Deserialize, Serialize, Queryable, Debug)]
+pub struct TransactionIDResponse {
+    pub id: i32,
 }
 
 pub async fn handler_create_transaction(
     State(state_server): State<state_server::StateServer>,
     Path(token): Path<String>,
     Json(payload): Json<TransactionQuery>,
-) -> Result<(), AppError> {
-    dbg!("Create transaction");
-    let mut conn = state_server.pool.get()?;
-    conn.transaction::<_, anyhow::Error, _>(|conn| {
-        modify_create_transaction(token, payload, None, conn)
-    })
-    .map_err(AppError)?;
+) -> Result<Json<TransactionIDResponse>, AppError<String>> {
+    check_transaction_validity(&payload).map_err(|v| AppError {
+        error: anyhow::anyhow!(StatusCode::INTERNAL_SERVER_ERROR),
+        content: Some(v),
+    })?;
 
-    Ok(()).map_err(AppError)
+    let mut conn = state_server.pool.get()?;
+    let id = conn
+        .transaction::<i32, anyhow::Error, _>(|conn| {
+            modify_create_transaction(token, payload, None, conn)
+        })
+        .map_err(AppError::from)?;
+
+    Ok(Json(TransactionIDResponse { id }))
 }
 
 pub async fn handler_delete_transaction(
@@ -266,9 +297,9 @@ pub async fn handler_delete_transaction(
 
         Ok(())
     })
-    .map_err(AppError)?;
+    .map_err(AppError::from)?;
 
-    Ok(()).map_err(AppError)
+    Ok(())
 }
 
 #[derive(Deserialize, Serialize, Queryable, Debug)]
