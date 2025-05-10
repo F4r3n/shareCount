@@ -10,6 +10,7 @@
     logs: true;
   }
 
-  body {
-    background-color: var(--color-base);
+  html {
+    background-color: var(--color-base-300);
+    color: var(--color-base-content);
   }

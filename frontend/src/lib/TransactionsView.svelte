@@ -64,7 +64,7 @@
         onUpdate && onUpdate(updated);
     }
     const options = {
-        weekday: "long",
+        weekday: undefined,
         year: "numeric",
         month: "long",
         day: "numeric",
@@ -99,7 +99,7 @@
                 ></TransactionView>
             {/if}
             {#each transactions as transaction, id (transaction.id)}
-                <div class="font-bold text-base md:text-md lg:text-lg">
+                <div class="font-semibold text-base md:text-md lg:text-lg">
                     {#if id > 0}
                         {#if new Date(transaction.created_at.split("T")[0]).getDate() != new Date(transactions[id - 1].created_at.split("T")[0]).getDate()}
                             <div class="my-2">

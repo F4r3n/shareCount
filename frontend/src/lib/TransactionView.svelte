@@ -111,47 +111,76 @@
 
 <main>
     <div class="flex justify-between w-full items-center">
-        {#if is_editing}
-            <div class="flex items-center gap-x-2 flex-grow">
-                <input
-                    type="text"
-                    placeholder="Hotel"
-                    class="input input-ghost md:input-md lg:input-lg"
-                    bind:value={modified_transaction.description}
-                />
-            </div>
-        {:else}
+        <div class="flex flex-col w-full">
             <button
-                type="button"
-                aria-label="Edit"
-                class="btn btn-xs sm:btn-sm md:btn-md lg:btn-lg"
-                onclick={() => {
-                    is_editing = true;
-                    is_open = true;
-                }}
-            >
-                <PencilIcon class="size-6"></PencilIcon>
-            </button>
-            <button
-                class="btn flex items-center gap-x-2 flex-grow btn-xs sm:btn-sm md:btn-md lg:btn-lg"
-                type="button"
+                class="flex gap-x-2 flex-grow bg-base-200 shadow rounded-md hover:cursor-pointer p-3"
                 onclick={() => {
                     is_open = !is_open;
                     is_editing = false;
                     modified_transaction = transaction;
                 }}
             >
-                <div class="flex flex-row items-center gap-x-2 flex-grow">
-                    <div class="truncate text-base md:text-md lg:text-lg">
-                        {modified_transaction.description}
+                <div
+                    class="grid grid-cols-[1fr_auto] grid-rows-2 gap-x-4 items-center w-full"
+                >
+                    <!-- Title: Top-left -->
+                    <div
+                        class="col-start-1 row-start-1 truncate text-left text-base md:text-md lg:text-lg text-base-content"
+                    >
+                        {#if is_editing}
+                            <div class="flex items-center gap-x-2 flex-grow">
+                                <input
+                                    type="text"
+                                    placeholder="Hotel"
+                                    class="input input-ghost md:input-md lg:input-lg"
+                                    bind:value={
+                                        modified_transaction.description
+                                    }
+                                />
+                            </div>
+                        {:else}
+                            {modified_transaction.description}
+                        {/if}
+                    </div>
+
+                    <!-- Paid by: Second row, left column -->
+                    <div
+                        class="col-start-1 row-start-2 text-left text-sm text-base-content/80"
+                    >
+                        Paid by {modified_transaction.paid_by.nickname}
+                    </div>
+
+                    <!-- Amount: Right, vertically centered across first two rows -->
+                    <div
+                        class="col-start-2 row-start-1 row-span-2 flex flex-col items-center justify-center text-base md:text-md lg:text-lg h-full"
+                    >
+                        <div>
+                            {modified_transaction.amount}
+                            {modified_transaction.currency_id}
+                        </div>
                     </div>
                 </div>
-                <div class="flex items-center text-base md:text-md lg:text-lg">
-                    <div>{modified_transaction.amount}</div>
-                    <div>{modified_transaction.currency_id}</div>
-                </div>
             </button>
-        {/if}
+            <div class="flex flex-row justify-end gap-2 mt-2">
+                <button
+                    class="btn btn-sm btn-primary"
+                    onclick={() => {
+                        is_editing = true;
+                        is_open = true;
+                    }}
+                >
+                    Edit
+                </button>
+                <button
+                    class="btn btn-sm btn-error"
+                    onclick={() => {
+                        modal?.showModal();
+                    }}
+                >
+                    Delete
+                </button>
+            </div>
+        </div>
 
         <!-- Icon buttons (only show when !is_same) -->
         {#if is_editing}
@@ -189,17 +218,6 @@
                 }}
             >
                 <X class="text-red-600 w-6 h-6 md:w-7 md:h-7 lg:w-8 lg:h-8" />
-            </button>
-        {:else}
-            <button
-                type="button"
-                aria-label="Delete"
-                class="btn btn-xs sm:btn-sm md:btn-md lg:btn-lg"
-                onclick={() => {
-                    modal?.showModal();
-                }}
-            >
-                <Trash2Icon class="size-6"></Trash2Icon>
             </button>
         {/if}
     </div>

@@ -1,9 +1,7 @@
 <script lang="ts">
 	import "../app.css";
-	import { page } from "$app/state";
 	import { goto } from "$app/navigation";
 	import {group_name} from "$lib/store"
-	import {get} from "svelte/store"
 	import { onMount } from "svelte";
 	import {MENU, menus} from "$lib/menus"
 	let { children } = $props();

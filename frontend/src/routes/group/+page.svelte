@@ -1,6 +1,5 @@
 <script lang="ts">
     import { onMount } from "svelte";
-    import { page } from "$app/state";
     import type { Transaction, Group, GroupMember } from "../../lib/types";
     import TransactionsView from "$lib/TransactionsView.svelte";
 
@@ -68,7 +67,7 @@
         main_currency={group_info?.currency_id}
         members={group_members}
         token={current_token}
-         onUpdate={handleUpdate}
+        onUpdate={handleUpdate}
     ></TransactionsView>
 {/if}
 
