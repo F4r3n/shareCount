@@ -11,6 +11,7 @@
         is_open,
         onSave,
         onDelete,
+        onCancel,
     }: {
         transaction: Transaction;
         members: GroupMember[];
@@ -18,6 +19,7 @@
         is_open: boolean;
         onSave: (tx: Transaction) => Promise<boolean>;
         onDelete: (tx: Transaction) => void;
+        onCancel: (tx: Transaction) => void;
     } = $props();
     let modified_transaction = $state(transaction);
 
@@ -107,7 +109,7 @@
     }
 </script>
 
-<main class="mt-2">
+<main>
     <div class="flex justify-between w-full items-center">
         {#if is_editing}
             <div class="flex items-center gap-x-2 flex-grow">
@@ -183,6 +185,7 @@
                     modified_transaction = transaction;
                     is_editing = false;
                     is_open = false;
+                    onCancel(modified_transaction);
                 }}
             >
                 <X class="text-red-600 w-6 h-6 md:w-7 md:h-7 lg:w-8 lg:h-8" />

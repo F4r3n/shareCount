@@ -17,7 +17,7 @@
         main_currency: string | undefined;
         members: GroupMember[];
         token: string | null;
-        onUpdate : (tx: Transaction[]) => void;
+        onUpdate: (tx: Transaction[]) => void;
     } = $props();
 
     let creating_transaction: Transaction | null = $state(null);
@@ -57,41 +57,32 @@
         return debts;
     }
 
-    function updateTransactionLocal(id : number, modified : Transaction) {
+    function updateTransactionLocal(id: number, modified: Transaction) {
         let updated = [...transactions];
         updated[id] = modified;
         updated = sort_transactions(updated);
         onUpdate && onUpdate(updated);
     }
+    const options = {
+        weekday: "long",
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+    } as Intl.DateTimeFormatOptions;
 </script>
 
 <div class="flex flex-col h-dvh">
     <div class="transactions">
         <div class="flex flex-col w-full md:w-8/12 mx-1">
-            {#each transactions as transaction, id (transaction.id)}
-                <TransactionView
-                    {transaction}
-                    {members}
-                    is_editing={false}
-                    is_open={false}
-                    onSave={async (
-                        newTransaction: Transaction,
-                    ): Promise<boolean> => {
-                        let result = await handler_updateTransaction(
-                            $state.snapshot(newTransaction),
-                        );
-                        updateTransactionLocal(id, newTransaction);
-                        return result;
-                    }}
-                    onDelete={handler_deleteTransaction}
-                ></TransactionView>
-            {/each}
             {#if creating && creating_transaction}
                 <TransactionView
                     transaction={creating_transaction}
                     {members}
                     is_editing={true}
                     is_open={true}
+                    onCancel={() => {
+                        creating = false;
+                    }}
                     onSave={async (
                         newTransaction: Transaction,
                     ): Promise<boolean> => {
@@ -107,6 +98,42 @@
                     onDelete={async (newTransaction: Transaction) => {}}
                 ></TransactionView>
             {/if}
+            {#each transactions as transaction, id (transaction.id)}
+                <div class="font-bold text-base md:text-md lg:text-lg">
+                    {#if id > 0}
+                        {#if new Date(transaction.created_at.split("T")[0]).getDate() != new Date(transactions[id - 1].created_at.split("T")[0]).getDate()}
+                            <div class="my-2">
+                                {new Date(
+                                    transaction.created_at.split("T")[0],
+                                ).toLocaleDateString(undefined, options)}
+                            </div>
+                        {/if}
+                    {:else}
+                        {new Date(
+                            transaction.created_at.split("T")[0],
+                        ).toLocaleDateString(undefined, options)}
+                    {/if}
+                </div>
+                <div>
+                    <TransactionView
+                        {transaction}
+                        {members}
+                        is_editing={false}
+                        is_open={false}
+                        onSave={async (
+                            newTransaction: Transaction,
+                        ): Promise<boolean> => {
+                            let result = await handler_updateTransaction(
+                                $state.snapshot(newTransaction),
+                            );
+                            updateTransactionLocal(id, newTransaction);
+                            return result;
+                        }}
+                        onDelete={handler_deleteTransaction}
+                        onCancel={() => {}}
+                    ></TransactionView>
+                </div>
+            {/each}
         </div>
     </div>
 
