@@ -16,12 +16,10 @@
         members: GroupMember[];
         is_editing: boolean;
         is_open: boolean;
-        onSave: (tx: Transaction) => void;
+        onSave: (tx: Transaction) => Promise<boolean>;
         onDelete: (tx: Transaction) => void;
     } = $props();
-    let modified_transaction: Transaction = $state(
-        $state.snapshot(transaction) as Transaction,
-    );
+    let modified_transaction = $state(transaction);
 
     class DebtContainer {
         activated: boolean = $state(false);
@@ -33,7 +31,7 @@
             this.debt = debt;
             this.activated = activated;
             if (!this.activated)
-                this.activated = parseFloat(this.debt.amount) > 0;
+                this.activated = parseFloat(this.debt.amount) >= 0;
         }
 
         setDebt(inDebt: Debt) {
@@ -41,7 +39,6 @@
         }
     }
 
-    let is_same: boolean = $state(true);
     let mapDebt: SvelteMap<string, DebtContainer> = $state(new SvelteMap());
     let modal: HTMLDialogElement | null = null;
     let date_value = $derived(modified_transaction.created_at.split("T")[0]);
@@ -62,7 +59,7 @@
             }
         }
 
-        const set_current_debtors : Set<String> = new Set();
+        const set_current_debtors: Set<String> = new Set();
 
         for (let i = 0; i < modified_transaction.debtors.length; ++i) {
             const updatedDebt = mapDebt.get(
@@ -71,13 +68,16 @@
             if (updatedDebt) {
                 modified_transaction.debtors[i] = updatedDebt.debt;
             }
-            set_current_debtors.add(modified_transaction.debtors[i].member.nickname);
+            set_current_debtors.add(
+                modified_transaction.debtors[i].member.nickname,
+            );
         }
 
-
         for (const [key, debtContainer] of mapDebt) {
-            if(debtContainer.activated) {
-                if(!set_current_debtors.has(debtContainer.debt.member.nickname)) {
+            if (debtContainer.activated) {
+                if (
+                    !set_current_debtors.has(debtContainer.debt.member.nickname)
+                ) {
                     modified_transaction.debtors.push(debtContainer.debt);
                 }
             }
@@ -98,22 +98,7 @@
         for (const debt of modified_transaction.debtors) {
             mapDebt.set(debt.member.nickname, new DebtContainer(debt, true));
         }
-
-        console.log(modified_transaction.created_at);
     });
-
-    function hasChanged(): boolean {
-        console.log("Modified")
-        console.log($state.snapshot(modified_transaction));
-
-        console.log("original")
-        console.log($state.snapshot(transaction));
-
-        return (
-            JSON.stringify($state.snapshot(modified_transaction)) ===
-            JSON.stringify($state.snapshot(transaction))
-        );
-    }
 
     function handleDelete() {
         // Replace with your actual logic
@@ -151,7 +136,7 @@
                 onclick={() => {
                     is_open = !is_open;
                     is_editing = false;
-                    Object.assign(modified_transaction, transaction);
+                    modified_transaction = transaction;
                 }}
             >
                 <div class="flex flex-row items-center gap-x-2 flex-grow">
@@ -173,18 +158,16 @@
                 aria-label="Confirm"
                 class="ml-2 p-1 rounded-full flex items-center justify-center
                hover:bg-green-100 focus:outline-none focus:ring-2 focus:ring-green-400 transition"
-                onclick={() => {
+                onclick={async () => {
                     //TODO: Send event to parent
-                    is_same = hasChanged();
-                    is_editing = false;
-                    console.log(is_same);
-                    if (!is_same) {
-                        onSave(
-                            $state.snapshot(
-                                modified_transaction,
-                            ) as Transaction,
-                        );
+                    //if (!is_same) {
+                    transaction = modified_transaction;
+                    if (await onSave(modified_transaction)) {
+                        is_editing = false;
+                    } else {
+                        is_editing = true;
                     }
+                    //}
                 }}
             >
                 <CheckIcon
@@ -197,8 +180,7 @@
                 aria-label="Reject"
                 class="ml-2 p-1 rounded-full flex items-center justify-center hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-red-400 transition"
                 onclick={() => {
-                    Object.assign(modified_transaction, transaction);
-                    is_same = hasChanged();
+                    modified_transaction = transaction;
                     is_editing = false;
                     is_open = false;
                 }}
@@ -220,7 +202,7 @@
     </div>
 
     {#if is_open}
-        <div class="flex flex-col">
+        <div class="flex flex-col" transition:slide>
             <div class="flex items-center">
                 <fieldset class="fieldset">
                     <legend class="fieldset-legend">Amount</legend>
@@ -276,14 +258,15 @@
                             class="input input-bordered w-full max-w-[10rem] sm:max-w-xs"
                             aria-label="Transaction date"
                             bind:value={date_value}
+                            onchange={() => {
+                                modified_transaction.created_at =
+                                    date_value + "T00:00:00.000000";
+                            }}
                         />
                     </fieldset>
                 </div>
             </div>
-            <div
-                class="flex flex-col justify-between w-full pl-4 pr-4"
-                transition:slide
-            >
+            <div class="flex flex-col justify-between w-full pl-4 pr-4">
                 {#each mapDebt as [nickname, debtContainer]}
                     <div
                         class="flex flex-row mt-2 justify-between w-full items-center"
@@ -316,9 +299,7 @@
                                         modified_transaction.amount,
                                     )}"
                                     bind:value={debtContainer.debt.amount}
-                                    onchange={() => {
-                                        is_same = hasChanged();
-                                    }}
+                                    onchange={() => {}}
                                 />
                             {:else}
                                 <div>0</div>

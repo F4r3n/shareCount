@@ -10,7 +10,6 @@
 
 	let token_id = $state("");
 	onMount(()=>{
-		console.log(get(group_name));
 		const params = new URLSearchParams(window.location.search);
 		token_id = params.get('id') ?? "";
 	})

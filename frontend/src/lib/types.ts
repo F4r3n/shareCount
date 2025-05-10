@@ -1,6 +1,6 @@
 
 export interface Debt {
-    id : number,
+    id? : number,
     amount : string,
     member : GroupMember
 }
@@ -11,7 +11,7 @@ export interface GroupMember {
 }
 
 export interface Transaction {
-    id: number,
+    id?: number,
     description : string,
     currency_id : string,
     paid_by: GroupMember,

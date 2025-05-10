@@ -1,7 +1,7 @@
-import type {Group, Transaction, GroupMember} from "./types"
+import type { Group, Transaction, GroupMember } from "./types"
 const backendURL: string = import.meta.env.VITE_BACKEND_URL;
 
-export async function getGroup(tokenID : string)  : Promise<Group> {
+export async function getGroup(tokenID: string): Promise<Group> {
     try {
         const res = await fetch(`http://${backendURL}/groups/${tokenID}`, {
             method: "GET",
@@ -28,7 +28,7 @@ export async function getGroup(tokenID : string)  : Promise<Group> {
     }
 }
 
-export async function getTransactions(tokenID : string) : Promise<Transaction[]> {
+export async function getTransactions(tokenID: string): Promise<Transaction[]> {
     try {
         const res = await fetch(`http://${backendURL}/groups/${tokenID}/transactions`, {
             method: "GET",
@@ -44,9 +44,9 @@ export async function getTransactions(tokenID : string) : Promise<Transaction[]>
 
         const data = await res.json();
         let transactions: Transaction[] = data;
-        console.log(transactions);
-        return transactions;
-        
+
+        return sort_transactions(transactions);
+
     } catch (err) {
         console.error("Error:", err);
         throw err; // re-throw so the caller can handle the error
@@ -54,7 +54,7 @@ export async function getTransactions(tokenID : string) : Promise<Transaction[]>
 }
 
 
-export async function getGroupMembers(tokenID : string) : Promise<GroupMember[]> {
+export async function getGroupMembers(tokenID: string): Promise<GroupMember[]> {
     try {
         const res = await fetch(`http://${backendURL}/groups/${tokenID}/group_members`, {
             method: "GET",
@@ -71,18 +71,26 @@ export async function getGroupMembers(tokenID : string) : Promise<GroupMember[]>
         const data = await res.json();
         let members: GroupMember[] = data;
         return members;
-        
+
     } catch (err) {
         console.error("Error:", err);
         throw err; // re-throw so the caller can handle the error
     }
 }
 
-export async function updateTransaction(tokenID : string, inTransaction : Transaction) {
+export function sort_transactions(inTransactions: Transaction[]): Transaction[] {
+    return inTransactions.toSorted((a, b) => new Date(b.created_at).getTime() -
+            new Date(a.created_at).getTime())
+}
+
+export function sort_transactions_desc(inTransactions: Transaction[]): Transaction[] {
+    return inTransactions.toSorted((a, b) => a.description.localeCompare(b.description))
+}
+
+export async function updateTransaction(tokenID: string, inTransaction: Transaction) {
     try {
-        console.log("UPDATE")
         let url = `http://${backendURL}/groups/${tokenID}/transactions`
-        if(inTransaction.id > 0) {
+        if (inTransaction.id && inTransaction.id > 0) {
             url += "/" + String(inTransaction.id);
         }
         const res = await fetch(url, {
@@ -97,16 +105,15 @@ export async function updateTransaction(tokenID : string, inTransaction : Transa
         if (!res.ok) {
             throw new Error(`Request failed ${res.status}`);
         }
-        
+
     } catch (err) {
         console.error("Error:", err);
         throw err; // re-throw so the caller can handle the error
     }
 }
 
-export async function deleteTransaction(tokenID : string, inTransactionID : number) {
+export async function deleteTransaction(tokenID: string, inTransactionID: number) {
     try {
-        console.log("UPDATE")
         const res = await fetch(`http://${backendURL}/groups/${tokenID}/transactions/${inTransactionID}`, {
             method: "DELETE",
             credentials: "include",
@@ -118,7 +125,7 @@ export async function deleteTransaction(tokenID : string, inTransactionID : numb
         if (!res.ok) {
             throw new Error(`Request failed ${res.status}`);
         }
-        
+
     } catch (err) {
         console.error("Error:", err);
         throw err; // re-throw so the caller can handle the error

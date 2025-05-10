@@ -125,8 +125,8 @@ pub async fn handler_transactions(
             }
         });
 
-    let v = map.into_values().collect();
-
+    let mut v = map.into_values().collect::<Vec<TransactionResponse>>();
+    v.sort_by(|a: &TransactionResponse, b: &TransactionResponse| a.created_at.cmp(&b.created_at));
     Ok(Json(v))
 }
 
@@ -235,7 +235,7 @@ pub struct TransactionDebtUpsert {
 
 #[derive(Deserialize, Serialize, Queryable, Debug)]
 pub struct TransactionQuery {
-    id: i32,
+    id: Option<i32>,
     description: String,
     currency_id: String,
     paid_by: GroupMember,
@@ -304,12 +304,17 @@ pub fn modify_create_transaction(
         .debtors
         .into_iter()
         .map(|debt| {
+            let id: Option<i32> = if debt.id.is_some_and(|v| v > 0) {
+                debt.id
+            } else {
+                None
+            };
             TransactionDebtUpsert {
                 transaction_id,
                 group_member_id: debt.member.id,
                 amount: debt.amount,
                 // Include ID only for updates
-                id: debt.id, //can be optional,
+                id, //can be optional,
             }
         })
         .collect::<Vec<_>>();
