@@ -161,65 +161,68 @@
                     </div>
                 </div>
             </button>
-            <div class="flex flex-row justify-end gap-2 mt-2">
-                <button
-                    class="btn btn-sm btn-primary"
-                    onclick={() => {
-                        is_editing = true;
-                        is_open = true;
-                    }}
-                >
-                    Edit
-                </button>
-                <button
-                    class="btn btn-sm btn-error"
-                    onclick={() => {
-                        modal?.showModal();
-                    }}
-                >
-                    Delete
-                </button>
-            </div>
-        </div>
-
-        <!-- Icon buttons (only show when !is_same) -->
-        {#if is_editing}
-            <button
-                type="button"
-                aria-label="Confirm"
-                class="ml-2 p-1 rounded-full flex items-center justify-center
+            {#if is_editing}
+                <div class="flex flex-row justify-start gap-x-2 mt-2">
+                    <button
+                        type="button"
+                        aria-label="Confirm"
+                        class="ml-2 p-1 rounded-full flex items-center justify-center
                hover:bg-green-100 focus:outline-none focus:ring-2 focus:ring-green-400 transition"
-                onclick={async () => {
-                    //TODO: Send event to parent
-                    //if (!is_same) {
-                    transaction = modified_transaction;
-                    if (await onSave(modified_transaction)) {
-                        is_editing = false;
-                    } else {
-                        is_editing = true;
-                    }
-                    //}
-                }}
-            >
-                <CheckIcon
-                    class="text-green-600 w-6 h-6 md:w-7 md:h-7 lg:w-8 lg:h-8"
-                />
-            </button>
+                        onclick={async () => {
+                            //TODO: Send event to parent
+                            //if (!is_same) {
+                            transaction = modified_transaction;
+                            if (await onSave(modified_transaction)) {
+                                is_editing = false;
+                            } else {
+                                is_editing = true;
+                            }
+                            //}
+                        }}
+                    >
+                        <CheckIcon
+                            class="text-green-600 w-6 h-6 md:w-7 md:h-7 lg:w-8 lg:h-8"
+                        />
+                    </button>
 
-            <button
-                type="button"
-                aria-label="Reject"
-                class="ml-2 p-1 rounded-full flex items-center justify-center hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-red-400 transition"
-                onclick={() => {
-                    modified_transaction = transaction;
-                    is_editing = false;
-                    is_open = false;
-                    onCancel(modified_transaction);
-                }}
-            >
-                <X class="text-red-600 w-6 h-6 md:w-7 md:h-7 lg:w-8 lg:h-8" />
-            </button>
-        {/if}
+                    <button
+                        type="button"
+                        aria-label="Reject"
+                        class="ml-2 p-1 rounded-full flex items-center justify-center hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-red-400 transition"
+                        onclick={() => {
+                            modified_transaction = transaction;
+                            is_editing = false;
+                            is_open = false;
+                            onCancel(modified_transaction);
+                        }}
+                    >
+                        <X
+                            class="text-red-600 w-6 h-6 md:w-7 md:h-7 lg:w-8 lg:h-8"
+                        />
+                    </button>
+                </div>
+            {:else}
+                <div class="flex flex-row justify-end gap-x-2 mt-2">
+                    <button
+                        class="btn btn-sm btn-primary"
+                        onclick={() => {
+                            is_editing = true;
+                            is_open = true;
+                        }}
+                    >
+                        Edit
+                    </button>
+                    <button
+                        class="btn btn-sm btn-error"
+                        onclick={() => {
+                            modal?.showModal();
+                        }}
+                    >
+                        Delete
+                    </button>
+                </div>
+            {/if}
+        </div>
     </div>
 
     {#if is_open}
