@@ -38,44 +38,45 @@ pub async fn handler_add_group_members(
     State(state_server): State<state_server::StateServer>,
     Path(token): Path<String>,
     Json(members): Json<Vec<String>>,
-) -> Result<(), AppError> {
+) -> Result<Json<Vec<GroupMember>>, AppError> {
     let mut conn = state_server.pool.get()?;
-    conn.transaction::<_, anyhow::Error, _>(|conn| {
-        let group_id = get_group_id(token, conn)?;
+    let result = conn
+        .transaction::<Vec<GroupMember>, anyhow::Error, _>(|conn| {
+            let group_id = get_group_id(token, conn)?;
 
-        #[derive(Insertable)]
-        #[diesel(table_name = group_members)]
-        pub struct NewGroupMember {
-            group_id: i32,
-            nickname: String,
-            user_id: Option<i32>,
-        }
+            #[derive(Insertable)]
+            #[diesel(table_name = group_members)]
+            pub struct NewGroupMember {
+                group_id: i32,
+                nickname: String,
+                user_id: Option<i32>,
+            }
 
-        let new_members: Vec<_> = members
-            .into_iter()
-            .map(|nickname| NewGroupMember {
-                group_id,
-                nickname,
-                user_id: None, // Assuming user_id is optional
-            })
-            .collect();
-        diesel::insert_into(group_members::table)
-            .values(&new_members)
-            .on_conflict((group_members::group_id, group_members::nickname))
-            .do_nothing() // Skip existing members
-            .returning(group_members::id)
-            .execute(conn)?;
-        Ok(())
-    })
-    .map_err(AppError::from)?;
+            let new_members: Vec<_> = members
+                .into_iter()
+                .map(|nickname| NewGroupMember {
+                    group_id,
+                    nickname,
+                    user_id: None, // Assuming user_id is optional
+                })
+                .collect();
+            let result: Vec<GroupMember> = diesel::insert_into(group_members::table)
+                .values(&new_members)
+                .on_conflict((group_members::group_id, group_members::nickname))
+                .do_nothing() // Skip existing members
+                .returning((group_members::id, group_members::nickname))
+                .get_results(conn)?;
+            Ok(result)
+        })
+        .map_err(AppError::from)?;
 
-    Ok(())
+    Ok(Json(result))
 }
 
 #[derive(Serialize, Deserialize, Queryable, Debug)]
 pub struct RenameGroupMembers {
     id: i32,
-    new: String,
+    nickname: String,
 }
 
 pub async fn handler_rename_group_members(
@@ -91,7 +92,7 @@ pub async fn handler_rename_group_members(
         for rename in members {
             let update = GroupMember {
                 id: rename.id,
-                nickname: rename.new,
+                nickname: rename.nickname,
             };
 
             diesel::update(

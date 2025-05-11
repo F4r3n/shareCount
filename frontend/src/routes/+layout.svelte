@@ -1,21 +1,31 @@
 <script lang="ts">
 	import "../app.css";
 	import { goto } from "$app/navigation";
-	import {group_name} from "$lib/store"
+	import { group_name } from "$lib/store";
 	import { onMount } from "svelte";
-	import {MENU, menus} from "$lib/menus"
+	import { MENU, menus } from "$lib/menus";
+	import { pwaInfo } from "virtual:pwa-info";
 	let { children } = $props();
 
 	let token_id = $state("");
-	onMount(()=>{
+	onMount(() => {
 		const params = new URLSearchParams(window.location.search);
-		token_id = params.get('id') ?? "";
-	})
-	let drawerState = $state(false)
+		token_id = params.get("id") ?? "";
+	});
+	let drawerState = $state(false);
+	let webManifestLink = $derived(pwaInfo ? pwaInfo.webManifest.linkTag : "");
 </script>
 
+<svelte:head>
+	{@html webManifestLink}
+</svelte:head>
 <div class="drawer">
-	<input id="my-drawer-3" type="checkbox" class="drawer-toggle" bind:checked={drawerState}/>
+	<input
+		id="my-drawer-3"
+		type="checkbox"
+		class="drawer-toggle"
+		bind:checked={drawerState}
+	/>
 	<div class="drawer-content flex flex-col">
 		<!-- Navbar -->
 		<div class="navbar bg-base-300 w-full banner">
@@ -40,9 +50,13 @@
 					</svg>
 				</label>
 			</div>
-			<div class="mx-2 flex-1 px-2 lg:text-2xl md:text-xl sm:text-lg">{`ShareCount${$group_name !== ""? ": "+$group_name : ""}`}</div>
+			<div class="mx-2 flex-1 px-2 lg:text-2xl md:text-xl sm:text-lg">
+				{`ShareCount${$group_name !== "" ? ": " + $group_name : ""}`}
+			</div>
 			<div class="hidden flex-none lg:block">
-				<ul class="menu menu-horizontal lg:text-2xl md:text-xl sm:text-lg">
+				<ul
+					class="menu menu-horizontal lg:text-2xl md:text-xl sm:text-lg"
+				>
 					{#each menus as sub}
 						<li>
 							<button
@@ -55,7 +69,7 @@
 									} else {
 										goto(`/?id=${token_id}`);
 									}
-									drawerState=false;
+									drawerState = false;
 								}}
 							>
 								{sub.name}
@@ -81,13 +95,11 @@
 						class="cursor-pointer"
 						onclick={() => {
 							if (sub.type !== MENU.GROUPS) {
-								goto(
-									`/group?id=${token_id}&cat=${sub.name}`,
-								);
+								goto(`/group?id=${token_id}&cat=${sub.name}`);
 							} else {
 								goto(`/id=${token_id}`);
 							}
-							drawerState=false;
+							drawerState = false;
 						}}
 					>
 						{sub.name}

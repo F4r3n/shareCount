@@ -11,16 +11,18 @@
     import { group_name } from "$lib/store";
     import { MENU, menus } from "$lib/menus";
 
-    let current_token = $state("");
+    const current_token =
+        new URLSearchParams(window.location.search).get("id") ?? "";
     let cat = $state(menus[MENU.TRANSACTION].name);
 
     let transactions: Transaction[] = $state([]);
+    let loading = $state(true);
     let group_info: Group | null = $state(null);
     let current_error: string = $state("");
     let group_members: GroupMember[] = $state([]);
+
     onMount(async () => {
         const params = new URLSearchParams(window.location.search);
-        current_token = params.get("id") ?? "";
         cat = params.get("cat") ?? menus[MENU.TRANSACTION].name;
         if (current_token) {
             try {
@@ -35,6 +37,7 @@
                 current_error = error as string;
             }
         }
+        loading = false;
     });
 
     function handleUpdate(newTransactions: Transaction[]) {
@@ -62,13 +65,22 @@
 {/if}
 
 {#if cat === menus[MENU.TRANSACTION].name}
-    <TransactionsView
-        {transactions}
-        main_currency={group_info?.currency_id}
-        members={group_members}
-        token={current_token}
-        onUpdate={handleUpdate}
-    ></TransactionsView>
+    {#if loading}
+        <div class="flex w-52 flex-col gap-4">
+            <div class="skeleton h-32 w-full"></div>
+            <div class="skeleton h-4 w-28"></div>
+            <div class="skeleton h-4 w-full"></div>
+            <div class="skeleton h-4 w-full"></div>
+        </div>
+    {:else}
+        <TransactionsView
+            {transactions}
+            main_currency={group_info?.currency_id}
+            members={group_members}
+            token={current_token}
+            onUpdate={handleUpdate}
+        ></TransactionsView>
+    {/if}
 {/if}
 
 <style>

@@ -6,7 +6,7 @@ export interface Debt {
 }
 
 export interface GroupMember {
-    id : number,
+    id? : number,
     nickname : string
 }
 

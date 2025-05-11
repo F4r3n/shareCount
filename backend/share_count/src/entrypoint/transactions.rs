@@ -285,6 +285,7 @@ pub fn modify_create_transaction(
         created_at: transaction.created_at,
         group_id,
     };
+    dbg!(&changeset);
 
     let transaction_id = match transaction_id {
         Some(id) => {

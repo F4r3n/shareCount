@@ -127,20 +127,7 @@
                     <div
                         class="col-start-1 row-start-1 truncate text-left text-base md:text-md lg:text-lg text-base-content"
                     >
-                        {#if is_editing}
-                            <div class="flex items-center gap-x-2 flex-grow">
-                                <input
-                                    type="text"
-                                    placeholder="Hotel"
-                                    class="input input-ghost md:input-md lg:input-lg"
-                                    bind:value={
-                                        modified_transaction.description
-                                    }
-                                />
-                            </div>
-                        {:else}
-                            {modified_transaction.description}
-                        {/if}
+                        {modified_transaction.description}
                     </div>
 
                     <!-- Paid by: Second row, left column -->
@@ -201,26 +188,6 @@
                         />
                     </button>
                 </div>
-            {:else}
-                <div class="flex flex-row justify-end gap-x-2 mt-2">
-                    <button
-                        class="btn btn-sm btn-primary"
-                        onclick={() => {
-                            is_editing = true;
-                            is_open = true;
-                        }}
-                    >
-                        Edit
-                    </button>
-                    <button
-                        class="btn btn-sm btn-error"
-                        onclick={() => {
-                            modal?.showModal();
-                        }}
-                    >
-                        Delete
-                    </button>
-                </div>
             {/if}
         </div>
     </div>
@@ -229,6 +196,17 @@
         <div class="flex flex-col" transition:slide>
             <div class="flex items-center">
                 <fieldset class="fieldset">
+                    <legend class="fieldset-legend">Title</legend>
+
+                    <div class="flex items-center gap-x-2 flex-grow">
+                        <input
+                            type="text"
+                            placeholder="Hotel"
+                            readonly={!is_editing}
+                            class="input input-ghost md:input-md lg:input-lg"
+                            bind:value={modified_transaction.description}
+                        />
+                    </div>
                     <legend class="fieldset-legend">Amount</legend>
                     <div class="join">
                         <input
@@ -334,6 +312,25 @@
                         {/if}
                     </div>
                 {/each}
+            </div>
+            <div class="flex flex-row justify-end gap-x-2 mt-2">
+                <button
+                    class="btn btn-sm btn-primary"
+                    onclick={() => {
+                        is_editing = true;
+                        is_open = true;
+                    }}
+                >
+                    Edit
+                </button>
+                <button
+                    class="btn btn-sm btn-error"
+                    onclick={() => {
+                        modal?.showModal();
+                    }}
+                >
+                    Delete
+                </button>
             </div>
         </div>
     {/if}

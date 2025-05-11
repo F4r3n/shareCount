@@ -4,10 +4,14 @@
     import type { Group } from "$lib/types";
     import { getGroup } from "$lib/shareCountAPI";
     import { group_name } from "$lib/store";
+    import {slide} from "svelte/transition"
+    import GroupView from "$lib/GroupView.svelte";
+
     let groups = $state([] as Group[]);
     let list_tokens: string[] = ["token_abc123"];
     let is_connected: boolean = false;
     let current_error: string = $state("");
+    
     onMount(async () => {
         let list_tokens_string;
         group_name.set("");
@@ -51,22 +55,12 @@
 {/if}
 
 <main>
+    <div>
     {#each groups as group}
-        <div class="card bg-base-100 w-96 shadow-sm">
-            <div class="card-body">
-                <h2 class="card-title">{group.name}</h2>
-
-                <div class="card-actions justify-end">
-                    <button
-                        class="btn btn-primary"
-                        onclick={() => {
-                            goto(`/group?id=${group.token}`);
-                        }}>Go</button
-                    >
-                </div>
-            </div>
-        </div>
+       <GroupView {group}></GroupView>
     {/each}
+    </div>
+
 </main>
 
 <style>
@@ -76,10 +70,4 @@
         justify-content: center;
     }
 
-    .group {
-        border-width: 2px;
-        border-radius: 10px;
-        border-color: var(--color-accent);
-        padding: 30px;
-    }
 </style>

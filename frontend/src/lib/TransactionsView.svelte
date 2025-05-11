@@ -138,7 +138,7 @@
     </div>
 
     <button
-        class="btn btn-accent md:w-1/3 mx-auto add-button mt-5"
+        class="btn btn-accent w-2/3 md:w-1/3 mx-auto add-button mt-5"
         onclick={() => {
             creating = true;
             creating_transaction = {
@@ -167,7 +167,7 @@
 
     .add-button {
         position: sticky;
-        bottom: 0;
+        bottom: 2%;
         z-index: 1;
     }
 </style>
