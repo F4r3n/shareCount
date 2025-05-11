@@ -84,6 +84,7 @@
                 }
             }
         }
+        console.log($state.snapshot(modified_transaction))
     }
 
     onMount(() => {

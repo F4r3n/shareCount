@@ -31,7 +31,7 @@ pub struct TransactionDebtResponse {
     member: GroupMember,
 }
 
-#[derive(Deserialize, Serialize, Queryable)]
+#[derive(Deserialize, Serialize, Queryable, Debug)]
 pub struct TransactionResponse {
     pub id: i32,
     pub description: String,
@@ -73,6 +73,7 @@ pub async fn handler_transactions(
             i32,
             String,
         )>(&mut conn)?;
+    dbg!(&transaction_result);
 
     let debts = transaction_debts::table
         .inner_join(transactions::table)
@@ -124,6 +125,7 @@ pub async fn handler_transactions(
                 });
             }
         });
+    dbg!(&map);
 
     let mut v = map.into_values().collect::<Vec<TransactionResponse>>();
     v.sort_by(|a: &TransactionResponse, b: &TransactionResponse| a.created_at.cmp(&b.created_at));
@@ -147,7 +149,7 @@ pub async fn handler_get_transaction(
                 transactions::amount,
                 transactions::exchange_rate,
                 transactions::currency_id,
-                group_members::id,
+                transactions::paid_by,
                 group_members::nickname,
             ))
             .filter(groups::token.eq(&token))
