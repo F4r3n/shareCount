@@ -51,7 +51,7 @@ pub async fn handler_transactions(
 
     let transaction_result = groups::table
         .inner_join(transactions::table)
-        .inner_join(group_members::table)
+        .inner_join(group_members::table.on(group_members::id.eq(transactions::paid_by)))
         .select((
             transactions::id,
             transactions::description,

@@ -4,7 +4,6 @@
 	import { group_name } from "$lib/store";
 	import { onMount } from "svelte";
 	import { MENU, menus } from "$lib/menus";
-	import { pwaInfo } from "virtual:pwa-info";
 	let { children } = $props();
 
 	let token_id = $state("");
@@ -13,12 +12,9 @@
 		token_id = params.get("id") ?? "";
 	});
 	let drawerState = $state(false);
-	let webManifestLink = $derived(pwaInfo ? pwaInfo.webManifest.linkTag : "");
 </script>
 
-<svelte:head>
-	{@html webManifestLink}
-</svelte:head>
+
 <div class="drawer">
 	<input
 		id="my-drawer-3"
