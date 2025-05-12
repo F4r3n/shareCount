@@ -3,7 +3,18 @@ import { vitePreprocess } from '@sveltejs/vite-plugin-svelte';
 
 const config = {
 	preprocess: vitePreprocess(),
-	kit: { adapter: adapter() }
+	kit: {
+    adapter: adapter({
+      pages: 'build',
+      assets: 'build',
+      fallback: 'offline.html',
+      precompress: false,
+      strict: true
+    }),
+    prerender: {
+      entries: ['*']
+    }
+  }
 };
 
 export default config;
