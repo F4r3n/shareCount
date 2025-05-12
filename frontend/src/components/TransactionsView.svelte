@@ -1,6 +1,6 @@
 <script lang="ts">
     import type { Debt, Transaction, GroupMember } from "$lib/types";
-    import TransactionView from "$lib/TransactionView.svelte";
+    import TransactionView from "./TransactionView.svelte"
     import {
         updateTransaction,
         deleteTransaction,

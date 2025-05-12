@@ -2,7 +2,7 @@
     import type { Transaction, Debt, GroupMember } from "$lib/types";
     import { onMount } from "svelte";
     import { slide } from "svelte/transition";
-    import { CheckIcon, X, PencilIcon, Trash2Icon } from "lucide-svelte";
+    import { CheckIcon, X } from "lucide-svelte";
     import { SvelteMap } from "svelte/reactivity";
     let {
         transaction,

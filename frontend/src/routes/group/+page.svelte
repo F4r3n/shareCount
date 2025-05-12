@@ -1,7 +1,7 @@
 <script lang="ts">
     import { onMount } from "svelte";
-    import type { Transaction, Group, GroupMember } from "../../lib/types";
-    import TransactionsView from "$lib/TransactionsView.svelte";
+    import type { Transaction, Group, GroupMember } from "$lib/types";
+    import TransactionsView from "$lib/../components/TransactionsView.svelte";
 
     import {
         getGroup,
