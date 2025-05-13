@@ -166,7 +166,8 @@
     </div>
 
     {#if is_open}
-        <div class="flex flex-col pl-3" transition:slide>
+    <div  transition:slide>
+        <div class="flex flex-col p-3 border-accent border rounded-md">
             <div class="flex items-center">
                 <fieldset class="fieldset">
                     <legend class="fieldset-legend">Title</legend>
@@ -280,7 +281,8 @@
                     </div>
                 {/each}
             </div>
-            <div class="flex flex-row justify-between gap-x-2 m-2">
+        </div>
+                    <div class="flex flex-row justify-between gap-x-2 m-2">
                 <!-- Left side: Delete and Reset -->
                 <div class="flex flex-row gap-x-2">
                     <button
@@ -316,7 +318,7 @@
                     </button>
                 </div>
             </div>
-        </div>
+            </div>
     {/if}
 </main>
 
