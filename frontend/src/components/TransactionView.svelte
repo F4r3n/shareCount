@@ -2,13 +2,13 @@
     import type { Transaction, Debt, GroupMember } from "$lib/types";
     import { onMount } from "svelte";
     import { slide } from "svelte/transition";
-    import { CheckIcon, X } from "lucide-svelte";
     import { SvelteMap } from "svelte/reactivity";
     let {
         transaction,
         members,
         is_editing,
         is_open,
+        is_creating,
         onSave,
         onDelete,
         onCancel,
@@ -17,6 +17,7 @@
         members: GroupMember[];
         is_editing: boolean;
         is_open: boolean;
+        is_creating: boolean;
         onSave: (tx: Transaction) => Promise<boolean>;
         onDelete: (tx: Transaction) => void;
         onCancel: (tx: Transaction) => void;
@@ -166,143 +167,157 @@
     </div>
 
     {#if is_open}
-    <div  transition:slide>
-        <div class="flex flex-col p-3 border-accent border rounded-md">
-            <div class="flex items-center">
-                <fieldset class="fieldset">
-                    <legend class="fieldset-legend">Title</legend>
+        <div transition:slide>
+            <div class="flex flex-col p-3 border-accent border rounded-md">
+                <div class="flex items-center">
+                    <fieldset class="fieldset">
+                        <legend class="fieldset-legend">Title</legend>
 
-                    <div class="flex items-center gap-x-2 flex-grow">
-                        <input
-                            type="text"
-                            placeholder="Hotel"
-                            readonly={!is_editing}
-                            class="input input-ghost md:input-md lg:input-lg"
-                            bind:value={modified_transaction.description}
-                        />
-                    </div>
-                    <legend class="fieldset-legend">Amount</legend>
-                    <div class="join">
-                        <input
-                            readonly={!is_editing}
-                            type="text"
-                            placeholder="USD"
-                            class="input input-ghost md:input-md lg:input-lg"
-                            bind:value={modified_transaction.currency_id}
-                        />
-                        <input
-                            readonly={!is_editing}
-                            type="number"
-                            placeholder="0"
-                            class="input input-ghost md:input-md lg:input-lg"
-                            bind:value={modified_transaction.amount}
-                            onchange={() => {
-                                updateDebtors(modified_transaction.amount);
-                            }}
-                        />
-                    </div>
-                </fieldset>
-            </div>
-            <div class="flex flex-col sm:flex-row sm:items-center sm:gap-4">
-                <div class="flex items-center sm:space-x-8 space-x-4">
-                    <fieldset class="fieldset">
-                        <legend class="fieldset-legend">Paid by</legend>
-                        <select
-                            class="select"
-                            disabled={!is_editing}
-                            bind:value={modified_transaction.paid_by}
-                        >
-                            <option
-                                disabled
-                                selected
-                                value={modified_transaction.paid_by}
-                            >
-                                {modified_transaction.paid_by.nickname}
-                            </option>
-                            {#each members as member}
-                                <option value={member}>
-                                    {member.nickname}
-                                </option>
-                            {/each}
-                        </select>
-                    </fieldset>
-                    <fieldset class="fieldset">
-                        <legend class="fieldset-legend">When</legend>
-                        <input
-                            type="date"
-                            readonly={!is_editing}
-                            class="input input-bordered w-full max-w-[10rem] sm:max-w-xs"
-                            aria-label="Transaction date"
-                            bind:value={date_value}
-                            onchange={() => {
-                                modified_transaction.created_at =
-                                    date_value + "T00:00:00.000000";
-                            }}
-                        />
-                    </fieldset>
-                </div>
-            </div>
-            <div class="flex flex-col justify-between w-full pl-4 pr-4">
-                {#each mapDebt as [nickname, debtContainer]}
-                    <div
-                        class="flex flex-row mt-2 justify-between w-full items-center"
-                    >
-                        {#if is_editing}
-                            <label class="label mr-2">
-                                <input
-                                    type="checkbox"
-                                    class="checkbox checkbox-accent checkbox-xs sm:checkbox-sm md:checkbox-md"
-                                    bind:checked={debtContainer.activated}
-                                    onchange={(event) => {
-                                        updateDebtors(
-                                            modified_transaction.amount,
-                                        );
-                                    }}
-                                />
-                                {nickname}
-                            </label>
+                        <div class="flex items-center gap-x-2 flex-grow">
                             <input
-                                type="number"
-                                class="input validator max-w-1/3"
-                                required
-                                placeholder={String(debtContainer.debt.amount)}
-                                min="0"
-                                max={modified_transaction.amount}
-                                title="Must be between be 0 to {String(
-                                    modified_transaction.amount,
-                                )}"
-                                bind:value={debtContainer.debt.amount}
-                                onchange={() => {}}
+                                type="text"
+                                placeholder="Hotel"
+                                readonly={!is_editing}
+                                class="input input-ghost md:input-md lg:input-lg"
+                                bind:value={modified_transaction.description}
                             />
-                        {:else}
-                            <div>{debtContainer.debt.member.nickname}</div>
-                            <div>{debtContainer.debt.amount}</div>
-                        {/if}
-                    </div>
-                {/each}
-            </div>
-        </div>
-                    <div class="flex flex-row justify-between gap-x-2 m-2">
-                <!-- Left side: Delete and Reset -->
-                <div class="flex flex-row gap-x-2">
-                    <button
-                        class="btn btn-sm btn-error"
-                        onclick={() => {
-                            modal?.showModal();
-                        }}
-                    >
-                        Delete
-                    </button>
-                    <button
-                        class="btn btn-sm btn-error"
-                        onclick={() => {
-                            modified_transaction = transaction;
-                            onCancel(transaction);
-                        }}
-                    >
-                        Reset
-                    </button>
+                        </div>
+                        <legend class="fieldset-legend">Amount</legend>
+                        <div class="join">
+                            <input
+                                readonly={!is_editing}
+                                type="text"
+                                placeholder="USD"
+                                class="input input-ghost md:input-md lg:input-lg"
+                                bind:value={modified_transaction.currency_id}
+                            />
+                            <input
+                                readonly={!is_editing}
+                                type="number"
+                                placeholder="0"
+                                class="input input-ghost md:input-md lg:input-lg"
+                                bind:value={modified_transaction.amount}
+                                onchange={() => {
+                                    updateDebtors(modified_transaction.amount);
+                                }}
+                            />
+                        </div>
+                    </fieldset>
                 </div>
+                <div class="flex flex-col sm:flex-row sm:items-center sm:gap-4">
+                    <div class="flex items-center sm:space-x-8 space-x-4">
+                        <fieldset class="fieldset">
+                            <legend class="fieldset-legend">Paid by</legend>
+                            <select
+                                class="select"
+                                disabled={!is_editing}
+                                bind:value={modified_transaction.paid_by}
+                            >
+                                <option
+                                    disabled
+                                    selected
+                                    value={modified_transaction.paid_by}
+                                >
+                                    {modified_transaction.paid_by.nickname}
+                                </option>
+                                {#each members as member}
+                                    <option value={member}>
+                                        {member.nickname}
+                                    </option>
+                                {/each}
+                            </select>
+                        </fieldset>
+                        <fieldset class="fieldset">
+                            <legend class="fieldset-legend">When</legend>
+                            <input
+                                type="date"
+                                readonly={!is_editing}
+                                class="input input-bordered w-full max-w-[10rem] sm:max-w-xs"
+                                aria-label="Transaction date"
+                                bind:value={date_value}
+                                onchange={() => {
+                                    modified_transaction.created_at =
+                                        date_value + "T00:00:00.000000";
+                                }}
+                            />
+                        </fieldset>
+                    </div>
+                </div>
+                <div class="flex flex-col justify-between w-full pl-4 pr-4">
+                    {#each mapDebt as [nickname, debtContainer]}
+                        <div
+                            class="flex flex-row mt-2 justify-between w-full items-center"
+                        >
+                            {#if is_editing}
+                                <label class="label mr-2">
+                                    <input
+                                        type="checkbox"
+                                        class="checkbox checkbox-accent checkbox-xs sm:checkbox-sm md:checkbox-md"
+                                        bind:checked={debtContainer.activated}
+                                        onchange={(event) => {
+                                            updateDebtors(
+                                                modified_transaction.amount,
+                                            );
+                                        }}
+                                    />
+                                    {nickname}
+                                </label>
+                                <input
+                                    type="number"
+                                    class="input validator max-w-1/3"
+                                    required
+                                    placeholder={String(
+                                        debtContainer.debt.amount,
+                                    )}
+                                    min="0"
+                                    max={modified_transaction.amount}
+                                    title="Must be between be 0 to {String(
+                                        modified_transaction.amount,
+                                    )}"
+                                    bind:value={debtContainer.debt.amount}
+                                    onchange={() => {}}
+                                />
+                            {:else}
+                                <div>{debtContainer.debt.member.nickname}</div>
+                                <div>{debtContainer.debt.amount}</div>
+                            {/if}
+                        </div>
+                    {/each}
+                </div>
+            </div>
+            <div class="flex flex-row justify-between gap-x-2 m-2">
+                <!-- Left side: Delete and Reset -->
+                {#if is_creating}
+                    <button
+                        class="btn btn-sm btn-error"
+                        onclick={() => {
+                            onCancel(modified_transaction)
+                        }}
+                    >
+                        Cancel
+                    </button>
+                {:else}
+                    <div class="flex flex-row gap-x-2">
+                        <button
+                            class="btn btn-sm btn-error"
+                            onclick={() => {
+                                modal?.showModal();
+                            }}
+                        >
+                            Delete
+                        </button>
+                        <button
+                            class="btn btn-sm btn-error"
+                            onclick={() => {
+                                modified_transaction = transaction;
+                                onCancel(transaction);
+                            }}
+                        >
+                            Reset
+                        </button>
+                    </div>
+                {/if}
+
                 <!-- Right side: Save -->
                 <div>
                     <button
@@ -318,7 +333,7 @@
                     </button>
                 </div>
             </div>
-            </div>
+        </div>
     {/if}
 </main>
 

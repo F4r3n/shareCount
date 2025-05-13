@@ -2,6 +2,7 @@
     import { onMount } from "svelte";
     import { goto } from "$app/navigation";
     import type { Group, GroupMember } from "$lib/types";
+    import { groupUsernames, setGroupMember } from "../stores/groupUsernames";
     import {
         addGroupMembers,
         deleteGroupMembers,
@@ -9,6 +10,7 @@
         renameGroupMembers,
     } from "$lib/shareCountAPI";
     import { slide } from "svelte/transition";
+    import { CheckIcon, XIcon } from "lucide-svelte";
     let {
         group,
     }: {
@@ -17,9 +19,12 @@
     let edit = $state(false);
     let modified_members: GroupMember[] = $state([]);
     let original_members: GroupMember[];
+    let member_me = $state({ nickname: "" } as GroupMember);
     onMount(async () => {
         original_members = await getGroupMembers(group.token);
         modified_members = structuredClone(original_members);
+        member_me = $groupUsernames[group.token];
+        edit = !member_me.nickname;
     });
     let members_to_delete: GroupMember[] = [];
     let members_to_add: string[] = $state([]);
@@ -50,6 +55,7 @@
 
                 <button
                     class="btn btn-primary"
+                    disabled={!member_me.nickname}
                     onclick={() => {
                         goto(`/group?id=${group.token}`);
                     }}
@@ -75,34 +81,61 @@
                 <legend class="fieldset-legend">Members</legend>
                 {#each modified_members as member, id}
                     <div class="join mt-2">
-                        <input
-                            type="text"
-                            class="input input-ghost join-item"
-                            bind:value={member.nickname}
-                        />
                         <button
                             class="btn join-item rounded-r-full"
                             onclick={() => {
                                 members_to_delete.push(member);
                                 modified_members.splice(id, 1);
-                            }}>Delete</button
+                            }}><XIcon></XIcon></button
                         >
+                        <input
+                            type="text"
+                            class="input input-ghost join-item"
+                            bind:value={member.nickname}
+                        />
+                        {#if member_me.nickname == member.nickname}
+                            <div class="flex items-center align-middle">
+                                <CheckIcon></CheckIcon>
+                            </div>
+                        {:else}
+                            <button
+                                class="btn join-item rounded-r-full"
+                                onclick={() => {
+                                    member_me = member;
+                                    setGroupMember(group.token, member);
+                                }}>Select</button
+                            >
+                        {/if}
                     </div>
                 {/each}
 
                 {#each members_to_add as member, id}
                     <div class="join mt-2">
+                        <button
+                            class="btn join-item rounded-r-full"
+                            onclick={() => {
+                                members_to_add.splice(id, 1);
+                            }}><XIcon></XIcon></button
+                        >
                         <input
                             type="text"
                             class="input input-ghost join-item"
                             bind:value={members_to_add[id]}
                         />
-                        <button
-                            class="btn join-item rounded-r-full"
-                            onclick={() => {
-                                members_to_add.splice(id, 1);
-                            }}>Delete</button
-                        >
+
+                        {#if member_me.nickname == members_to_add[id]}
+                            <div class="flex items-center align-middle">
+                                <CheckIcon></CheckIcon>
+                            </div>
+                        {:else}
+                            <button
+                                class="btn join-item rounded-r-full"
+                                onclick={() => {
+                                    member_me.nickname = member;
+                                    setGroupMember(group.token, member_me);
+                                }}>Select</button
+                            >
+                        {/if}
                     </div>
                 {/each}
 
@@ -119,7 +152,17 @@
                 onclick={async () => {
                     edit = false;
                     await deleteGroupMembers(group.token, members_to_delete);
-                    await addGroupMembers(group.token, members_to_add);
+                    let result = await addGroupMembers(
+                        group.token,
+                        members_to_add,
+                    );
+                    const member = result.find((value) => {
+                        value.nickname == member_me.nickname;
+                    });
+                    if (member) {
+                        member_me = member;
+                        setGroupMember(group.token, member_me);
+                    }
                     await renameGroupMembers(group.token, modified_members);
                     clean();
                 }}

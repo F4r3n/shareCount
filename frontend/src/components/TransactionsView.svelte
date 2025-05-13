@@ -6,6 +6,7 @@
         deleteTransaction,
         sort_transactions,
     } from "$lib/shareCountAPI";
+    import { getGroupMember, groupUsernames } from "../stores/groupUsernames";
     let {
         transactions,
         main_currency,
@@ -80,6 +81,7 @@
                     {members}
                     is_editing={true}
                     is_open={true}
+                    is_creating={true}
                     onCancel={() => {
                         creating = false;
                     }}
@@ -92,6 +94,7 @@
                         if (result) {
                             creating = false;
                             transactions.push(newTransaction);
+                            transactions = sort_transactions(transactions);
                         }
                         return result;
                     }}
@@ -120,6 +123,7 @@
                         {members}
                         is_editing={true}
                         is_open={false}
+                        is_creating={false}
                         onSave={async (
                             newTransaction: Transaction,
                         ): Promise<boolean> => {
@@ -149,7 +153,7 @@
                 debtors: create_debtors(),
                 description: "",
                 exchange_rate: "1",
-                paid_by: { id: 0, nickname: "" },
+                paid_by: $groupUsernames[token?? ""],
             };
         }}
     >

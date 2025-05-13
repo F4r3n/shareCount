@@ -3,13 +3,13 @@
     import type { Group } from "$lib/types";
     import { getGroup } from "$lib/shareCountAPI";
     import { group_name } from "$lib/store";
-    import GroupView from "$lib/../components/GroupView.svelte";
+    import GroupView from "../components/GroupView.svelte";
 
     let groups = $state([] as Group[]);
     let list_tokens: string[] = ["token_abc123"];
     let is_connected: boolean = false;
     let current_error: string = $state("");
-
+    
     onMount(async () => {
         let list_tokens_string;
         group_name.set("");
@@ -54,10 +54,11 @@
 
 <main>
     <div>
-        {#each groups as group}
-            <GroupView {group}></GroupView>
-        {/each}
+    {#each groups as group}
+       <GroupView {group}></GroupView>
+    {/each}
     </div>
+
 </main>
 
 <style>
@@ -66,4 +67,5 @@
         width: 100%;
         justify-content: center;
     }
+
 </style>

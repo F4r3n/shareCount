@@ -11,8 +11,7 @@
     import { group_name } from "$lib/store";
     import { MENU, menus } from "$lib/menus";
 
-    const current_token =
-        new URLSearchParams(window.location.search).get("id") ?? "";
+    let current_token = $state("");
     let cat = $state(menus[MENU.TRANSACTION].name);
 
     let transactions: Transaction[] = $state([]);
@@ -22,6 +21,8 @@
     let group_members: GroupMember[] = $state([]);
 
     onMount(async () => {
+        current_token =
+            new URLSearchParams(window.location.search).get("id") ?? "";
         const params = new URLSearchParams(window.location.search);
         cat = params.get("cat") ?? menus[MENU.TRANSACTION].name;
         if (current_token) {
@@ -66,11 +67,13 @@
 
 {#if cat === menus[MENU.TRANSACTION].name}
     {#if loading}
-        <div class="flex w-52 flex-col gap-4">
-            <div class="skeleton h-32 w-full"></div>
-            <div class="skeleton h-4 w-28"></div>
-            <div class="skeleton h-4 w-full"></div>
-            <div class="skeleton h-4 w-full"></div>
+        <div class="flex justify-center items-center h-full">
+            <div class="flex w-full flex-col gap-4">
+                <div class="skeleton h-32 w-full"></div>
+                <div class="skeleton h-4 w-28"></div>
+                <div class="skeleton h-64 w-full"></div>
+                <div class="skeleton h-32 w-full"></div>
+            </div>
         </div>
     {:else}
         <TransactionsView
