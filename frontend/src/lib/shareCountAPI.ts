@@ -1,9 +1,17 @@
 import type { Group, Transaction, GroupMember } from "./types"
-const backendURL: string = import.meta.env.VITE_BACKEND_URL;
+
+function getBackendURL(): string {
+    const backendURL = import.meta.env.VITE_BACKEND_URL;
+    if (!backendURL) {
+        const params = new URLSearchParams(window.location.search);
+		return params.get("url") ?? "";
+    }
+    return backendURL;
+}
 
 export async function getGroup(tokenID: string): Promise<Group> {
     try {
-        const res = await fetch(`http://${backendURL}/groups/${tokenID}`, {
+        const res = await fetch(`http://${getBackendURL()}/groups/${tokenID}`, {
             method: "GET",
             credentials: "include",
             headers: {
@@ -30,7 +38,7 @@ export async function getGroup(tokenID: string): Promise<Group> {
 
 export async function getTransactions(tokenID: string): Promise<Transaction[]> {
     try {
-        const res = await fetch(`http://${backendURL}/groups/${tokenID}/transactions`, {
+        const res = await fetch(`http://${getBackendURL()}/groups/${tokenID}/transactions`, {
             method: "GET",
             credentials: "include",
             headers: {
@@ -43,7 +51,7 @@ export async function getTransactions(tokenID: string): Promise<Transaction[]> {
         }
 
         const data = await res.json();
-        let transactions: Transaction[] = data;
+        const transactions: Transaction[] = data;
         
         return transactions.reverse();
 
@@ -56,7 +64,7 @@ export async function getTransactions(tokenID: string): Promise<Transaction[]> {
 
 export async function getGroupMembers(tokenID: string): Promise<GroupMember[]> {
     try {
-        const res = await fetch(`http://${backendURL}/groups/${tokenID}/group_members`, {
+        const res = await fetch(`http://${getBackendURL()}/groups/${tokenID}/group_members`, {
             method: "GET",
             credentials: "include",
             headers: {
@@ -69,7 +77,7 @@ export async function getGroupMembers(tokenID: string): Promise<GroupMember[]> {
         }
 
         const data = await res.json();
-        let members: GroupMember[] = data;
+        const members: GroupMember[] = data;
         return members;
 
     } catch (err) {
@@ -80,7 +88,7 @@ export async function getGroupMembers(tokenID: string): Promise<GroupMember[]> {
 
 export async function renameGroupMembers(tokenID: string, members: GroupMember[]) {
     try {
-        const res = await fetch(`http://${backendURL}/groups/${tokenID}/group_members`, {
+        const res = await fetch(`http://${getBackendURL()}/groups/${tokenID}/group_members`, {
             method: "PATCH",
             credentials: "include",
             headers: {
@@ -104,7 +112,7 @@ export async function deleteGroupMembers(tokenID: string, members: GroupMember[]
     if (members.length <= 0)
         return;
     try {
-        const res = await fetch(`http://${backendURL}/groups/${tokenID}/group_members`, {
+        const res = await fetch(`http://${getBackendURL()}/groups/${tokenID}/group_members`, {
             method: "DELETE",
             credentials: "include",
             headers: {
@@ -128,7 +136,7 @@ export async function addGroupMembers(tokenID: string, members: string[]): Promi
     if (members.length <= 0)
         return [];
     try {
-        const res = await fetch(`http://${backendURL}/groups/${tokenID}/group_members`, {
+        const res = await fetch(`http://${getBackendURL()}/groups/${tokenID}/group_members`, {
             method: "POST",
             credentials: "include",
             headers: {
@@ -142,7 +150,7 @@ export async function addGroupMembers(tokenID: string, members: string[]): Promi
         }
 
         const data = await res.json();
-        let new_members: GroupMember[] = data;
+        const new_members: GroupMember[] = data;
         return new_members;
     } catch (err) {
         console.error("Error:", err);
@@ -157,7 +165,7 @@ export function sort_transactions(inTransactions: Transaction[]): Transaction[] 
 
 export async function updateTransaction(tokenID: string, inTransaction: Transaction) {
     try {
-        let url = `http://${backendURL}/groups/${tokenID}/transactions`
+        let url = `http://${getBackendURL()}/groups/${tokenID}/transactions`
         if (inTransaction.id && inTransaction.id > 0) {
             url += "/" + String(inTransaction.id);
         }
@@ -182,7 +190,7 @@ export async function updateTransaction(tokenID: string, inTransaction: Transact
 
 export async function deleteTransaction(tokenID: string, inTransactionID: number) {
     try {
-        const res = await fetch(`http://${backendURL}/groups/${tokenID}/transactions/${inTransactionID}`, {
+        const res = await fetch(`http://${getBackendURL()}/groups/${tokenID}/transactions/${inTransactionID}`, {
             method: "DELETE",
             credentials: "include",
             headers: {

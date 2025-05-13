@@ -118,7 +118,7 @@
                     <TransactionView
                         {transaction}
                         {members}
-                        is_editing={false}
+                        is_editing={true}
                         is_open={false}
                         onSave={async (
                             newTransaction: Transaction,
@@ -130,7 +130,7 @@
                             return result;
                         }}
                         onDelete={handler_deleteTransaction}
-                        onCancel={() => {}}
+                        onCancel={(transaction) => {updateTransactionLocal(id, transaction);}}
                     ></TransactionView>
                 </div>
             {/each}

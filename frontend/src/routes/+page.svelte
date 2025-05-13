@@ -1,17 +1,15 @@
 <script lang="ts">
     import { onMount } from "svelte";
-    import { goto } from "$app/navigation";
     import type { Group } from "$lib/types";
     import { getGroup } from "$lib/shareCountAPI";
     import { group_name } from "$lib/store";
-    import {slide} from "svelte/transition"
-    import GroupView from "$lib/GroupView.svelte";
+    import GroupView from "$lib/../components/GroupView.svelte";
 
     let groups = $state([] as Group[]);
     let list_tokens: string[] = ["token_abc123"];
     let is_connected: boolean = false;
     let current_error: string = $state("");
-    
+
     onMount(async () => {
         let list_tokens_string;
         group_name.set("");
@@ -56,11 +54,10 @@
 
 <main>
     <div>
-    {#each groups as group}
-       <GroupView {group}></GroupView>
-    {/each}
+        {#each groups as group}
+            <GroupView {group}></GroupView>
+        {/each}
     </div>
-
 </main>
 
 <style>
@@ -69,5 +66,4 @@
         width: 100%;
         justify-content: center;
     }
-
 </style>

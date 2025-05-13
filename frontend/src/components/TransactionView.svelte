@@ -21,7 +21,9 @@
         onDelete: (tx: Transaction) => void;
         onCancel: (tx: Transaction) => void;
     } = $props();
-    let modified_transaction = $state(transaction);
+    let modified_transaction = $state(
+        structuredClone($state.snapshot(transaction)),
+    );
 
     class DebtContainer {
         activated: boolean = $state(false);
@@ -84,7 +86,6 @@
                 }
             }
         }
-        console.log($state.snapshot(modified_transaction))
     }
 
     onMount(() => {
@@ -108,6 +109,14 @@
         onDelete($state.snapshot(modified_transaction));
         modal?.close();
     }
+    let is_saved = $state(false);
+
+    function hasChanged() {
+        return (
+            JSON.stringify($state.snapshot(transaction)) !==
+            JSON.stringify($state.snapshot(modified_transaction))
+        );
+    }
 </script>
 
 <main>
@@ -117,10 +126,14 @@
                 class="flex gap-x-2 flex-grow bg-base-200 shadow rounded-md hover:cursor-pointer p-3"
                 onclick={() => {
                     is_open = !is_open;
-                    is_editing = false;
-                    modified_transaction = transaction;
+                    if (is_open) {
+                        is_editing = true;
+                    }
                 }}
             >
+                {#if hasChanged()}
+                    <div class="status status-info animate-bounce"></div>
+                {/if}
                 <div
                     class="grid grid-cols-[1fr_auto] grid-rows-2 gap-x-4 items-center w-full"
                 >
@@ -149,52 +162,11 @@
                     </div>
                 </div>
             </button>
-            {#if is_editing}
-                <div class="flex flex-row justify-start gap-x-2 mt-2">
-                    <button
-                        type="button"
-                        aria-label="Confirm"
-                        class="ml-2 p-1 rounded-full flex items-center justify-center
-               hover:bg-green-100 focus:outline-none focus:ring-2 focus:ring-green-400 transition"
-                        onclick={async () => {
-                            //TODO: Send event to parent
-                            //if (!is_same) {
-                            transaction = modified_transaction;
-                            if (await onSave(modified_transaction)) {
-                                is_editing = false;
-                            } else {
-                                is_editing = true;
-                            }
-                            //}
-                        }}
-                    >
-                        <CheckIcon
-                            class="text-green-600 w-6 h-6 md:w-7 md:h-7 lg:w-8 lg:h-8"
-                        />
-                    </button>
-
-                    <button
-                        type="button"
-                        aria-label="Reject"
-                        class="ml-2 p-1 rounded-full flex items-center justify-center hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-red-400 transition"
-                        onclick={() => {
-                            modified_transaction = transaction;
-                            is_editing = false;
-                            is_open = false;
-                            onCancel(modified_transaction);
-                        }}
-                    >
-                        <X
-                            class="text-red-600 w-6 h-6 md:w-7 md:h-7 lg:w-8 lg:h-8"
-                        />
-                    </button>
-                </div>
-            {/if}
         </div>
     </div>
 
     {#if is_open}
-        <div class="flex flex-col" transition:slide>
+        <div class="flex flex-col pl-3" transition:slide>
             <div class="flex items-center">
                 <fieldset class="fieldset">
                     <legend class="fieldset-legend">Title</legend>
@@ -288,25 +260,19 @@
                                 />
                                 {nickname}
                             </label>
-                            {#if parseFloat(debtContainer.debt.amount) >= 0}
-                                <input
-                                    type="number"
-                                    class="input validator"
-                                    required
-                                    placeholder={String(
-                                        debtContainer.debt.amount,
-                                    )}
-                                    min="0"
-                                    max={modified_transaction.amount}
-                                    title="Must be between be 0 to {String(
-                                        modified_transaction.amount,
-                                    )}"
-                                    bind:value={debtContainer.debt.amount}
-                                    onchange={() => {}}
-                                />
-                            {:else}
-                                <div>0</div>
-                            {/if}
+                            <input
+                                type="number"
+                                class="input validator max-w-1/3"
+                                required
+                                placeholder={String(debtContainer.debt.amount)}
+                                min="0"
+                                max={modified_transaction.amount}
+                                title="Must be between be 0 to {String(
+                                    modified_transaction.amount,
+                                )}"
+                                bind:value={debtContainer.debt.amount}
+                                onchange={() => {}}
+                            />
                         {:else}
                             <div>{debtContainer.debt.member.nickname}</div>
                             <div>{debtContainer.debt.amount}</div>
@@ -314,24 +280,41 @@
                     </div>
                 {/each}
             </div>
-            <div class="flex flex-row justify-end gap-x-2 mt-2">
-                <button
-                    class="btn btn-sm btn-primary"
-                    onclick={() => {
-                        is_editing = true;
-                        is_open = true;
-                    }}
-                >
-                    Edit
-                </button>
-                <button
-                    class="btn btn-sm btn-error"
-                    onclick={() => {
-                        modal?.showModal();
-                    }}
-                >
-                    Delete
-                </button>
+            <div class="flex flex-row justify-between gap-x-2 m-2">
+                <!-- Left side: Delete and Reset -->
+                <div class="flex flex-row gap-x-2">
+                    <button
+                        class="btn btn-sm btn-error"
+                        onclick={() => {
+                            modal?.showModal();
+                        }}
+                    >
+                        Delete
+                    </button>
+                    <button
+                        class="btn btn-sm btn-error"
+                        onclick={() => {
+                            modified_transaction = transaction;
+                            onCancel(transaction);
+                        }}
+                    >
+                        Reset
+                    </button>
+                </div>
+                <!-- Right side: Save -->
+                <div>
+                    <button
+                        class="btn btn-sm btn-primary"
+                        onclick={async () => {
+                            transaction = modified_transaction;
+                            if (await onSave(modified_transaction)) {
+                                is_saved = true;
+                            }
+                        }}
+                    >
+                        Save
+                    </button>
+                </div>
             </div>
         </div>
     {/if}
