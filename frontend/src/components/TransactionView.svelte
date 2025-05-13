@@ -3,6 +3,7 @@
     import { onMount } from "svelte";
     import { slide } from "svelte/transition";
     import { SvelteMap } from "svelte/reactivity";
+    import Big from "big.js";
     let {
         transaction,
         members,
@@ -50,17 +51,37 @@
 
     function updateDebtors(newAmount: string) {
         //TODO convert with big number
-        let amount = parseFloat(newAmount);
+        let amount = new Big(newAmount);
         let number_people = 0;
-        for (const [key, debtContainer] of mapDebt) {
+
+        // First pass: count activated people
+        for (const [, debtContainer] of mapDebt) {
             number_people += debtContainer.activated ? 1 : 0;
         }
 
-        for (const [key, debtContainer] of mapDebt) {
+        if (number_people === 0) {
+            // Handle case with no activated people
+            return;
+        }
+
+        // Calculate base amount and remainder
+        const baseAmount = amount.div(number_people).round(2, Big.roundDown);
+        const totalBase = baseAmount.times(number_people - 1);
+        const lastAmount = amount.minus(totalBase);
+
+        let activatedCount = 0;
+        for (const [, debtContainer] of mapDebt) {
             if (debtContainer.activated) {
-                debtContainer.debt.amount = String(amount / number_people);
+                activatedCount++;
+
+                if (activatedCount < number_people) {
+                    debtContainer.debt.amount = baseAmount.toFixed(2);
+                } else {
+                    // Last person gets the remainder
+                    debtContainer.debt.amount = lastAmount.toFixed(2);
+                }
             } else {
-                debtContainer.debt.amount = "0";
+                debtContainer.debt.amount = "0.00";
             }
         }
 
@@ -291,7 +312,7 @@
                     <button
                         class="btn btn-sm btn-error"
                         onclick={() => {
-                            onCancel(modified_transaction)
+                            onCancel(modified_transaction);
                         }}
                     >
                         Cancel
