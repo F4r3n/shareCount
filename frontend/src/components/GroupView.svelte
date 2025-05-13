@@ -24,6 +24,9 @@
         original_members = await getGroupMembers(group.token);
         modified_members = structuredClone(original_members);
         member_me = $groupUsernames[group.token];
+        if(!member_me) {
+            member_me = { nickname: "" };
+        }
         edit = !member_me.nickname;
     });
     let members_to_delete: GroupMember[] = [];
