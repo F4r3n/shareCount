@@ -9,23 +9,22 @@
     } from "wasm-lib";
     import Modal from "./Modal.svelte";
     import { type ModalButton } from "./ModalTypes";
+    import { group_transactions } from "../stores/group_transactions";
 
     let {
         members,
-        transactions,
-    }: { members: GroupMember[]; transactions: Transaction[] } = $props();
-    let modal: HTMLDialogElement | null = $state(null);
+    }: { members: GroupMember[] } = $props();
+    let modal: Modal | null = $state(null);
     let balances: Amount[] = $state([]);
     let settlements: Settlement[] = $state([]);
     onMount(async () => {
         let amounts = [];
         await init(); // Initialize WASM memory
-        console.log(transactions);
         for (const member of members) {
             amounts.push({ member: member, amount: "0" } as Amount);
         }
 
-        for (const transaction of transactions) {
+        for (const transaction of $group_transactions) {
             amounts.push({
                 member: transaction.paid_by,
                 amount: transaction.amount,
@@ -42,7 +41,7 @@
     });
 </script>
 
-<main class="w-2/3 mx-auto">
+<main class="w-full sm:w-2/3 mx-auto">
     <div class="m-2">
         <h2>Balances</h2>
         <div>
@@ -74,15 +73,12 @@
                         <div>{settlement.amount}</div>
                     </div>
 
-                    <div class="btn mt-3 btn-accent">
                         <button
+                        class="btn mt-3 btn-accent"
                             onclick={() => {
-                                console.log("TEST");
-                                //console.log(modal);
-                                //modal?.showModal();
+                                modal?.open();
                             }}>Mark as paid</button
                         >
-                    </div>
                 </div>
             {/each}
         </div>
@@ -90,7 +86,7 @@
 </main>
 
 <Modal
-    bind:modal
+    bind:this={modal}
     title={"Should I create a transaction"}
     yesButton={{ text: "Yes create", callback: () => {} } as ModalButton}
     noButton={{ text: "No forget", callback: () => {} } as ModalButton}

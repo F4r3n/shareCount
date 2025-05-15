@@ -1,16 +1,22 @@
 <script lang="ts">
     import type { ModalButton } from "./ModalTypes";
     let {
-        modal = $bindable(null),
         title,
         yesButton,
         noButton,
     }: {
-        modal: HTMLDialogElement | null;
         title : string
         yesButton: ModalButton;
         noButton: ModalButton;
     } = $props();
+    let modal : HTMLDialogElement | null = $state(null);
+    export function open() {
+        modal?.showModal();
+    }
+
+    export function close() {
+        modal?.close();
+    }
 </script>
 
 <dialog

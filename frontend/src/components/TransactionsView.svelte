@@ -7,14 +7,13 @@
         sort_transactions,
     } from "$lib/shareCountAPI";
     import { getGroupMember, groupUsernames } from "../stores/groupUsernames";
+    import { AddTransaction, DeleteTransaction, group_transactions, setTransactionID } from "../stores/group_transactions";
     let {
-        transactions,
         main_currency,
         members,
         token,
         onUpdate,
     }: {
-        transactions: Transaction[];
         main_currency: string | undefined;
         members: GroupMember[];
         token: string | null;
@@ -59,10 +58,7 @@
     }
 
     function updateTransactionLocal(id: number, modified: Transaction) {
-        let updated = [...transactions];
-        updated[id] = modified;
-        updated = sort_transactions(updated);
-        onUpdate && onUpdate(updated);
+        setTransactionID(id, modified);
     }
     const options = {
         weekday: undefined,
@@ -93,18 +89,17 @@
                         );
                         if (result) {
                             creating = false;
-                            transactions.push(newTransaction);
-                            transactions = sort_transactions(transactions);
+                            AddTransaction(newTransaction)
                         }
                         return result;
                     }}
                     onDelete={async (newTransaction: Transaction) => {}}
                 ></TransactionView>
             {/if}
-            {#each transactions as transaction, id (transaction.id)}
+            {#each $group_transactions as transaction, id (transaction.id)}
                 <div class="font-semibold text-base md:text-md lg:text-lg">
                     {#if id > 0}
-                        {#if new Date(transaction.created_at.split("T")[0]).getDate() != new Date(transactions[id - 1].created_at.split("T")[0]).getDate()}
+                        {#if new Date(transaction.created_at.split("T")[0]).getDate() != new Date($group_transactions[id - 1].created_at.split("T")[0]).getDate()}
                             <div class="my-2">
                                 {new Date(
                                     transaction.created_at.split("T")[0],
@@ -136,18 +131,15 @@
                         onDelete={async (transaction: Transaction) => {
                             let result =
                                 await handler_deleteTransaction(transaction);
-                            let index = transactions.findIndex(
+                            let index = $group_transactions.findIndex(
                                 (tr: Transaction) => {
                                     return tr.id == transaction.id;
                                 },
                             );
 
                             if (index >= 0) {
-                                console.log(transactions[index]);
-                                transactions.splice(index, 1);
+                                DeleteTransaction(index);
                             }
-
-                            onUpdate(transactions);
                         }}
                         onCancel={(transaction) => {
                             updateTransactionLocal(id, transaction);

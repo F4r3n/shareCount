@@ -28,7 +28,6 @@
         if (current_token) {
             try {
                 group_info = await getGroup(current_token);
-                transactions = await getTransactions(current_token);
                 group_members = await getGroupMembers(current_token);
 
                 if (group_info) {
@@ -61,7 +60,7 @@
     </div>
 {/if}
 {#if !loading}
-    <Balance {transactions} members={group_members}></Balance>
+    <Balance members={group_members}></Balance>
 {/if}
 
 <style>

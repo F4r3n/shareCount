@@ -10,6 +10,7 @@
         getTransactions,
     } from "$lib/shareCountAPI";
     import { group_name } from "$lib/store";
+    import { group_transactions } from "../../stores/group_transactions";
 
     let current_token = $state("");
 
@@ -29,7 +30,7 @@
         if (current_token) {
             try {
                 group_info = await getGroup(current_token);
-                transactions = await getTransactions(current_token);
+                group_transactions.set(await getTransactions(current_token));
                 group_members = await getGroupMembers(current_token);
 
                 if (group_info) {
