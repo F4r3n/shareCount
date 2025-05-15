@@ -1,6 +1,6 @@
 <script lang="ts">
     import type { Debt, Transaction, GroupMember } from "$lib/types";
-    import TransactionView from "./TransactionView.svelte"
+    import TransactionView from "./TransactionView.svelte";
     import {
         updateTransaction,
         deleteTransaction,
@@ -20,7 +20,7 @@
         token: string | null;
         onUpdate: (tx: Transaction[]) => void;
     } = $props();
-
+    let index_count = -1;
     let creating_transaction: Transaction | null = $state(null);
     let creating: boolean = $state(false);
 
@@ -133,8 +133,25 @@
                             updateTransactionLocal(id, newTransaction);
                             return result;
                         }}
-                        onDelete={handler_deleteTransaction}
-                        onCancel={(transaction) => {updateTransactionLocal(id, transaction);}}
+                        onDelete={async (transaction: Transaction) => {
+                            let result =
+                                await handler_deleteTransaction(transaction);
+                            let index = transactions.findIndex(
+                                (tr: Transaction) => {
+                                    return tr.id == transaction.id;
+                                },
+                            );
+
+                            if (index >= 0) {
+                                console.log(transactions[index]);
+                                transactions.splice(index, 1);
+                            }
+
+                            onUpdate(transactions);
+                        }}
+                        onCancel={(transaction) => {
+                            updateTransactionLocal(id, transaction);
+                        }}
                     ></TransactionView>
                 </div>
             {/each}
@@ -145,15 +162,16 @@
         class="btn btn-accent w-2/3 md:w-1/3 mx-auto add-button mt-5"
         onclick={() => {
             creating = true;
+            index_count-=1;
             creating_transaction = {
-                id: -1,
+                id: index_count,
                 amount: "0",
                 currency_id: main_currency ?? "USD",
                 created_at: new Date().toISOString().replace("Z", ""),
                 debtors: create_debtors(),
                 description: "",
                 exchange_rate: "1",
-                paid_by: $groupUsernames[token?? ""],
+                paid_by: $groupUsernames[token ?? ""] ?? members[0],
             };
         }}
     >

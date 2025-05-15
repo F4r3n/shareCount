@@ -3,7 +3,7 @@
 	import { goto } from "$app/navigation";
 	import { group_name } from "$lib/store";
 	import { onMount } from "svelte";
-	import { MENU, menus } from "$lib/menus";
+	import { menus } from "$lib/menus";
 	let { children } = $props();
 
 	let token_id = $state("");
@@ -13,7 +13,6 @@
 	});
 	let drawerState = $state(false);
 </script>
-
 
 <div class="drawer">
 	<input
@@ -47,30 +46,33 @@
 				</label>
 			</div>
 			<div class="mx-2 flex-1 px-2 lg:text-2xl md:text-xl sm:text-lg">
-				{`ShareCount${$group_name !== "" ? ": " + $group_name : ""}`}
+				<button
+					class="hover:cursor-pointer"
+					onclick={() => {
+						goto(`/`);
+					}}
+				>
+					{`ShareCount${$group_name !== "" ? ": " + $group_name : ""}`}
+				</button>
 			</div>
 			<div class="hidden flex-none lg:block">
 				<ul
 					class="menu menu-horizontal lg:text-2xl md:text-xl sm:text-lg"
 				>
 					{#each menus as sub}
-						<li>
-							<button
-								class="cursor-pointer"
-								onclick={() => {
-									if (sub.type !== MENU.GROUPS) {
-										goto(
-											`/group?id=${token_id}&cat=${sub.name}`,
-										);
-									} else {
-										goto(`/?id=${token_id}`);
-									}
-									drawerState = false;
-								}}
-							>
-								{sub.name}
-							</button>
-						</li>
+						{#if sub.need_group && $group_name}
+							<li>
+								<button
+									class="cursor-pointer"
+									onclick={() => {
+										goto(`${sub.path}?id=${token_id}`);
+										drawerState = false;
+									}}
+								>
+									{sub.name}
+								</button>
+							</li>
+						{/if}
 					{/each}
 				</ul>
 			</div>
@@ -86,21 +88,19 @@
 		<ul class="menu bg-base-200 min-h-full w-80 p-4">
 			<!-- Sidebar content here -->
 			{#each menus as sub}
-				<li>
-					<button
-						class="cursor-pointer"
-						onclick={() => {
-							if (sub.type !== MENU.GROUPS) {
-								goto(`/group?id=${token_id}&cat=${sub.name}`);
-							} else {
-								goto(`/id=${token_id}`);
-							}
-							drawerState = false;
-						}}
-					>
-						{sub.name}
-					</button>
-				</li>
+				{#if !sub.need_group || (sub.need_group && $group_name)}
+					<li>
+						<button
+							class="cursor-pointer"
+							onclick={() => {
+								goto(`${sub.path}?id=${token_id}`);
+								drawerState = false;
+							}}
+						>
+							{sub.name}
+						</button>
+					</li>
+				{/if}
 			{/each}
 		</ul>
 	</div>

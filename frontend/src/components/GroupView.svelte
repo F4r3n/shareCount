@@ -11,6 +11,7 @@
     } from "$lib/shareCountAPI";
     import { slide } from "svelte/transition";
     import { CheckIcon, XIcon } from "lucide-svelte";
+    import { MENU, menus } from "$lib/menus";
     let {
         group,
     }: {
@@ -45,7 +46,9 @@
     <div class="card bg-base-100 w-sm sm:w-md shadow-sm">
         <div class="card-body">
             <h1 class="card-title">{group.name}</h1>
-
+            {#if member_me && member_me.nickname != ""}
+            <div class="card-body">{`${member_me.nickname} (me)`}</div>
+            {/if}
             <div class="card-actions justify-end">
                 <button
                     class="btn btn-primary"
@@ -60,7 +63,7 @@
                     class="btn btn-primary"
                     disabled={!member_me.nickname}
                     onclick={() => {
-                        goto(`/group?id=${group.token}`);
+                        goto(`${menus[MENU.EXPENSES].path}?id=${group.token}`);
                     }}
                     >Go
                 </button>

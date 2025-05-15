@@ -1,7 +1,6 @@
 <script lang="ts">
     import { onMount } from "svelte";
     import type { Transaction, Group, GroupMember } from "$lib/types";
-    import TransactionsView from "$lib/../components/TransactionsView.svelte";
 
     import {
         getGroup,
@@ -9,10 +8,9 @@
         getTransactions,
     } from "$lib/shareCountAPI";
     import { group_name } from "$lib/store";
-    import { MENU, menus } from "$lib/menus";
+    import Balance from "../../components/Balance.svelte";
 
     let current_token = $state("");
-    let cat = $state(menus[MENU.TRANSACTION].name);
 
     let transactions: Transaction[] = $state([]);
     let loading = $state(true);
@@ -23,8 +21,6 @@
     onMount(async () => {
         current_token =
             new URLSearchParams(window.location.search).get("id") ?? "";
-        const params = new URLSearchParams(window.location.search);
-        cat = params.get("cat") ?? menus[MENU.TRANSACTION].name;
         if (current_token) {
             try {
                 group_info = await getGroup(current_token);
@@ -40,10 +36,6 @@
         }
         loading = false;
     });
-
-    function handleUpdate(newTransactions: Transaction[]) {
-        transactions = newTransactions;
-    }
 </script>
 
 {#if current_error}
@@ -64,26 +56,8 @@
         <span>{current_error}</span>
     </div>
 {/if}
-
-{#if cat === menus[MENU.TRANSACTION].name}
-    {#if loading}
-        <div class="flex justify-center items-center h-full">
-            <div class="flex w-full flex-col gap-4">
-                <div class="skeleton h-32 w-full"></div>
-                <div class="skeleton h-4 w-28"></div>
-                <div class="skeleton h-64 w-full"></div>
-                <div class="skeleton h-32 w-full"></div>
-            </div>
-        </div>
-    {:else}
-        <TransactionsView
-            {transactions}
-            main_currency={group_info?.currency_id}
-            members={group_members}
-            token={current_token}
-            onUpdate={handleUpdate}
-        ></TransactionsView>
-    {/if}
+{#if !loading}
+    <Balance {transactions} members={group_members}></Balance>
 {/if}
 
 <style>

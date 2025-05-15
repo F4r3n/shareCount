@@ -128,6 +128,7 @@
 
     function handleDelete() {
         // Replace with your actual logic
+        is_open = false;
         onDelete($state.snapshot(modified_transaction));
         modal?.close();
     }
