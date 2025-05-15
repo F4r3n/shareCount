@@ -1,0 +1,41 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"type": "shell",
+			"command": "watchexec -r cargo run",
+			"problemMatcher": [
+				"$rustc"
+			],
+			"label": "launch backend",
+			"options": {
+				"cwd": "${workspaceFolder}/backend/share_count/"
+			}
+		},
+		{
+			"label": "Run postgress",
+			"type": "shell",
+			"options": {
+				"cwd": "${workspaceFolder}/backend/db/"
+			},
+			"command": "podman compose up"
+		},
+		{
+			"type": "npm",
+			"script": "dev",
+			"label": "front",
+			"options": {
+				"cwd": "${workspaceFolder}/frontend/"
+			},
+		},
+		{
+			"label": "Dev",
+			"dependsOn": [
+				"Run postgress",
+				"launch backend",
+				"front"
+			],
+			"problemMatcher": []
+		}
+	]
+}

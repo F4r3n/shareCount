@@ -9,6 +9,7 @@
     } from "$lib/shareCountAPI";
     import { group_name } from "$lib/store";
     import Balance from "../../components/Balance.svelte";
+    import { group_tokenID } from "../../stores/group_token";
 
     let current_token = $state("");
 
@@ -21,6 +22,9 @@
     onMount(async () => {
         current_token =
             new URLSearchParams(window.location.search).get("id") ?? "";
+        if (current_token == "") {
+            current_token = $group_tokenID;
+        }
         if (current_token) {
             try {
                 group_info = await getGroup(current_token);

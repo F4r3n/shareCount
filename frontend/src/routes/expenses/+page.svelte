@@ -2,6 +2,7 @@
     import { onMount } from "svelte";
     import type { Transaction, Group, GroupMember } from "$lib/types";
     import TransactionsView from "$lib/../components/TransactionsView.svelte";
+    import { group_tokenID } from "../../stores/group_token";
 
     import {
         getGroup,
@@ -9,7 +10,6 @@
         getTransactions,
     } from "$lib/shareCountAPI";
     import { group_name } from "$lib/store";
-
 
     let current_token = $state("");
 
@@ -20,9 +20,12 @@
     let group_members: GroupMember[] = $state([]);
 
     onMount(async () => {
-        console.log(window.location.search)
+        console.log(window.location.search);
         current_token =
             new URLSearchParams(window.location.search).get("id") ?? "";
+        if (current_token == "") {
+            current_token = $group_tokenID;
+        }
         if (current_token) {
             try {
                 group_info = await getGroup(current_token);
@@ -63,25 +66,24 @@
     </div>
 {/if}
 
-    {#if loading}
-        <div class="flex justify-center items-center h-full">
-            <div class="flex w-full flex-col gap-4">
-                <div class="skeleton h-32 w-full"></div>
-                <div class="skeleton h-4 w-28"></div>
-                <div class="skeleton h-64 w-full"></div>
-                <div class="skeleton h-32 w-full"></div>
-            </div>
+{#if loading}
+    <div class="flex justify-center items-center h-full">
+        <div class="flex w-full flex-col gap-4">
+            <div class="skeleton h-32 w-full"></div>
+            <div class="skeleton h-4 w-28"></div>
+            <div class="skeleton h-64 w-full"></div>
+            <div class="skeleton h-32 w-full"></div>
         </div>
-    {:else}
-        <TransactionsView
-            {transactions}
-            main_currency={group_info?.currency_id}
-            members={group_members}
-            token={current_token}
-            onUpdate={handleUpdate}
-        ></TransactionsView>
-    {/if}
-
+    </div>
+{:else}
+    <TransactionsView
+        {transactions}
+        main_currency={group_info?.currency_id}
+        members={group_members}
+        token={current_token}
+        onUpdate={handleUpdate}
+    ></TransactionsView>
+{/if}
 
 <style>
 </style>

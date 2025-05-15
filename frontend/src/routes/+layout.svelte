@@ -4,6 +4,7 @@
 	import { group_name } from "$lib/store";
 	import { onMount } from "svelte";
 	import { menus } from "$lib/menus";
+    import { setGroupTokenID } from "../stores/group_token";
 	let { children } = $props();
 
 	let token_id = $state("");

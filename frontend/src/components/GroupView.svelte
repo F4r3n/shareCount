@@ -12,6 +12,7 @@
     import { slide } from "svelte/transition";
     import { CheckIcon, XIcon } from "lucide-svelte";
     import { MENU, menus } from "$lib/menus";
+    import { setGroupTokenID } from "../stores/group_token";
     let {
         group,
     }: {
@@ -63,6 +64,7 @@
                     class="btn btn-primary"
                     disabled={!member_me.nickname}
                     onclick={() => {
+                        setGroupTokenID(group.token);
                         goto(`${menus[MENU.EXPENSES].path}?id=${group.token}`);
                     }}
                     >Go

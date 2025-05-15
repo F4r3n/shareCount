@@ -12,7 +12,6 @@
     
     onMount(async () => {
         let list_tokens_string;
-        group_name.set("");
 
         if (is_connected) {
             //get list groups
