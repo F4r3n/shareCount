@@ -13,7 +13,7 @@ ShareCount is a tool for tracking and managing shared expenses among groups. Eas
 
 ### 1. Clone the repository
 ```bash
-git clone https://github.com/yourusername/shareCount.git
+git clone https://github.com/f4r3n/shareCount.git
 cd shareCount
 ```
 
