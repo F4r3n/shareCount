@@ -22,7 +22,7 @@ pub struct Amount {
 #[derive(Tsify, Serialize, Deserialize, Clone)]
 #[tsify(into_wasm_abi, from_wasm_abi)]
 pub struct GroupMember {
-    id: Option<i32>,
+    uuid: String,
     nickname: String,
 }
 

@@ -6,12 +6,12 @@ export interface Debt {
 }
 
 export interface GroupMember {
-    id? : number,
+    uuid : string,
     nickname : string
 }
 
 export interface Transaction {
-    id?: number,
+    uuid: string,
     description : string,
     currency_id : string,
     paid_by: GroupMember,

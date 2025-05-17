@@ -27,7 +27,7 @@
         modified_members = structuredClone(original_members);
         member_me = $groupUsernames[group.token];
         if(!member_me) {
-            member_me = { nickname: "" };
+            member_me = { nickname: "" ,uuid:""};
         }
         edit = !member_me.nickname;
     });

@@ -166,9 +166,7 @@ export function sort_transactions(inTransactions: Transaction[]): Transaction[] 
 export async function updateTransaction(tokenID: string, inTransaction: Transaction) {
     try {
         let url = `http://${getBackendURL()}/groups/${tokenID}/transactions`
-        if (inTransaction.id && inTransaction.id > 0) {
-            url += "/" + String(inTransaction.id);
-        }
+
         const res = await fetch(url, {
             method: "POST",
             credentials: "include",
@@ -188,7 +186,7 @@ export async function updateTransaction(tokenID: string, inTransaction: Transact
     }
 }
 
-export async function deleteTransaction(tokenID: string, inTransactionID: number) {
+export async function deleteTransaction(tokenID: string, inTransactionID: string) {
     try {
         const res = await fetch(`http://${getBackendURL()}/groups/${tokenID}/transactions/${inTransactionID}`, {
             method: "DELETE",

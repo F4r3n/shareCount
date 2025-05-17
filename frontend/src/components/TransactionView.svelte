@@ -30,7 +30,7 @@
     class DebtContainer {
         activated: boolean = $state(false);
         debt = $state({
-            member: { id: 0, nickname: "" } as GroupMember,
+            member: { uuid: "", nickname: "" } as GroupMember,
             amount: "0",
         } as Debt);
         constructor(debt: Debt, activated: boolean) {
@@ -348,6 +348,7 @@
                             transaction = modified_transaction;
                             if (await onSave(modified_transaction)) {
                                 is_saved = true;
+                                is_editing = false;
                             }
                         }}
                     >

@@ -37,6 +37,7 @@
 		"vite-plugin-wasm-pack": "^0.1.12"
 	},
 	"dependencies": {
-		"big.js": "^7.0.1"
+		"big.js": "^7.0.1",
+		"uuid": "^11.1.0"
 	}
 }

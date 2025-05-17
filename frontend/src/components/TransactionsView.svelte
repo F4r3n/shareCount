@@ -6,6 +6,7 @@
         deleteTransaction,
         sort_transactions,
     } from "$lib/shareCountAPI";
+    import {v4 as uuidv4} from 'uuid';
     import { getGroupMember, groupUsernames } from "../stores/groupUsernames";
     import { AddTransaction, DeleteTransaction, group_transactions, setTransactionID } from "../stores/group_transactions";
     let {
@@ -39,8 +40,8 @@
         transaction: Transaction,
     ): Promise<boolean> {
         try {
-            if (transaction.id) {
-                await deleteTransaction(token ?? "", transaction.id);
+            if (transaction.uuid) {
+                await deleteTransaction(token ?? "", transaction.uuid);
             }
             return true;
         } catch (e) {
@@ -96,7 +97,7 @@
                     onDelete={async (newTransaction: Transaction) => {}}
                 ></TransactionView>
             {/if}
-            {#each $group_transactions as transaction, id (transaction.id)}
+            {#each $group_transactions as transaction, id (transaction.uuid)}
                 <div class="font-semibold text-base md:text-md lg:text-lg">
                     {#if id > 0}
                         {#if new Date(transaction.created_at.split("T")[0]).getDate() != new Date($group_transactions[id - 1].created_at.split("T")[0]).getDate()}
@@ -133,7 +134,7 @@
                                 await handler_deleteTransaction(transaction);
                             let index = $group_transactions.findIndex(
                                 (tr: Transaction) => {
-                                    return tr.id == transaction.id;
+                                    return tr.uuid == transaction.uuid;
                                 },
                             );
 
@@ -156,7 +157,7 @@
             creating = true;
             index_count-=1;
             creating_transaction = {
-                id: index_count,
+                uuid: uuidv4(),
                 amount: "0",
                 currency_id: main_currency ?? "USD",
                 created_at: new Date().toISOString().replace("Z", ""),
