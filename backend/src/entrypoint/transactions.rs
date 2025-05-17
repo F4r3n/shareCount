@@ -1,5 +1,6 @@
 use crate::entrypoint::group_members::get_member_id;
 use crate::entrypoint::group_members::GroupMember;
+use crate::entrypoint::group_members::GroupMemberNoDate;
 use crate::entrypoint::AppError;
 use crate::schema::group_members;
 use crate::schema::groups;
@@ -17,6 +18,7 @@ use bigdecimal::One;
 use bigdecimal::Zero;
 use chrono::NaiveDateTime;
 use diesel::prelude::*;
+use diesel::upsert::excluded;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -31,7 +33,7 @@ pub struct TransactionDebtQuery {
 pub struct TransactionDebtResponse {
     id: i32,
     amount: BigDecimal,
-    member: GroupMember,
+    member: GroupMemberNoDate,
 }
 
 #[derive(Deserialize, Serialize, Queryable, Debug)]
@@ -39,8 +41,9 @@ pub struct TransactionResponse {
     pub uuid: String,
     pub description: String,
     pub currency_id: String,
-    pub paid_by: GroupMember,
+    pub paid_by: GroupMemberNoDate,
     pub created_at: NaiveDateTime,
+    pub modified_at: NaiveDateTime,
     pub amount: BigDecimal,
     pub exchange_rate: BigDecimal,
     pub debtors: Vec<TransactionDebtResponse>,
@@ -62,6 +65,7 @@ pub async fn handler_get_all_transactions(
             transactions::created_at,
             transactions::amount,
             transactions::exchange_rate,
+            transactions::modified_at,
             transactions::currency_id,
             group_members::nickname,
             group_members::uuid,
@@ -74,6 +78,7 @@ pub async fn handler_get_all_transactions(
             NaiveDateTime,
             BigDecimal,
             BigDecimal,
+            NaiveDateTime,
             String,
             String,
             String,
@@ -96,13 +101,25 @@ pub async fn handler_get_all_transactions(
 
     let mut map: HashMap<i32, TransactionResponse> = HashMap::new();
     transaction_result.into_iter().for_each(
-        |(id, uuid, desc, time, amount, exchange_rate, currency_id, nickname, member_uuid)| {
+        |(
+            id,
+            uuid,
+            desc,
+            time,
+            amount,
+            exchange_rate,
+            modified_at,
+            currency_id,
+            nickname,
+            member_uuid,
+        )| {
             map.insert(
                 id,
                 TransactionResponse {
                     uuid,
                     description: desc,
-                    paid_by: GroupMember {
+                    modified_at,
+                    paid_by: GroupMemberNoDate {
                         uuid: member_uuid,
                         nickname,
                     },
@@ -123,7 +140,7 @@ pub async fn handler_get_all_transactions(
                 value.debtors.push(TransactionDebtResponse {
                     id: debt_id,
                     amount,
-                    member: GroupMember {
+                    member: GroupMemberNoDate {
                         uuid: member_uuid,
                         nickname,
                     },
@@ -144,32 +161,43 @@ pub async fn handler_get_transaction(
     let mut conn = state_server.pool.get()?;
 
     dbg!("Get Transaction {}", &transaction_uuid);
-    let (uuid, description, created_at, amount, exchange_rate, currency_id, nickname, member_uuid) =
-        groups::table
-            .inner_join(transactions::table)
-            .inner_join(group_members::table)
-            .select((
-                transactions::uuid,
-                transactions::description,
-                transactions::created_at,
-                transactions::amount,
-                transactions::exchange_rate,
-                transactions::currency_id,
-                group_members::nickname,
-                group_members::uuid,
-            ))
-            .filter(groups::token.eq(&token))
-            .filter(transactions::uuid.eq(&transaction_uuid))
-            .get_result::<(
-                String,
-                String,
-                NaiveDateTime,
-                BigDecimal,
-                BigDecimal,
-                String,
-                String,
-                String,
-            )>(&mut conn)?;
+    let (
+        uuid,
+        description,
+        created_at,
+        amount,
+        exchange_rate,
+        modified_at,
+        currency_id,
+        nickname,
+        member_uuid,
+    ) = groups::table
+        .inner_join(transactions::table)
+        .inner_join(group_members::table)
+        .select((
+            transactions::uuid,
+            transactions::description,
+            transactions::created_at,
+            transactions::amount,
+            transactions::exchange_rate,
+            transactions::modified_at,
+            transactions::currency_id,
+            group_members::nickname,
+            group_members::uuid,
+        ))
+        .filter(groups::token.eq(&token))
+        .filter(transactions::uuid.eq(&transaction_uuid))
+        .get_result::<(
+            String,
+            String,
+            NaiveDateTime,
+            BigDecimal,
+            BigDecimal,
+            NaiveDateTime,
+            String,
+            String,
+            String,
+        )>(&mut conn)?;
     let mut transaction_response = TransactionResponse {
         amount,
         created_at,
@@ -178,7 +206,8 @@ pub async fn handler_get_transaction(
         debtors: Vec::new(),
         exchange_rate,
         uuid,
-        paid_by: GroupMember {
+        modified_at,
+        paid_by: GroupMemberNoDate {
             uuid: member_uuid,
             nickname,
         },
@@ -204,7 +233,7 @@ pub async fn handler_get_transaction(
             transaction_response.debtors.push(TransactionDebtResponse {
                 id: debt_id,
                 amount,
-                member: GroupMember {
+                member: GroupMemberNoDate {
                     uuid: member_uuid,
                     nickname,
                 },
@@ -224,6 +253,7 @@ pub struct TransactionChangeset {
     pub currency_id: String,
     pub exchange_rate: BigDecimal,
     pub created_at: NaiveDateTime,
+    pub modified_at: NaiveDateTime,
     pub group_id: i32,
 }
 
@@ -251,6 +281,7 @@ pub struct TransactionQuery {
     created_at: NaiveDateTime,
     exchange_rate: BigDecimal,
     amount: BigDecimal,
+    modified_at: NaiveDateTime,
     debtors: Vec<TransactionDebtQuery>,
 }
 use {bigdecimal::FromPrimitive, chrono::NaiveDate, std::str::FromStr};
@@ -268,11 +299,13 @@ impl TransactionQuery {
                 .and_hms_opt(9, 10, 11)
                 .unwrap_or_default(),
             currency_id: "USD".to_string(),
+            modified_at: chrono::Utc::now().naive_utc(),
             exchange_rate: BigDecimal::from_i32(1).unwrap_or(BigDecimal::one()),
         }
     }
 
     pub fn add_debtor(&mut self, member: &GroupMember, amount: &str) {
+        self.modified_at = chrono::Utc::now().naive_utc();
         self.debtors.push(TransactionDebtQuery {
             id: None,
             amount: BigDecimal::from_str(amount).unwrap_or(BigDecimal::zero()),
@@ -281,15 +314,25 @@ impl TransactionQuery {
     }
 
     pub fn set_description(&mut self, description: &str) {
+        self.modified_at = chrono::Utc::now().naive_utc();
         self.description = description.to_string();
     }
 
     pub fn set_amount(&mut self, amount: &str) {
+        self.modified_at = chrono::Utc::now().naive_utc();
         self.amount = BigDecimal::from_str(amount).unwrap_or_default();
+    }
+
+    pub fn set_time(&mut self, time: &NaiveDateTime) {
+        self.modified_at = *time;
     }
 
     pub fn get_uuid(&self) -> String {
         self.uuid.clone()
+    }
+
+    pub fn get_description(&self) -> String {
+        self.description.clone()
     }
 }
 
@@ -316,7 +359,6 @@ fn check_transaction_validity(transaction: &TransactionQuery) -> Result<(), Stri
         ))
     }
 }
-
 pub fn modify_create_transaction(
     token_id: String,
     transaction: TransactionQuery,
@@ -332,15 +374,17 @@ pub fn modify_create_transaction(
         currency_id: transaction.currency_id,
         exchange_rate: transaction.exchange_rate,
         created_at: transaction.created_at,
+        modified_at: transaction.modified_at,
         group_id,
     };
     dbg!(&changeset);
-
+    use diesel::query_dsl::methods::FilterDsl;
     let transaction_id = diesel::insert_into(transactions::table)
         .values(&changeset)
         .on_conflict(transactions::uuid)
         .do_update()
         .set(&changeset)
+        .filter(transactions::modified_at.lt(excluded(transactions::modified_at)))
         .returning(transactions::id)
         .get_result::<i32>(conn)?;
 

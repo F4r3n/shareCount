@@ -44,6 +44,8 @@ pub struct GroupMember {
     pub id: i32,
     pub group_id: i32,
     pub nickname: String,
+    pub uuid: String,
+    pub modified_at: NaiveDateTime,
     pub user_id: Option<i32>,
 }
 
@@ -63,6 +65,8 @@ pub struct Transaction {
     pub currency_id: String,
     pub exchange_rate: BigDecimal,
     pub created_at: NaiveDateTime,
+    pub uuid: String,
+    pub modified_at: NaiveDateTime,
 }
 
 #[derive(Queryable, Identifiable, Selectable, Associations, Debug, Serialize, Insertable)]

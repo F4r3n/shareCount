@@ -128,6 +128,7 @@ async fn manage_member() -> Result<(), anyhow::Error> {
     let binding = GroupMember {
         uuid: String::from(""),
         nickname: String::from(""),
+        modified_at: chrono::Utc::now().naive_utc(),
     };
     let uuid_jojo = &group
         .iter()
@@ -154,7 +155,7 @@ async fn manage_member() -> Result<(), anyhow::Error> {
     //delete members
     let response = server
         .delete(format!("/groups/{}/group_members", token).as_str())
-        .json(&json!([{"uuid": uuid_jojo, "nickname": "JAJA"}]))
+        .json(&json!([{"uuid": uuid_jojo, "nickname": "JAJA", "modified_at": chrono::Utc::now().naive_utc()}]))
         .await;
     assert_eq!(response.status_code(), 200);
 
@@ -260,6 +261,32 @@ async fn manage_transactions() -> Result<(), anyhow::Error> {
         .json(&serde_json::to_value(&new_transaction)?)
         .await;
     assert_eq!(response.status_code(), 200);
+
+    new_transaction.set_description("OLD");
+    let datetime = chrono::Utc::now().naive_utc();
+    let new_datetime = datetime.checked_sub_signed(chrono::Duration::hours(1));
+    new_transaction.set_time(&new_datetime.unwrap_or_default());
+    let response = server
+        .post(format!("/groups/{}/transactions", token).as_str())
+        .json(&serde_json::to_value(&new_transaction)?)
+        .await;
+    assert_eq!(response.status_code(), 404);
+
+    let transaction = get_transaction(&token, &new_transaction.get_uuid(), &server).await?;
+    assert_eq!(transaction.description.as_str(), "AAAA");
+
+    new_transaction.set_description("NEW");
+    let datetime = chrono::Utc::now().naive_utc();
+    let new_datetime = datetime.checked_add_days(chrono::Days::new(1));
+    new_transaction.set_time(&new_datetime.unwrap_or_default());
+    let response = server
+        .post(format!("/groups/{}/transactions", token).as_str())
+        .json(&serde_json::to_value(&new_transaction)?)
+        .await;
+    assert_eq!(response.status_code(), 200);
+
+    let transaction = get_transaction(&token, &new_transaction.get_uuid(), &server).await?;
+    assert_eq!(transaction.description.as_str(), "NEW");
 
     let response = server
         .delete(format!("/groups/{}/transactions/{}", token, new_uuid).as_str())

@@ -8,6 +8,7 @@ export interface Debt {
 export interface GroupMember {
     uuid : string,
     nickname : string
+    modified_at?: string,
 }
 
 export interface Transaction {
@@ -18,7 +19,8 @@ export interface Transaction {
     created_at: string,
     amount : string,
     exchange_rate: string,
-    debtors : Debt[]
+    debtors : Debt[],
+    modified_at: string,
 }
 
 export interface Group {

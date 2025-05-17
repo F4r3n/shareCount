@@ -20,6 +20,7 @@ pub struct GroupResponse {
     pub name: String,
     pub currency_id: String,
     pub created_at: NaiveDateTime,
+    pub modified_at: NaiveDateTime,
 }
 
 pub fn get_group_id(
@@ -44,7 +45,12 @@ pub async fn handler_users_groups(
     let results = groups::table
         .inner_join(group_members::table.on(groups::id.eq(group_members::group_id)))
         .filter(group_members::user_id.eq(user_id))
-        .select((groups::name, groups::currency_id, groups::created_at))
+        .select((
+            groups::name,
+            groups::currency_id,
+            groups::created_at,
+            groups::modified_at,
+        ))
         .load::<GroupResponse>(&mut conn)?;
 
     Ok(Json(results))
@@ -58,7 +64,12 @@ pub async fn handler_groups(
     let mut conn = state_server.pool.get()?;
 
     let results = groups::table
-        .select((groups::name, groups::currency_id, groups::created_at))
+        .select((
+            groups::name,
+            groups::currency_id,
+            groups::created_at,
+            groups::modified_at,
+        ))
         .filter(groups::token.eq(token))
         .first::<GroupResponse>(&mut conn)?;
     Ok(Json(results))

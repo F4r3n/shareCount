@@ -26,6 +26,7 @@ diesel::table! {
         currency_id -> Text,
         token -> Text,
         created_at -> Timestamp,
+        modified_at -> Timestamp,
     }
 }
 
@@ -33,9 +34,10 @@ diesel::table! {
     group_members (id) {
         id -> Integer,
         group_id -> Integer,
-        nickname -> Text,
         user_id -> Nullable<Integer>,
-        uuid -> Text
+        uuid -> Text,
+        nickname -> Text,
+        modified_at -> Timestamp,
     }
 }
 
@@ -49,6 +51,7 @@ diesel::table! {
         currency_id -> Text,
         exchange_rate -> Numeric,
         created_at -> Timestamp,
+        modified_at -> Timestamp,
         uuid -> Text,
     }
 }

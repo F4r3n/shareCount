@@ -4,10 +4,9 @@
     import {
         updateTransaction,
         deleteTransaction,
-        sort_transactions,
     } from "$lib/shareCountAPI";
     import {v4 as uuidv4} from 'uuid';
-    import { getGroupMember, groupUsernames } from "../stores/groupUsernames";
+    import { groupUsernames } from "../stores/groupUsernames";
     import { AddTransaction, DeleteTransaction, group_transactions, setTransactionID } from "../stores/group_transactions";
     let {
         main_currency,
@@ -161,6 +160,7 @@
                 amount: "0",
                 currency_id: main_currency ?? "USD",
                 created_at: new Date().toISOString().replace("Z", ""),
+                modified_at: new Date().toISOString().replace("Z", ""),
                 debtors: create_debtors(),
                 description: "",
                 exchange_rate: "1",

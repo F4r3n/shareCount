@@ -9,12 +9,24 @@ use axum::{
 };
 
 use crate::entrypoint::groups::get_group_id;
+use chrono::NaiveDateTime;
 use diesel::prelude::*;
 use serde::Deserialize;
 use serde::Serialize;
 
-#[derive(Deserialize, Serialize, Queryable, Debug, AsChangeset, Clone)]
+#[derive(Queryable, Selectable, Debug, Serialize, Insertable, Deserialize, AsChangeset, Clone)]
+#[diesel(table_name = crate::schema::group_members)]
+#[diesel(check_for_backend(diesel::pg::Pg))] // Add backend check
 pub struct GroupMember {
+    pub uuid: String,
+    pub nickname: String,
+    pub modified_at: NaiveDateTime,
+}
+
+#[derive(Queryable, Selectable, Debug, Serialize, Insertable, Deserialize, AsChangeset, Clone)]
+#[diesel(table_name = crate::schema::group_members)]
+#[diesel(check_for_backend(diesel::pg::Pg))] // Add backend check
+pub struct GroupMemberNoDate {
     pub uuid: String,
     pub nickname: String,
 }
@@ -28,8 +40,12 @@ pub async fn handler_group_members(
     let results = groups::table
         .inner_join(group_members::table.on(groups::id.eq(group_members::group_id)))
         .filter(groups::token.eq(token))
-        .select((group_members::uuid, group_members::nickname))
-        .load::<GroupMember>(&mut conn)?;
+        .select((
+            group_members::uuid,
+            group_members::nickname,
+            group_members::modified_at,
+        ))
+        .get_results::<GroupMember>(&mut conn)?;
 
     Ok(Json(results))
 }
@@ -51,6 +67,7 @@ pub async fn handler_add_group_members(
                 group_id: i32,
                 nickname: String,
                 user_id: Option<i32>,
+                modified_at: NaiveDateTime,
             }
 
             let new_members: Vec<_> = members
@@ -60,13 +77,18 @@ pub async fn handler_add_group_members(
                     group_id,
                     nickname: member.nickname,
                     user_id: None, // Assuming user_id is optional
+                    modified_at: chrono::Utc::now().naive_utc(),
                 })
                 .collect();
             let result: Vec<GroupMember> = diesel::insert_into(group_members::table)
                 .values(&new_members)
                 .on_conflict((group_members::group_id, group_members::nickname))
                 .do_nothing() // Skip existing members
-                .returning((group_members::uuid, group_members::nickname))
+                .returning((
+                    group_members::uuid,
+                    group_members::nickname,
+                    group_members::modified_at,
+                ))
                 .get_results(conn)?;
             Ok(result)
         })
@@ -95,6 +117,7 @@ pub async fn handler_rename_group_members(
             let update = GroupMember {
                 uuid: rename.uuid.clone(),
                 nickname: rename.nickname,
+                modified_at: chrono::Utc::now().naive_utc(),
             };
 
             diesel::update(
