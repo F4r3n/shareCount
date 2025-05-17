@@ -23,12 +23,28 @@ pub struct GroupMember {
     pub modified_at: NaiveDateTime,
 }
 
-#[derive(Queryable, Selectable, Debug, Serialize, Insertable, Deserialize, AsChangeset, Clone)]
-#[diesel(table_name = crate::schema::group_members)]
-#[diesel(check_for_backend(diesel::pg::Pg))] // Add backend check
+#[derive(Deserialize, Serialize, Queryable, Debug, Clone)]
 pub struct GroupMemberNoDate {
     pub uuid: String,
     pub nickname: String,
+}
+
+impl From<GroupMember> for GroupMemberNoDate {
+    fn from(item: GroupMember) -> Self {
+        GroupMemberNoDate {
+            nickname: item.nickname,
+            uuid: item.uuid,
+        }
+    }
+}
+
+impl From<&GroupMember> for GroupMemberNoDate {
+    fn from(item: &GroupMember) -> Self {
+        GroupMemberNoDate {
+            nickname: item.nickname.clone(),
+            uuid: item.uuid.clone(),
+        }
+    }
 }
 
 pub async fn handler_group_members(

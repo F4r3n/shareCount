@@ -122,6 +122,8 @@
                         onSave={async (
                             newTransaction: Transaction,
                         ): Promise<boolean> => {
+                            newTransaction.modified_at = new Date().toISOString().replace("Z", "");
+
                             let result = await handler_updateTransaction(
                                 $state.snapshot(newTransaction),
                             );

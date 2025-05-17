@@ -7,7 +7,7 @@ use std::env;
 //use diesel_migrations::FileBasedMigrations;
 use diesel_migrations::{embed_migrations, EmbeddedMigrations};
 pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!();
-use share_count::entrypoint::group_members::GroupMember;
+use share_count::entrypoint::group_members::{GroupMember, GroupMemberNoDate};
 use share_count::entrypoint::groups::CreateGroups;
 use share_count::entrypoint::transactions::{TransactionQuery, TransactionResponse};
 use std::sync::Arc;
@@ -166,11 +166,15 @@ async fn manage_member() -> Result<(), anyhow::Error> {
 }
 
 fn create_transaction(
-    members: &Vec<GroupMember>,
+    members: &[GroupMember],
     desc: &str,
     main_amount: &str,
     debtors_amount: &str,
 ) -> TransactionQuery {
+    let members = &members
+        .iter()
+        .map(GroupMemberNoDate::from)
+        .collect::<Vec<GroupMemberNoDate>>();
     let mut new_transaction = TransactionQuery::new(
         &Uuid::new_v4(),
         desc,
@@ -182,6 +186,7 @@ fn create_transaction(
     }
     new_transaction
 }
+
 async fn get_transaction(
     token: &str,
     uuid: &str,

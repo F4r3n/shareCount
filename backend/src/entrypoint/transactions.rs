@@ -1,5 +1,4 @@
 use crate::entrypoint::group_members::get_member_id;
-use crate::entrypoint::group_members::GroupMember;
 use crate::entrypoint::group_members::GroupMemberNoDate;
 use crate::entrypoint::AppError;
 use crate::schema::group_members;
@@ -26,7 +25,7 @@ use std::collections::HashMap;
 pub struct TransactionDebtQuery {
     id: Option<i32>,
     amount: BigDecimal,
-    member: GroupMember,
+    member: GroupMemberNoDate,
 }
 
 #[derive(Deserialize, Serialize, Queryable, Debug)]
@@ -277,7 +276,7 @@ pub struct TransactionQuery {
     uuid: String,
     description: String,
     currency_id: String,
-    paid_by: GroupMember,
+    paid_by: GroupMemberNoDate,
     created_at: NaiveDateTime,
     exchange_rate: BigDecimal,
     amount: BigDecimal,
@@ -287,7 +286,12 @@ pub struct TransactionQuery {
 use {bigdecimal::FromPrimitive, chrono::NaiveDate, std::str::FromStr};
 
 impl TransactionQuery {
-    pub fn new(uuid: &uuid::Uuid, description: &str, paid_by: &GroupMember, amount: &str) -> Self {
+    pub fn new(
+        uuid: &uuid::Uuid,
+        description: &str,
+        paid_by: &GroupMemberNoDate,
+        amount: &str,
+    ) -> Self {
         Self {
             uuid: uuid.to_string(),
             description: description.to_string(),
@@ -304,7 +308,7 @@ impl TransactionQuery {
         }
     }
 
-    pub fn add_debtor(&mut self, member: &GroupMember, amount: &str) {
+    pub fn add_debtor(&mut self, member: &GroupMemberNoDate, amount: &str) {
         self.modified_at = chrono::Utc::now().naive_utc();
         self.debtors.push(TransactionDebtQuery {
             id: None,

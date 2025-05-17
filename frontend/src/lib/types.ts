@@ -8,7 +8,7 @@ export interface Debt {
 export interface GroupMember {
     uuid : string,
     nickname : string
-    modified_at?: string,
+    modified_at: string,
 }
 
 export interface Transaction {

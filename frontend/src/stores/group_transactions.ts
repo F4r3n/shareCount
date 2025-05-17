@@ -38,6 +38,7 @@ export function AddTransaction(transaction: Transaction) {
     group_transactions.update(store=> {
         store = [...store]; 
         store.push(transaction);
+        transaction.modified_at = new Date().toISOString().replace("Z", "");
         store = sort_transactions(store);
         return store;
     })
@@ -46,7 +47,7 @@ export function AddTransaction(transaction: Transaction) {
 export function DeleteTransaction(index: number) {
     group_transactions.update(store=> {
         store = [...store]; 
-        store.splice(index, 1)
+        store.splice(index, 1);
         store = sort_transactions(store);
         return store;
     })
@@ -57,6 +58,7 @@ export function setTransactionID(id: number, tr: Transaction): void {
 
         store = [...store]; 
         store[id] = tr;
+        tr.modified_at = new Date().toISOString().replace("Z", "");
         store = sort_transactions(store);
         return store 
     });

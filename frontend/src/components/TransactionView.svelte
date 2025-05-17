@@ -349,6 +349,7 @@
                             if (await onSave(modified_transaction)) {
                                 is_saved = true;
                                 is_editing = false;
+                                is_open = false;
                             }
                         }}
                     >
