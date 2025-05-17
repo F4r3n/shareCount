@@ -64,11 +64,21 @@ pub async fn handler_groups(
     Ok(Json(results))
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Serialize)]
 pub struct CreateGroups {
     name: String,
     currency_id: String,
     nicknames: Vec<String>,
+}
+
+impl CreateGroups {
+    pub fn new(name: String, currency_id: String, nicknames: Vec<String>) -> Self {
+        Self {
+            name,
+            currency_id,
+            nicknames,
+        }
+    }
 }
 
 ///groups
@@ -89,22 +99,34 @@ pub async fn handler_create_groups(
     }
     let token = conn
         .transaction::<String, anyhow::Error, _>(|conn| {
-            let result = insert_into(groups::table)
+            let group_id = insert_into(groups::table)
                 .values((
                     groups::dsl::name.eq(create.name),
                     groups::dsl::currency_id.eq(create.currency_id),
                     groups::dsl::token.eq(token.clone()),
                 ))
-                .get_result::<Group>(conn)?;
+                .returning(groups::id)
+                .get_result::<i32>(conn)?;
 
             if !create.nicknames.is_empty() {
                 let mut vec = vec![];
 
+                #[derive(Insertable)]
+                #[diesel(table_name = group_members)]
+                pub struct NewGroupMember {
+                    uuid: String,
+                    group_id: i32,
+                    nickname: String,
+                    user_id: Option<i32>,
+                }
+
                 for n in create.nicknames {
-                    vec.push((
-                        group_members::dsl::group_id.eq(result.id),
-                        group_members::dsl::nickname.eq(n),
-                    ));
+                    vec.push(NewGroupMember {
+                        uuid: Uuid::new_v4().to_string(),
+                        group_id,
+                        user_id: None,
+                        nickname: n,
+                    });
                 }
 
                 insert_into(group_members::table)

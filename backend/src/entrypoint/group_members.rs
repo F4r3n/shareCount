@@ -13,9 +13,9 @@ use diesel::prelude::*;
 use serde::Deserialize;
 use serde::Serialize;
 
-#[derive(Deserialize, Serialize, Queryable, Debug, AsChangeset)]
+#[derive(Deserialize, Serialize, Queryable, Debug, AsChangeset, Clone)]
 pub struct GroupMember {
-    pub id: i32,
+    pub uuid: String,
     pub nickname: String,
 }
 
@@ -28,7 +28,7 @@ pub async fn handler_group_members(
     let results = groups::table
         .inner_join(group_members::table.on(groups::id.eq(group_members::group_id)))
         .filter(groups::token.eq(token))
-        .select((group_members::id, group_members::nickname))
+        .select((group_members::uuid, group_members::nickname))
         .load::<GroupMember>(&mut conn)?;
 
     Ok(Json(results))
@@ -37,7 +37,7 @@ pub async fn handler_group_members(
 pub async fn handler_add_group_members(
     State(state_server): State<state_server::StateServer>,
     Path(token): Path<String>,
-    Json(members): Json<Vec<String>>,
+    Json(members): Json<Vec<GroupMember>>,
 ) -> Result<Json<Vec<GroupMember>>, AppError> {
     let mut conn = state_server.pool.get()?;
     let result = conn
@@ -47,6 +47,7 @@ pub async fn handler_add_group_members(
             #[derive(Insertable)]
             #[diesel(table_name = group_members)]
             pub struct NewGroupMember {
+                uuid: String,
                 group_id: i32,
                 nickname: String,
                 user_id: Option<i32>,
@@ -54,9 +55,10 @@ pub async fn handler_add_group_members(
 
             let new_members: Vec<_> = members
                 .into_iter()
-                .map(|nickname| NewGroupMember {
+                .map(|member| NewGroupMember {
+                    uuid: member.uuid,
                     group_id,
-                    nickname,
+                    nickname: member.nickname,
                     user_id: None, // Assuming user_id is optional
                 })
                 .collect();
@@ -64,7 +66,7 @@ pub async fn handler_add_group_members(
                 .values(&new_members)
                 .on_conflict((group_members::group_id, group_members::nickname))
                 .do_nothing() // Skip existing members
-                .returning((group_members::id, group_members::nickname))
+                .returning((group_members::uuid, group_members::nickname))
                 .get_results(conn)?;
             Ok(result)
         })
@@ -75,7 +77,7 @@ pub async fn handler_add_group_members(
 
 #[derive(Serialize, Deserialize, Queryable, Debug)]
 pub struct RenameGroupMembers {
-    id: i32,
+    uuid: String,
     nickname: String,
 }
 
@@ -91,13 +93,13 @@ pub async fn handler_rename_group_members(
 
         for rename in members {
             let update = GroupMember {
-                id: rename.id,
+                uuid: rename.uuid.clone(),
                 nickname: rename.nickname,
             };
 
             diesel::update(
                 group_members::table
-                    .filter(group_members::id.eq(rename.id))
+                    .filter(group_members::uuid.eq(rename.uuid))
                     .filter(group_members::group_id.eq(group_id)),
             )
             .set(&update)
@@ -114,6 +116,22 @@ pub async fn handler_rename_group_members(
 use crate::entrypoint::transactions::{get_transaction_debt, get_transaction_paid_by};
 
 use bigdecimal::num_traits::Zero;
+use diesel::r2d2::ConnectionManager;
+use diesel::r2d2::PooledConnection;
+
+pub fn get_member_id(
+    group_id: i32,
+    uuid: String,
+    conn: &mut PooledConnection<ConnectionManager<PgConnection>>,
+) -> Result<i32, anyhow::Error> {
+    let member_result = group_members::table
+        .inner_join(groups::table)
+        .select(group_members::id)
+        .filter(group_members::uuid.eq(uuid))
+        .filter(groups::id.eq(group_id))
+        .get_result::<i32>(conn)?;
+    Ok(member_result)
+}
 
 pub async fn handler_delete_group_members(
     State(state_server): State<state_server::StateServer>,
@@ -124,17 +142,18 @@ pub async fn handler_delete_group_members(
     conn.transaction::<(), anyhow::Error, _>(|conn| {
         let group_id = get_group_id(token, conn)?;
         for member in members {
-            let transaction_debts = get_transaction_debt(group_id, member.id, conn)?;
+            let member_id = get_member_id(group_id, member.uuid, conn)?;
+            let transaction_debts = get_transaction_debt(group_id, member_id, conn)?;
             let has_debt = transaction_debts
                 .iter()
                 .any(|(_id, number)| !number.is_zero());
 
-            let transaction_paid = get_transaction_paid_by(group_id, member.id, conn)?;
+            let transaction_paid = get_transaction_paid_by(group_id, member_id, conn)?;
             let has_paid = transaction_paid.iter().any(|tr| !tr.amount.is_zero());
 
             if !has_debt && !has_paid {
                 diesel::delete(group_members::table)
-                    .filter(group_members::id.eq(member.id))
+                    .filter(group_members::id.eq(member_id))
                     .execute(conn)?;
             }
         }

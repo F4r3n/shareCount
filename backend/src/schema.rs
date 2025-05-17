@@ -35,6 +35,7 @@ diesel::table! {
         group_id -> Integer,
         nickname -> Text,
         user_id -> Nullable<Integer>,
+        uuid -> Text
     }
 }
 
@@ -48,6 +49,7 @@ diesel::table! {
         currency_id -> Text,
         exchange_rate -> Numeric,
         created_at -> Timestamp,
+        uuid -> Text,
     }
 }
 

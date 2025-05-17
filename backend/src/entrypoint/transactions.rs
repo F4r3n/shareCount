@@ -1,3 +1,4 @@
+use crate::entrypoint::group_members::get_member_id;
 use crate::entrypoint::group_members::GroupMember;
 use crate::entrypoint::AppError;
 use crate::schema::group_members;
@@ -11,6 +12,8 @@ use axum::{
     response::Json,
 };
 use bigdecimal::BigDecimal;
+
+use bigdecimal::One;
 use bigdecimal::Zero;
 use chrono::NaiveDateTime;
 use diesel::prelude::*;
@@ -33,7 +36,7 @@ pub struct TransactionDebtResponse {
 
 #[derive(Deserialize, Serialize, Queryable, Debug)]
 pub struct TransactionResponse {
-    pub id: i32,
+    pub uuid: String,
     pub description: String,
     pub currency_id: String,
     pub paid_by: GroupMember,
@@ -43,7 +46,7 @@ pub struct TransactionResponse {
     pub debtors: Vec<TransactionDebtResponse>,
 }
 
-pub async fn handler_transactions(
+pub async fn handler_get_all_transactions(
     State(state_server): State<state_server::StateServer>,
     Path(token): Path<String>,
 ) -> Result<Json<Vec<TransactionResponse>>, AppError> {
@@ -54,23 +57,25 @@ pub async fn handler_transactions(
         .inner_join(group_members::table.on(group_members::id.eq(transactions::paid_by)))
         .select((
             transactions::id,
+            transactions::uuid,
             transactions::description,
             transactions::created_at,
             transactions::amount,
             transactions::exchange_rate,
             transactions::currency_id,
-            group_members::id,
             group_members::nickname,
+            group_members::uuid,
         ))
         .filter(groups::token.eq(&token))
         .load::<(
             i32,
             String,
+            String,
             NaiveDateTime,
             BigDecimal,
             BigDecimal,
             String,
-            i32,
+            String,
             String,
         )>(&mut conn)?;
     dbg!(&transaction_result);
@@ -84,21 +89,21 @@ pub async fn handler_transactions(
             transaction_debts::id,
             transaction_debts::transaction_id,
             transaction_debts::amount,
-            group_members::id,
             group_members::nickname,
+            group_members::uuid,
         ))
-        .load::<(i32, i32, BigDecimal, i32, String)>(&mut conn)?;
+        .load::<(i32, i32, BigDecimal, String, String)>(&mut conn)?;
 
     let mut map: HashMap<i32, TransactionResponse> = HashMap::new();
     transaction_result.into_iter().for_each(
-        |(id, desc, time, amount, exchange_rate, currency_id, member_id, nickname)| {
+        |(id, uuid, desc, time, amount, exchange_rate, currency_id, nickname, member_uuid)| {
             map.insert(
                 id,
                 TransactionResponse {
-                    id,
+                    uuid,
                     description: desc,
                     paid_by: GroupMember {
-                        id: member_id,
+                        uuid: member_uuid,
                         nickname,
                     },
                     created_at: time,
@@ -113,13 +118,13 @@ pub async fn handler_transactions(
 
     debts
         .into_iter()
-        .for_each(|(debt_id, transaction_id, amount, member_id, nickname)| {
+        .for_each(|(debt_id, transaction_id, amount, nickname, member_uuid)| {
             if let Some(value) = map.get_mut(&transaction_id) {
                 value.debtors.push(TransactionDebtResponse {
                     id: debt_id,
                     amount,
                     member: GroupMember {
-                        id: member_id,
+                        uuid: member_uuid,
                         nickname,
                     },
                 });
@@ -134,34 +139,35 @@ pub async fn handler_transactions(
 
 pub async fn handler_get_transaction(
     State(state_server): State<state_server::StateServer>,
-    Path((token, transaction_id)): Path<(String, i32)>,
+    Path((token, transaction_uuid)): Path<(String, String)>,
 ) -> Result<Json<TransactionResponse>, AppError> {
     let mut conn = state_server.pool.get()?;
 
-    let (id, description, created_at, amount, exchange_rate, currency_id, member_id, nickname) =
+    dbg!("Get Transaction {}", &transaction_uuid);
+    let (uuid, description, created_at, amount, exchange_rate, currency_id, nickname, member_uuid) =
         groups::table
             .inner_join(transactions::table)
             .inner_join(group_members::table)
             .select((
-                transactions::id,
+                transactions::uuid,
                 transactions::description,
                 transactions::created_at,
                 transactions::amount,
                 transactions::exchange_rate,
                 transactions::currency_id,
-                transactions::paid_by,
                 group_members::nickname,
+                group_members::uuid,
             ))
             .filter(groups::token.eq(&token))
-            .filter(transactions::id.eq(transaction_id))
+            .filter(transactions::uuid.eq(&transaction_uuid))
             .get_result::<(
-                i32,
+                String,
                 String,
                 NaiveDateTime,
                 BigDecimal,
                 BigDecimal,
                 String,
-                i32,
+                String,
                 String,
             )>(&mut conn)?;
     let mut transaction_response = TransactionResponse {
@@ -171,9 +177,9 @@ pub async fn handler_get_transaction(
         description,
         debtors: Vec::new(),
         exchange_rate,
-        id,
+        uuid,
         paid_by: GroupMember {
-            id: member_id,
+            uuid: member_uuid,
             nickname,
         },
     };
@@ -183,23 +189,23 @@ pub async fn handler_get_transaction(
         .inner_join(group_members::table)
         .inner_join(groups::table.on(transactions::group_id.eq(groups::id)))
         .filter(groups::token.eq(token))
-        .filter(transactions::id.eq(transaction_id))
+        .filter(transactions::uuid.eq(&transaction_uuid))
         .select((
             transaction_debts::id,
             transaction_debts::amount,
-            group_members::id,
+            group_members::uuid,
             group_members::nickname,
         ))
-        .load::<(i32, BigDecimal, i32, String)>(&mut conn)?;
+        .load::<(i32, BigDecimal, String, String)>(&mut conn)?;
 
     debts
         .into_iter()
-        .for_each(|(debt_id, amount, member_id, nickname)| {
+        .for_each(|(debt_id, amount, member_uuid, nickname)| {
             transaction_response.debtors.push(TransactionDebtResponse {
                 id: debt_id,
                 amount,
                 member: GroupMember {
-                    id: member_id,
+                    uuid: member_uuid,
                     nickname,
                 },
             });
@@ -211,6 +217,7 @@ pub async fn handler_get_transaction(
 #[derive(Debug, AsChangeset, Insertable)]
 #[diesel(table_name = crate::schema::transactions)]
 pub struct TransactionChangeset {
+    pub uuid: String,
     pub description: String,
     pub amount: BigDecimal,
     pub paid_by: i32,
@@ -237,7 +244,7 @@ pub struct TransactionDebtUpsert {
 
 #[derive(Deserialize, Serialize, Queryable, Debug)]
 pub struct TransactionQuery {
-    id: Option<i32>,
+    uuid: String,
     description: String,
     currency_id: String,
     paid_by: GroupMember,
@@ -245,6 +252,45 @@ pub struct TransactionQuery {
     exchange_rate: BigDecimal,
     amount: BigDecimal,
     debtors: Vec<TransactionDebtQuery>,
+}
+use {bigdecimal::FromPrimitive, chrono::NaiveDate, std::str::FromStr};
+
+impl TransactionQuery {
+    pub fn new(uuid: &uuid::Uuid, description: &str, paid_by: &GroupMember, amount: &str) -> Self {
+        Self {
+            uuid: uuid.to_string(),
+            description: description.to_string(),
+            paid_by: paid_by.clone(),
+            amount: BigDecimal::from_str(amount).unwrap_or(BigDecimal::zero()),
+            debtors: vec![],
+            created_at: NaiveDate::from_ymd_opt(2016, 7, 8)
+                .unwrap_or_default()
+                .and_hms_opt(9, 10, 11)
+                .unwrap_or_default(),
+            currency_id: "USD".to_string(),
+            exchange_rate: BigDecimal::from_i32(1).unwrap_or(BigDecimal::one()),
+        }
+    }
+
+    pub fn add_debtor(&mut self, member: &GroupMember, amount: &str) {
+        self.debtors.push(TransactionDebtQuery {
+            id: None,
+            amount: BigDecimal::from_str(amount).unwrap_or(BigDecimal::zero()),
+            member: member.clone(),
+        });
+    }
+
+    pub fn set_description(&mut self, description: &str) {
+        self.description = description.to_string();
+    }
+
+    pub fn set_amount(&mut self, amount: &str) {
+        self.amount = BigDecimal::from_str(amount).unwrap_or_default();
+    }
+
+    pub fn get_uuid(&self) -> String {
+        self.uuid.clone()
+    }
 }
 
 fn check_transaction_validity(transaction: &TransactionQuery) -> Result<(), String> {
@@ -274,14 +320,15 @@ fn check_transaction_validity(transaction: &TransactionQuery) -> Result<(), Stri
 pub fn modify_create_transaction(
     token_id: String,
     transaction: TransactionQuery,
-    transaction_id: Option<i32>,
     conn: &mut PooledConnection<ConnectionManager<PgConnection>>,
-) -> Result<i32, anyhow::Error> {
+) -> Result<(), anyhow::Error> {
     let group_id = get_group_id(token_id, conn)?;
+    let member_id = get_member_id(group_id, transaction.paid_by.uuid, conn)?;
     let changeset = TransactionChangeset {
+        uuid: transaction.uuid,
         description: transaction.description,
         amount: transaction.amount,
-        paid_by: transaction.paid_by.id,
+        paid_by: member_id,
         currency_id: transaction.currency_id,
         exchange_rate: transaction.exchange_rate,
         created_at: transaction.created_at,
@@ -289,19 +336,13 @@ pub fn modify_create_transaction(
     };
     dbg!(&changeset);
 
-    let transaction_id = match transaction_id {
-        Some(id) => {
-            diesel::update(transactions::table)
-                .filter(transactions::id.eq(id))
-                .set(&changeset)
-                .execute(conn)?;
-            id
-        }
-        None => diesel::insert_into(transactions::table)
-            .values(&changeset)
-            .returning(transactions::id)
-            .get_result::<i32>(conn)?,
-    };
+    let transaction_id = diesel::insert_into(transactions::table)
+        .values(&changeset)
+        .on_conflict(transactions::uuid)
+        .do_update()
+        .set(&changeset)
+        .returning(transactions::id)
+        .get_result::<i32>(conn)?;
 
     let debts = transaction
         .debtors
@@ -312,9 +353,11 @@ pub fn modify_create_transaction(
             } else {
                 None
             };
+            let member_id = get_member_id(group_id, debt.member.uuid, conn);
+
             TransactionDebtUpsert {
                 transaction_id,
-                group_member_id: debt.member.id,
+                group_member_id: member_id.unwrap_or(0),
                 amount: debt.amount,
                 // Include ID only for updates
                 id, //can be optional,
@@ -332,20 +375,23 @@ pub fn modify_create_transaction(
         .set(transaction_debts::amount.eq(diesel::upsert::excluded(transaction_debts::amount)))
         .execute(conn)?;
 
-    Ok(transaction_id)
+    Ok(())
 }
 
 pub async fn handler_modify_transaction(
     State(state_server): State<state_server::StateServer>,
-    Path((token, transaction_id)): Path<(String, i32)>,
+    Path(token): Path<String>,
     Json(payload): Json<TransactionQuery>,
-) -> Result<(), AppError> {
+) -> Result<(), AppError<String>> {
     dbg!("Modify transaction");
+    check_transaction_validity(&payload).map_err(|v| AppError {
+        content: Some(v),
+        error: anyhow::anyhow!(StatusCode::INTERNAL_SERVER_ERROR),
+    })?;
+
     let mut conn = state_server.pool.get()?;
-    conn.transaction::<_, anyhow::Error, _>(|conn| {
-        modify_create_transaction(token, payload, Some(transaction_id), conn)
-    })
-    .map_err(AppError::from)?;
+    conn.transaction::<_, anyhow::Error, _>(|conn| modify_create_transaction(token, payload, conn))
+        .map_err(AppError::from)?;
 
     Ok(())
 }
@@ -355,29 +401,9 @@ pub struct TransactionIDResponse {
     pub id: i32,
 }
 
-pub async fn handler_create_transaction(
-    State(state_server): State<state_server::StateServer>,
-    Path(token): Path<String>,
-    Json(payload): Json<TransactionQuery>,
-) -> Result<Json<TransactionIDResponse>, AppError<String>> {
-    check_transaction_validity(&payload).map_err(|v| AppError {
-        error: anyhow::anyhow!(StatusCode::INTERNAL_SERVER_ERROR),
-        content: Some(v),
-    })?;
-
-    let mut conn = state_server.pool.get()?;
-    let id = conn
-        .transaction::<i32, anyhow::Error, _>(|conn| {
-            modify_create_transaction(token, payload, None, conn)
-        })
-        .map_err(AppError::from)?;
-
-    Ok(Json(TransactionIDResponse { id }))
-}
-
 pub async fn handler_delete_transaction(
     State(state_server): State<state_server::StateServer>,
-    Path((token, transaction_id)): Path<(String, i32)>,
+    Path((token, transaction_uuid)): Path<(String, String)>,
 ) -> Result<(), AppError> {
     let mut conn = state_server.pool.get()?;
     conn.transaction::<_, anyhow::Error, _>(|conn| {
@@ -385,7 +411,7 @@ pub async fn handler_delete_transaction(
 
         diesel::delete(transactions::table)
             .filter(transactions::group_id.eq(groud_id))
-            .filter(transactions::id.eq(transaction_id))
+            .filter(transactions::uuid.eq(transaction_uuid))
             .execute(conn)?;
 
         Ok(())

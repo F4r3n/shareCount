@@ -1,7 +1,6 @@
 use axum_test::TestServer;
 use chrono::{self, Datelike};
 use serde_json::json;
-use share_count::entrypoint::transactions::TransactionIDResponse;
 use share_count::state_server;
 use share_count::{entrypoint::groups::GroupResponse, router::create_router};
 use std::env;
@@ -9,7 +8,10 @@ use std::env;
 use diesel_migrations::{embed_migrations, EmbeddedMigrations};
 pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!();
 use share_count::entrypoint::group_members::GroupMember;
-use share_count::entrypoint::transactions::TransactionResponse;
+use share_count::entrypoint::groups::CreateGroups;
+use share_count::entrypoint::transactions::{TransactionQuery, TransactionResponse};
+use std::sync::Arc;
+use uuid::Uuid;
 
 async fn get_group_members(
     token: &str,
@@ -22,20 +24,35 @@ async fn get_group_members(
     Ok(response.json::<Vec<GroupMember>>())
 }
 
+static SERVER: tokio::sync::OnceCell<Arc<TestServer>> = tokio::sync::OnceCell::const_new();
+pub async fn create_server() -> Arc<TestServer> {
+    SERVER
+        .get_or_init(|| async {
+            dotenvy::from_filename(".env.test").ok();
+            let front_url = match env::var("FRONT_URL") {
+                Ok(val) => val,
+                Err(e) => panic!("Failed to get FRONT_URL: {}", e),
+            };
+            let connection = state_server::establish_connection().expect("fail connection");
+
+            let state_server = state_server::StateServer { pool: connection };
+
+            // Start transaction for test isolation
+
+            let app = match create_router(&front_url, state_server) {
+                Ok(app) => app,
+                Err(e) => panic!("Failed to create router: {}", e),
+            };
+
+            Arc::new(TestServer::new(app).expect("Failed to create TestServer"))
+        })
+        .await
+        .clone()
+}
+
 #[tokio::test]
-async fn test_full_crud_flow() -> Result<(), anyhow::Error> {
-    dotenvy::from_filename(".env.test").ok();
-    let front_url = env::var("FRONT_URL")?;
-    let connection = state_server::establish_connection()?;
-
-    let state_server = state_server::StateServer { pool: connection };
-
-    // Start transaction for test isolation
-
-    let app = create_router(&front_url, state_server)?;
-
-    //get user1 groups
-    let server = TestServer::new(app)?;
+async fn manage_group() -> Result<(), anyhow::Error> {
+    let server = create_server().await;
     let response = server.get("/users/1/groups").await;
     assert_eq!(response.status_code(), 200);
     let json = response.json::<Vec<GroupResponse>>();
@@ -48,6 +65,8 @@ async fn test_full_crud_flow() -> Result<(), anyhow::Error> {
     }
 
     //get groups per token
+    println!("get groups");
+
     let response = server.get("/groups/token_abc123").await;
     assert_eq!(response.status_code(), 200);
     let group = response.json::<GroupResponse>();
@@ -59,6 +78,8 @@ async fn test_full_crud_flow() -> Result<(), anyhow::Error> {
     assert_eq!(response.status_code(), 404);
 
     //create groups
+    println!("create groups");
+
     let response = server
         .post("/groups")
         .json(&serde_json::json!({
@@ -67,10 +88,12 @@ async fn test_full_crud_flow() -> Result<(), anyhow::Error> {
             "nicknames":["waluigi", "mario", "JOJO"]
         }))
         .await;
-    let token = response.json::<String>();
     assert_eq!(response.status_code(), 200);
+    let token = response.json::<String>();
 
     //get groups
+    println!("get groups");
+
     let response = server.get(format!("/groups/{}", token).as_str()).await;
     assert_eq!(response.status_code(), 200);
     let group = response.json::<GroupResponse>();
@@ -78,22 +101,46 @@ async fn test_full_crud_flow() -> Result<(), anyhow::Error> {
     assert_eq!(group.currency_id, "USD");
     assert!(group.created_at.date().day() > 0);
 
-    //Get members
+    Ok(())
+}
+
+#[tokio::test]
+async fn manage_member() -> Result<(), anyhow::Error> {
+    let server = create_server().await;
+    let create_group = CreateGroups::new(
+        "Tokyo".to_string(),
+        "USD".to_string(),
+        ["waluigi", "mario", "JOJO"]
+            .iter()
+            .map(|s| s.to_string())
+            .collect::<Vec<String>>(),
+    );
+
+    let response = server
+        .post("/groups")
+        .json(&serde_json::to_value(create_group)?)
+        .await;
+    assert_eq!(response.status_code(), 200);
+    let token = response.json::<String>();
+
     let group = get_group_members(&token, &server).await?;
     assert_eq!(group.len(), 3);
-    let id_jojo = group
+    let binding = GroupMember {
+        uuid: String::from(""),
+        nickname: String::from(""),
+    };
+    let uuid_jojo = &group
         .iter()
         .find(|member| member.nickname.eq("JOJO"))
-        .unwrap_or(&GroupMember {
-            id: -1,
-            nickname: String::from(""),
-        })
-        .id;
+        .unwrap_or(&binding)
+        .uuid;
 
     //rename members
+    println!("rename members");
+
     let response = server
         .patch(format!("/groups/{}/group_members", token).as_str())
-        .json(&json!([{"id": id_jojo, "new": "JAJA"}]))
+        .json(&json!([{"uuid": uuid_jojo, "nickname": "JAJA"}]))
         .await;
     assert_eq!(response.status_code(), 200);
 
@@ -107,73 +154,115 @@ async fn test_full_crud_flow() -> Result<(), anyhow::Error> {
     //delete members
     let response = server
         .delete(format!("/groups/{}/group_members", token).as_str())
-        .json(&json!([{"id": id_jojo, "nickname": "JAJA"}]))
+        .json(&json!([{"uuid": uuid_jojo, "nickname": "JAJA"}]))
         .await;
     assert_eq!(response.status_code(), 200);
 
     let group = get_group_members(&token, &server).await?;
     assert_eq!(group.len(), 2);
 
-    //Transactions
-    let first_member = group.first().unwrap();
+    Ok(())
+}
 
+fn create_transaction(
+    members: &Vec<GroupMember>,
+    desc: &str,
+    main_amount: &str,
+    debtors_amount: &str,
+) -> TransactionQuery {
+    let mut new_transaction = TransactionQuery::new(
+        &Uuid::new_v4(),
+        desc,
+        &members.first().unwrap().clone(),
+        main_amount,
+    );
+    for member in members {
+        new_transaction.add_debtor(&member.clone(), debtors_amount);
+    }
+    new_transaction
+}
+async fn get_transaction(
+    token: &str,
+    uuid: &str,
+    server: &TestServer,
+) -> Result<TransactionResponse, anyhow::Error> {
     let response = server
-    .post(format!("/groups/{}/transactions", token).as_str())
-    .json(&json!({"id":-1,"amount":1111,"currency_id":"USD","created_at":"2025-05-08T19:17:41.819",
-    "debtors":[{"member":{"id":first_member.id,"nickname":first_member.nickname},"amount":"1111"}],
-    "description":"AAAA","exchange_rate":"1","paid_by":{"id":first_member.id,"nickname":first_member.nickname}}))
-    .await;
-    let new_transaction_id = response.json::<TransactionIDResponse>().id;
-    assert!(new_transaction_id > 0);
+        .get(format!("/groups/{}/transactions/{}", token, uuid).as_str())
+        .await;
+    assert_eq!(response.status_code(), 200);
+    let transaction = response.json::<TransactionResponse>();
+    Ok(transaction)
+}
+#[tokio::test]
+async fn manage_transactions() -> Result<(), anyhow::Error> {
+    let server = create_server().await;
+    let response = server
+        .post("/groups")
+        .json(&serde_json::json!({
+            "name": "Tokyo",
+            "currency_id": "USD",
+            "nicknames":["waluigi", "mario", "JOJO"]
+        }))
+        .await;
+    assert_eq!(response.status_code(), 200);
+    let token = response.json::<String>();
+    let group = get_group_members(&token, &server).await?;
+    assert_eq!(group.len(), 3);
+
+    //Transactions
+    println!("Create transaction...");
+    let mut new_transaction = create_transaction(&group, "AAAA", "3", "1");
+
+    let new_uuid = new_transaction.get_uuid();
+    let response = server
+        .post(format!("/groups/{}/transactions", token).as_str())
+        .json(&serde_json::to_value(&new_transaction)?)
+        .await;
     assert_eq!(response.status_code(), 200);
 
-    let response = server
-        .get(format!("/groups/{}/transactions/{}", token, new_transaction_id).as_str())
-        .await;
-    let transaction = response.json::<TransactionResponse>();
+    let transaction = get_transaction(&token, &new_uuid, &server).await?;
     assert_eq!(transaction.description, "AAAA");
 
-    let response = server
-    .post(format!("/groups/{}/transactions/{}", token, new_transaction_id).as_str())
-    .json(&json!({"id":new_transaction_id,"amount":1111,"currency_id":"USD","created_at":"2025-05-08T19:17:41.819",
-    "debtors":[{"member":{"id":first_member.id,"nickname":first_member.nickname},"amount":"1111"}],
-    "description":"BBBB","exchange_rate":"1","paid_by":{"id":first_member.id,"nickname":first_member.nickname}}))
-    .await;
-    assert_eq!(response.status_code(), 200);
+    println!("Modify transaction...");
+
+    new_transaction.set_description("BBBB");
 
     let response = server
-        .get(format!("/groups/{}/transactions/{}", token, new_transaction_id).as_str())
+        .post(format!("/groups/{}/transactions", token).as_str())
+        .json(&serde_json::to_value(&new_transaction)?)
         .await;
-    let transaction = response.json::<TransactionResponse>();
+    assert_eq!(response.status_code(), 200);
+
+    let transaction = get_transaction(&token, &new_uuid, &server).await?;
     assert_eq!(transaction.description, "BBBB");
+
+    println!("Modify transaction...");
+    let new_transaction = create_transaction(&group, "AAAA", "4", "1");
+
+    let response = server
+        .post(format!("/groups/{}/transactions", token).as_str())
+        .json(&serde_json::to_value(&new_transaction)?)
+        .await;
+    assert_eq!(response.status_code(), 500);
+
+    println!("Create new transaction...");
+
+    let mut new_transaction = create_transaction(&group, "AAAA", "0", "1");
+
+    let response = server
+        .post(format!("/groups/{}/transactions", token).as_str())
+        .json(&serde_json::to_value(&new_transaction)?)
+        .await;
+    assert_eq!(response.status_code(), 500);
+    new_transaction.set_amount("3");
+    let response = server
+        .post(format!("/groups/{}/transactions", token).as_str())
+        .json(&serde_json::to_value(&new_transaction)?)
+        .await;
     assert_eq!(response.status_code(), 200);
 
     let response = server
-    .post(format!("/groups/{}/transactions", token).as_str())
-    .json(&json!({"id":-1,"amount":1111,"currency_id":"USD","created_at":"2025-05-08T19:17:41.819",
-    "debtors":[{"member":{"id":first_member.id,"nickname":first_member.nickname},"amount":111}],
-    "description":"AAAA","exchange_rate":1,"paid_by":{"id":first_member.id,"nickname":first_member.nickname}}))
-    .await;
-    assert_eq!(response.status_code(), 500);
-
-    let response = server
-    .post(format!("/groups/{}/transactions", token).as_str())
-    .json(&json!({"id":-1,"amount":0,"currency_id":"USD","created_at":"2025-05-08T19:17:41.819",
-    "debtors":[{"member":{"id":first_member.id,"nickname":first_member.nickname},"amount":111}],
-    "description":"AAAA","exchange_rate":1,"paid_by":{"id":first_member.id,"nickname":first_member.nickname}}))
-    .await;
-    assert_eq!(response.status_code(), 500);
-
-    let response = server
-    .post(format!("/groups/{}/transactions", token).as_str())
-    .json(&json!({"id":-1,"amount":-10,"currency_id":"USD","created_at":"2025-05-08T19:17:41.819",
-    "debtors":[{"member":{"id":first_member.id,"nickname":first_member.nickname},"amount":111}],
-    "description":"AAAA","exchange_rate":1,"paid_by":{"id":first_member.id,"nickname":first_member.nickname}}))
-    .await;
-    assert_eq!(response.status_code(), 500);
-
-    let response = server
-        .delete(format!("/groups/{}/transactions/{}", token, new_transaction_id).as_str())
+        .delete(format!("/groups/{}/transactions/{}", token, new_uuid).as_str())
         .await;
     assert_eq!(response.status_code(), 200);
 
