@@ -86,28 +86,6 @@ export async function getGroupMembers(tokenID: string): Promise<GroupMember[]> {
     }
 }
 
-export async function renameGroupMembers(tokenID: string, members: GroupMember[]) {
-    try {
-        const res = await fetch(`http://${getBackendURL()}/groups/${tokenID}/group_members`, {
-            method: "PATCH",
-            credentials: "include",
-            headers: {
-                "Content-Type": "application/json",
-            },
-            body: JSON.stringify(members)
-        });
-
-        if (!res.ok) {
-            throw new Error(`Request failed ${res.status}`);
-        }
-
-
-    } catch (err) {
-        console.error("Error:", err);
-        throw err; // re-throw so the caller can handle the error
-    }
-}
-
 export async function deleteGroupMembers(tokenID: string, members: GroupMember[]) {
     if (members.length <= 0)
         return;
@@ -132,7 +110,7 @@ export async function deleteGroupMembers(tokenID: string, members: GroupMember[]
     }
 }
 
-export async function addGroupMembers(tokenID: string, members: string[]): Promise<GroupMember[]> {
+export async function addGroupMembers(tokenID: string, members: GroupMember[]): Promise<GroupMember[]> {
     if (members.length <= 0)
         return [];
     try {

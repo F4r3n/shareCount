@@ -140,8 +140,8 @@ async fn manage_member() -> Result<(), anyhow::Error> {
     println!("rename members");
 
     let response = server
-        .patch(format!("/groups/{}/group_members", token).as_str())
-        .json(&json!([{"uuid": uuid_jojo, "nickname": "JAJA"}]))
+        .post(format!("/groups/{}/group_members", token).as_str())
+        .json(&json!([{"uuid": uuid_jojo, "nickname": "JAJA", "modified_at": chrono::Utc::now().naive_utc()}]))
         .await;
     assert_eq!(response.status_code(), 200);
 

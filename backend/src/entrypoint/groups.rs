@@ -24,7 +24,7 @@ pub struct GroupResponse {
 }
 
 pub fn get_group_id(
-    token_id: String,
+    token_id: &str,
     conn: &mut PooledConnection<ConnectionManager<PgConnection>>,
 ) -> Result<i32, anyhow::Error> {
     let group_id = groups::table

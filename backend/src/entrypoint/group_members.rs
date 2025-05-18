@@ -46,13 +46,12 @@ impl From<&GroupMember> for GroupMemberNoDate {
         }
     }
 }
-
-pub async fn handler_group_members(
-    State(state_server): State<state_server::StateServer>,
-    Path(token): Path<String>,
-) -> Result<Json<Vec<GroupMember>>, AppError> {
-    let mut conn = state_server.pool.get()?;
-
+use diesel::r2d2::ConnectionManager;
+use diesel::r2d2::PooledConnection;
+pub fn get_all_members(
+    token: &str,
+    conn: &mut PooledConnection<ConnectionManager<PgConnection>>,
+) -> Result<Vec<GroupMember>, anyhow::Error> {
     let results = groups::table
         .inner_join(group_members::table.on(groups::id.eq(group_members::group_id)))
         .filter(groups::token.eq(token))
@@ -61,7 +60,18 @@ pub async fn handler_group_members(
             group_members::nickname,
             group_members::modified_at,
         ))
-        .get_results::<GroupMember>(&mut conn)?;
+        .get_results::<GroupMember>(conn)?;
+
+    Ok(results)
+}
+
+pub async fn handler_group_members(
+    State(state_server): State<state_server::StateServer>,
+    Path(token): Path<String>,
+) -> Result<Json<Vec<GroupMember>>, AppError> {
+    let mut conn = state_server.pool.get()?;
+
+    let results = get_all_members(&token, &mut conn)?;
 
     Ok(Json(results))
 }
@@ -74,9 +84,12 @@ pub async fn handler_add_group_members(
     let mut conn = state_server.pool.get()?;
     let result = conn
         .transaction::<Vec<GroupMember>, anyhow::Error, _>(|conn| {
-            let group_id = get_group_id(token, conn)?;
+            use diesel::query_dsl::methods::FilterDsl;
+            use diesel::upsert::excluded;
 
-            #[derive(Insertable)]
+            let group_id = get_group_id(&token, conn)?;
+
+            #[derive(Insertable, AsChangeset)]
             #[diesel(table_name = group_members)]
             pub struct NewGroupMember {
                 uuid: String,
@@ -86,77 +99,39 @@ pub async fn handler_add_group_members(
                 modified_at: NaiveDateTime,
             }
 
-            let new_members: Vec<_> = members
-                .into_iter()
-                .map(|member| NewGroupMember {
-                    uuid: member.uuid,
+            for member in members {
+                let new_member = NewGroupMember {
                     group_id,
+                    modified_at: member.modified_at,
                     nickname: member.nickname,
-                    user_id: None, // Assuming user_id is optional
-                    modified_at: chrono::Utc::now().naive_utc(),
-                })
-                .collect();
-            let result: Vec<GroupMember> = diesel::insert_into(group_members::table)
-                .values(&new_members)
-                .on_conflict((group_members::group_id, group_members::nickname))
-                .do_nothing() // Skip existing members
-                .returning((
-                    group_members::uuid,
-                    group_members::nickname,
-                    group_members::modified_at,
-                ))
-                .get_results(conn)?;
-            Ok(result)
+                    user_id: None,
+                    uuid: member.uuid,
+                };
+
+                diesel::insert_into(group_members::table)
+                    .values(&new_member)
+                    .on_conflict((group_members::group_id, group_members::nickname))
+                    .do_update()
+                    .set(&new_member)
+                    .filter(group_members::modified_at.lt(excluded(group_members::modified_at)))
+                    .returning((
+                        group_members::uuid,
+                        group_members::nickname,
+                        group_members::modified_at,
+                    ))
+                    .execute(conn)?;
+            }
+
+            get_all_members(&token, conn)
         })
         .map_err(AppError::from)?;
 
     Ok(Json(result))
 }
 
-#[derive(Serialize, Deserialize, Queryable, Debug)]
-pub struct RenameGroupMembers {
-    uuid: String,
-    nickname: String,
-}
-
-pub async fn handler_rename_group_members(
-    State(state_server): State<state_server::StateServer>,
-    Path(token): Path<String>,
-    Json(members): Json<Vec<RenameGroupMembers>>,
-) -> Result<(), AppError> {
-    let mut conn = state_server.pool.get()?;
-
-    conn.transaction::<_, anyhow::Error, _>(|conn| {
-        let group_id = get_group_id(token, conn)?;
-
-        for rename in members {
-            let update = GroupMember {
-                uuid: rename.uuid.clone(),
-                nickname: rename.nickname,
-                modified_at: chrono::Utc::now().naive_utc(),
-            };
-
-            diesel::update(
-                group_members::table
-                    .filter(group_members::uuid.eq(rename.uuid))
-                    .filter(group_members::group_id.eq(group_id)),
-            )
-            .set(&update)
-            .execute(conn)?;
-        }
-
-        Ok(())
-    })
-    .map_err(AppError::from)?;
-
-    Ok(())
-}
-
 use crate::entrypoint::transactions::{get_transaction_debt, get_transaction_paid_by};
 
 use bigdecimal::num_traits::Zero;
-use diesel::r2d2::ConnectionManager;
-use diesel::r2d2::PooledConnection;
 
 pub fn get_member_id(
     group_id: i32,
@@ -179,7 +154,7 @@ pub async fn handler_delete_group_members(
 ) -> Result<(), AppError> {
     let mut conn = state_server.pool.get()?;
     conn.transaction::<(), anyhow::Error, _>(|conn| {
-        let group_id = get_group_id(token, conn)?;
+        let group_id = get_group_id(&token, conn)?;
         for member in members {
             let member_id = get_member_id(group_id, member.uuid, conn)?;
             let transaction_debts = get_transaction_debt(group_id, member_id, conn)?;

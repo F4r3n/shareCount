@@ -3,16 +3,18 @@
     import { goto } from "$app/navigation";
     import type { Group, GroupMember } from "$lib/types";
     import { groupUsernames, setGroupMember } from "../stores/groupUsernames";
-    import {
-        addGroupMembers,
-        deleteGroupMembers,
-        getGroupMembers,
-        renameGroupMembers,
-    } from "$lib/shareCountAPI";
     import { slide } from "svelte/transition";
     import { CheckIcon, XIcon } from "lucide-svelte";
     import { MENU, menus } from "$lib/menus";
-    import { setGroupTokenID } from "../stores/group_token";
+    import { group_tokenID, setGroupTokenID } from "../stores/group_token";
+    import {
+        add_local_members,
+        create_group_member,
+        delete_local_members,
+        get_local_members,
+        rename_local_members,
+        synchro_group_members,
+    } from "../stores/group_members";
     let {
         group,
     }: {
@@ -23,16 +25,22 @@
     let original_members: GroupMember[];
     let member_me = $state({ nickname: "" } as GroupMember);
     onMount(async () => {
-        original_members = await getGroupMembers(group.token);
+        console.log("Start synchro")
+        original_members = await synchro_group_members(group.token);
+
         modified_members = structuredClone(original_members);
         member_me = $groupUsernames[group.token];
-        if(!member_me) {
-            member_me = { nickname: "" ,uuid:"", modified_at: new Date().toISOString().replace("Z", "")};
+        if (!member_me) {
+            member_me = {
+                nickname: "",
+                uuid: "",
+                modified_at: new Date().toISOString().replace("Z", ""),
+            };
         }
         edit = !member_me.nickname;
     });
     let members_to_delete: GroupMember[] = [];
-    let members_to_add: string[] = $state([]);
+    let members_to_add: GroupMember[] = $state([]);
 
     function clean() {
         modified_members = structuredClone(original_members);
@@ -48,7 +56,7 @@
         <div class="card-body">
             <h1 class="card-title">{group.name}</h1>
             {#if member_me && member_me.nickname != ""}
-            <div class="card-body">{`${member_me.nickname} (me)`}</div>
+                <div class="card-body">{`${member_me.nickname} (me)`}</div>
             {/if}
             <div class="card-actions justify-end">
                 <button
@@ -128,10 +136,10 @@
                         <input
                             type="text"
                             class="input input-ghost join-item"
-                            bind:value={members_to_add[id]}
+                            bind:value={members_to_add[id].nickname}
                         />
 
-                        {#if member_me.nickname == members_to_add[id]}
+                        {#if member_me.nickname == members_to_add[id].nickname}
                             <div class="flex items-center align-middle">
                                 <CheckIcon></CheckIcon>
                             </div>
@@ -139,7 +147,7 @@
                             <button
                                 class="btn join-item rounded-r-full"
                                 onclick={() => {
-                                    member_me.nickname = member;
+                                    member_me.nickname = member.nickname;
                                     setGroupMember(group.token, member_me);
                                 }}>Select</button
                             >
@@ -150,7 +158,7 @@
                 <button
                     class="btn"
                     onclick={() => {
-                        members_to_add.push("New");
+                        members_to_add.push(create_group_member("New"));
                     }}>Add participant</button
                 >
             </fieldset>
@@ -159,19 +167,20 @@
                 class="btn btn-primary mt-5"
                 onclick={async () => {
                     edit = false;
-                    await deleteGroupMembers(group.token, members_to_delete);
-                    let result = await addGroupMembers(
-                        group.token,
-                        members_to_add,
-                    );
-                    const member = result.find((value) => {
+                    await delete_local_members(members_to_delete);
+                    await add_local_members($group_tokenID, members_to_add);
+                    await rename_local_members(modified_members);
+                    let members = await get_local_members($group_tokenID);
+                    const member = members.find((value) => {
                         value.nickname == member_me.nickname;
                     });
                     if (member) {
                         member_me = member;
                         setGroupMember(group.token, member_me);
                     }
-                    await renameGroupMembers(group.token, modified_members);
+
+                    original_members = await synchro_group_members(group.token);
+
                     clean();
                 }}
                 >Validate

@@ -368,7 +368,7 @@ pub fn modify_create_transaction(
     transaction: TransactionQuery,
     conn: &mut PooledConnection<ConnectionManager<PgConnection>>,
 ) -> Result<(), anyhow::Error> {
-    let group_id = get_group_id(token_id, conn)?;
+    let group_id = get_group_id(&token_id, conn)?;
     let member_id = get_member_id(group_id, transaction.paid_by.uuid, conn)?;
     let changeset = TransactionChangeset {
         uuid: transaction.uuid,
@@ -455,7 +455,7 @@ pub async fn handler_delete_transaction(
 ) -> Result<(), AppError> {
     let mut conn = state_server.pool.get()?;
     conn.transaction::<_, anyhow::Error, _>(|conn| {
-        let groud_id = get_group_id(token, conn)?;
+        let groud_id = get_group_id(&token, conn)?;
 
         diesel::delete(transactions::table)
             .filter(transactions::group_id.eq(groud_id))
