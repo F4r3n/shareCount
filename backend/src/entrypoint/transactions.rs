@@ -82,7 +82,6 @@ pub async fn handler_get_all_transactions(
             String,
             String,
         )>(&mut conn)?;
-    dbg!(&transaction_result);
 
     let debts = transaction_debts::table
         .inner_join(transactions::table)
@@ -146,7 +145,6 @@ pub async fn handler_get_all_transactions(
                 });
             }
         });
-    dbg!(&map);
 
     let mut v = map.into_values().collect::<Vec<TransactionResponse>>();
     v.sort_by(|a: &TransactionResponse, b: &TransactionResponse| a.created_at.cmp(&b.created_at));
@@ -159,7 +157,6 @@ pub async fn handler_get_transaction(
 ) -> Result<Json<TransactionResponse>, AppError> {
     let mut conn = state_server.pool.get()?;
 
-    dbg!("Get Transaction {}", &transaction_uuid);
     let (
         uuid,
         description,
@@ -381,7 +378,6 @@ pub fn modify_create_transaction(
         modified_at: transaction.modified_at,
         group_id,
     };
-    dbg!(&changeset);
     use diesel::query_dsl::methods::FilterDsl;
     let transaction_id = diesel::insert_into(transactions::table)
         .values(&changeset)
@@ -431,7 +427,6 @@ pub async fn handler_modify_transaction(
     Path(token): Path<String>,
     Json(payload): Json<TransactionQuery>,
 ) -> Result<(), AppError<String>> {
-    dbg!("Modify transaction");
     check_transaction_validity(&payload).map_err(|v| AppError {
         content: Some(v),
         error: anyhow::anyhow!(StatusCode::INTERNAL_SERVER_ERROR),

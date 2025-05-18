@@ -110,9 +110,14 @@ pub async fn handler_add_group_members(
 
                 diesel::insert_into(group_members::table)
                     .values(&new_member)
-                    .on_conflict((group_members::group_id, group_members::nickname))
+                    .on_conflict(group_members::uuid)
                     .do_update()
-                    .set(&new_member)
+                    .set((
+                        group_members::group_id.eq(group_id),
+                        group_members::modified_at.eq(&new_member.modified_at),
+                        group_members::nickname.eq(&new_member.nickname),
+                        group_members::uuid.eq(&new_member.uuid),
+                    ))
                     .filter(group_members::modified_at.lt(excluded(group_members::modified_at)))
                     .returning((
                         group_members::uuid,

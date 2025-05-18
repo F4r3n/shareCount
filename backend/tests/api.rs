@@ -141,7 +141,11 @@ async fn manage_member() -> Result<(), anyhow::Error> {
 
     let response = server
         .post(format!("/groups/{}/group_members", token).as_str())
-        .json(&json!([{"uuid": uuid_jojo, "nickname": "JAJA", "modified_at": chrono::Utc::now().naive_utc()}]))
+        .json(&serde_json::to_value(vec![GroupMember {
+            modified_at: chrono::Utc::now().naive_utc(),
+            nickname: "JAJA".to_string(),
+            uuid: uuid_jojo.clone(),
+        }])?)
         .await;
     assert_eq!(response.status_code(), 200);
 
