@@ -7,6 +7,7 @@
     import { CheckIcon, XIcon } from "lucide-svelte";
     import { MENU, menus } from "$lib/menus";
     import { group_tokenID, setGroupTokenID } from "../stores/group_token";
+    import { SvelteMap } from "svelte/reactivity";
     import {
         add_local_members,
         create_group_member,
@@ -23,9 +24,10 @@
     let edit = $state(false);
     let modified_members: GroupMember[] = $state([]);
     let original_members: GroupMember[];
+    let error_members: SvelteMap<string, string> = new SvelteMap();
     let member_me = $state({ nickname: "" } as GroupMember);
     onMount(async () => {
-        console.log("Start synchro")
+        console.log("Start synchro");
         original_members = await synchro_group_members(group.token);
 
         modified_members = structuredClone(original_members);
@@ -41,11 +43,63 @@
     });
     let members_to_delete: GroupMember[] = [];
     let members_to_add: GroupMember[] = $state([]);
-
+    let check_validity = $derived(validate(modified_members, members_to_add));
     function clean() {
         modified_members = structuredClone(original_members);
         members_to_add = [];
         members_to_delete = [];
+    }
+
+    function create_unique_member(): GroupMember {
+        let member_number = 1;
+        let new_member = create_group_member("New");
+        let found = check_unicity(new_member.nickname);
+        if (found) {
+            return new_member;
+        }
+        while (!check_unicity(new_member.nickname + member_number)) {
+            member_number += 1;
+        }
+        new_member.nickname = new_member.nickname + member_number;
+
+        return new_member;
+    }
+
+    function check_unicity(inName: string): boolean {
+        const inPending = members_to_add.some(
+            (item) => item.nickname === inName,
+        );
+        const inModified = modified_members.some(
+            (item) => item.nickname === inName,
+        );
+        return !(inPending || inModified);
+    }
+
+    function is_present_once(inName: string): boolean {
+        let map = new Map();
+        for (let member of members_to_add) {
+            if (!map.has(member.nickname)) map.set(member.nickname, 1);
+            else map.set(member.nickname, 1 + map.get(member.nickname));
+        }
+
+        for (let member of modified_members) {
+            if (!map.has(member.nickname)) map.set(member.nickname, 1);
+            else map.set(member.nickname, 1 + map.get(member.nickname));
+        }
+        return map.get(inName) === 1;
+    }
+
+    function validate(inMembersModified : GroupMember[], inMembersToAdd: GroupMember[]): boolean {
+        let set = new Set();
+        for (let member of inMembersToAdd) {
+            set.add(member.nickname);
+        }
+
+        for (let member of inMembersModified) {
+            set.add(member.nickname);
+        }
+        console.log(set.size, inMembersModified.length, inMembersToAdd.length);
+        return set.size === inMembersModified.length + inMembersToAdd.length;
     }
 </script>
 
@@ -104,11 +158,36 @@
                                 modified_members.splice(id, 1);
                             }}><XIcon></XIcon></button
                         >
-                        <input
-                            type="text"
-                            class="input input-ghost join-item"
-                            bind:value={member.nickname}
-                        />
+
+                        <div
+                            class=" {error_members.has(member.uuid)
+                                ? 'tooltip tooltip-open tooltip-right'
+                                : ''}"
+                            data-tip={error_members.has(member.uuid)
+                                ? error_members.get(member.uuid)
+                                : ""}
+                        >
+                            <input
+                                type="text"
+                                class="input join-item {error_members.has(
+                                    member.uuid,
+                                )
+                                    ? 'input-error'
+                                    : 'input-ghost'}"
+                                bind:value={member.nickname}
+                                onchange={() => {
+                                    if (!is_present_once(member.nickname)) {
+                                        error_members.set(
+                                            member.uuid,
+                                            "The name already exists",
+                                        );
+                                    } else {
+                                        error_members.delete(member.uuid);
+                                    }
+                                }}
+                            />
+                        </div>
+
                         {#if member_me.nickname == member.nickname}
                             <div class="flex items-center align-middle">
                                 <CheckIcon></CheckIcon>
@@ -158,30 +237,35 @@
                 <button
                     class="btn"
                     onclick={() => {
-                        members_to_add.push(create_group_member("New"));
+                        members_to_add.push(create_unique_member());
                     }}>Add participant</button
                 >
             </fieldset>
 
             <button
                 class="btn btn-primary mt-5"
+                disabled={!check_validity}
                 onclick={async () => {
-                    edit = false;
-                    await delete_local_members(members_to_delete);
-                    await add_local_members($group_tokenID, members_to_add);
-                    await rename_local_members(modified_members);
-                    let members = await get_local_members($group_tokenID);
-                    const member = members.find((value) => {
-                        value.nickname == member_me.nickname;
-                    });
-                    if (member) {
-                        member_me = member;
-                        setGroupMember(group.token, member_me);
+                    if (check_validity) {
+                        edit = false;
+                        await delete_local_members(members_to_delete);
+                        await add_local_members($group_tokenID, members_to_add);
+                        await rename_local_members(modified_members);
+                        let members = await get_local_members($group_tokenID);
+                        const member = members.find((value) => {
+                            value.nickname == member_me.nickname;
+                        });
+                        if (member) {
+                            member_me = member;
+                            setGroupMember(group.token, member_me);
+                        }
+
+                        original_members = await synchro_group_members(
+                            group.token,
+                        );
+
+                        clean();
                     }
-
-                    original_members = await synchro_group_members(group.token);
-
-                    clean();
                 }}
                 >Validate
             </button>
