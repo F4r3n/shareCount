@@ -10,21 +10,10 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  build:
-
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ./backend
-
-    steps:
-    - uses: actions/checkout@v4
-    - name: Build
-      run: cargo build --verbose
-    - name: Run postgresql
-      run: docker compose -f ../docker/db/docker-compose-test.yml up --detach
-    - name: Run Tests
-      run: sh launch_test.sh
-    - name: Shutdown postgresql
-      run: docker compose -f ../docker/db/docker-compose-test.yml down
+  build_backend:
+    uses: ./.github/workflows/build_backend.yml
+    secrets: inherit
+  build_frontend:
+    uses: ./.github/workflows/build_frontend.yml
+    secrets: inherit
 

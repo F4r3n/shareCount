@@ -7,6 +7,7 @@
 		"preinstall": "sh scripts/setup.sh",
 		"predev": "wasm-pack build ./wasm-lib --target web",
 		"dev": "vite dev",
+		"prebuild": "wasm-pack build ./wasm-lib --target web",
 		"build": "vite build",
 		"preview": "vite preview",
 		"prepare": "svelte-kit sync || echo ''",
