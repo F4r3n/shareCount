@@ -2,5 +2,8 @@
   "rust-analyzer.linkedProjects": [
     "backend/Cargo.toml",
     "frontend/wasm-lib/Cargo.toml",
-  ]
+  ],
+  "tailwindCSS.includeLanguages": {
+  "Svelte": "html",
+}
 }

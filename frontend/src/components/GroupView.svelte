@@ -16,6 +16,7 @@
         rename_local_members,
         synchro_group_members,
     } from "../stores/group_members";
+    import GroupViewMemberItem from "./GroupView_MemberItem.svelte";
     let {
         group,
     }: {
@@ -89,7 +90,10 @@
         return map.get(inName) === 1;
     }
 
-    function validate(inMembersModified : GroupMember[], inMembersToAdd: GroupMember[]): boolean {
+    function validate(
+        inMembersModified: GroupMember[],
+        inMembersToAdd: GroupMember[],
+    ): boolean {
         let set = new Set();
         for (let member of inMembersToAdd) {
             set.add(member.nickname);
@@ -150,88 +154,58 @@
             <fieldset class="fieldset">
                 <legend class="fieldset-legend">Members</legend>
                 {#each modified_members as member, id}
-                    <div class="join mt-2">
-                        <button
-                            class="btn join-item rounded-r-full"
-                            onclick={() => {
-                                members_to_delete.push(member);
-                                modified_members.splice(id, 1);
-                            }}><XIcon></XIcon></button
-                        >
-
-                        <div
-                            class=" {error_members.has(member.uuid)
-                                ? 'tooltip tooltip-open tooltip-right'
-                                : ''}"
-                            data-tip={error_members.has(member.uuid)
-                                ? error_members.get(member.uuid)
-                                : ""}
-                        >
-                            <input
-                                type="text"
-                                class="input join-item {error_members.has(
+                    <GroupViewMemberItem
+                        current_member={member}
+                        {id}
+                        error_message={error_members.get(member.uuid) ?? ""}
+                        {member_me}
+                        onDelete={() => {
+                            members_to_delete.push(member);
+                            modified_members.splice(id, 1);
+                        }}
+                        onChange={(member) => {
+                            modified_members[id] = member;
+                            if (!is_present_once(member.nickname)) {
+                                error_members.set(
                                     member.uuid,
-                                )
-                                    ? 'input-error'
-                                    : 'input-ghost'}"
-                                bind:value={member.nickname}
-                                onchange={() => {
-                                    if (!is_present_once(member.nickname)) {
-                                        error_members.set(
-                                            member.uuid,
-                                            "The name already exists",
-                                        );
-                                    } else {
-                                        error_members.delete(member.uuid);
-                                    }
-                                }}
-                            />
-                        </div>
-
-                        {#if member_me.nickname == member.nickname}
-                            <div class="flex items-center align-middle">
-                                <CheckIcon></CheckIcon>
-                            </div>
-                        {:else}
-                            <button
-                                class="btn join-item rounded-r-full"
-                                onclick={() => {
-                                    member_me = member;
-                                    setGroupMember(group.token, member);
-                                }}>Select</button
-                            >
-                        {/if}
-                    </div>
+                                    "The name already exists",
+                                );
+                            } else {
+                                error_members.delete(member.uuid);
+                            }
+                        }}
+                        onMESelect={() => {
+                            member_me = member;
+                            setGroupMember(group.token, member);
+                        }}
+                    ></GroupViewMemberItem>
                 {/each}
 
                 {#each members_to_add as member, id}
-                    <div class="join mt-2">
-                        <button
-                            class="btn join-item rounded-r-full"
-                            onclick={() => {
-                                members_to_add.splice(id, 1);
-                            }}><XIcon></XIcon></button
-                        >
-                        <input
-                            type="text"
-                            class="input input-ghost join-item"
-                            bind:value={members_to_add[id].nickname}
-                        />
-
-                        {#if member_me.nickname == members_to_add[id].nickname}
-                            <div class="flex items-center align-middle">
-                                <CheckIcon></CheckIcon>
-                            </div>
-                        {:else}
-                            <button
-                                class="btn join-item rounded-r-full"
-                                onclick={() => {
-                                    member_me.nickname = member.nickname;
-                                    setGroupMember(group.token, member_me);
-                                }}>Select</button
-                            >
-                        {/if}
-                    </div>
+                    <GroupViewMemberItem
+                        current_member={member}
+                        {id}
+                        error_message={error_members.get(member.uuid) ?? ""}
+                        {member_me}
+                        onDelete={() => {
+                            members_to_add.splice(id, 1);
+                        }}
+                        onChange={(member) => {
+                            members_to_add[id] = member;
+                            if (!is_present_once(member.nickname)) {
+                                error_members.set(
+                                    member.uuid,
+                                    "The name already exists",
+                                );
+                            } else {
+                                error_members.delete(member.uuid);
+                            }
+                        }}
+                        onMESelect={() => {
+                            member_me = member;
+                            setGroupMember(group.token, member);
+                        }}
+                    ></GroupViewMemberItem>
                 {/each}
 
                 <button

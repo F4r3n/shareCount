@@ -4,6 +4,8 @@
 	"version": "0.0.1",
 	"type": "module",
 	"scripts": {
+		"preinstall": "sh scripts/setup.sh",
+		"predev": "wasm-pack build ./wasm-lib --target web",
 		"dev": "vite dev",
 		"build": "vite build",
 		"preview": "vite preview",
