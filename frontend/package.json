@@ -4,10 +4,8 @@
 	"version": "0.0.1",
 	"type": "module",
 	"scripts": {
-		"preinstall": "sh scripts/setup.sh",
-		"predev": "wasm-pack build ./wasm-lib --target web",
+		"wasm": "./scripts/setup.sh",
 		"dev": "vite dev",
-		"prebuild": "wasm-pack build ./wasm-lib --target web",
 		"build": "vite build",
 		"preview": "vite preview",
 		"prepare": "svelte-kit sync || echo ''",

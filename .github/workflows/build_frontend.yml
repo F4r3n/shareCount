@@ -15,9 +15,10 @@ jobs:
     - uses: actions/checkout@v4
     - name: Install Node.js
       uses: actions/setup-node@v4
-    - name: Open Web Client Directory
+    - name: Prepare wasm
       run: |
-        ls -la
+        chmod +x scripts/setup.sh
+        ./scripts/setup.sh
     - name: Install Dependencies
       run: npm install
     - name: Build
