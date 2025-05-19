@@ -69,6 +69,26 @@
 </script>
 
 <div class="flex flex-col h-dvh">
+        <button
+        class="btn btn-accent w-2/3 md:w-1/3 mx-auto add-button mt-5"
+        onclick={() => {
+            creating = true;
+            index_count-=1;
+            creating_transaction = {
+                uuid: uuidv4(),
+                amount: "0",
+                currency_id: main_currency ?? "USD",
+                created_at: new Date().toISOString().replace("Z", ""),
+                modified_at: new Date().toISOString().replace("Z", ""),
+                debtors: create_debtors(),
+                description: "",
+                exchange_rate: "1",
+                paid_by: $groupUsernames[token ?? ""] ?? members[0],
+            };
+        }}
+    >
+        Add transaction
+    </button>
     <div class="transactions">
         <div class="flex flex-col w-full md:w-8/12 mx-1">
             {#if creating && creating_transaction}
@@ -152,26 +172,7 @@
         </div>
     </div>
 
-    <button
-        class="btn btn-accent w-2/3 md:w-1/3 mx-auto add-button mt-5"
-        onclick={() => {
-            creating = true;
-            index_count-=1;
-            creating_transaction = {
-                uuid: uuidv4(),
-                amount: "0",
-                currency_id: main_currency ?? "USD",
-                created_at: new Date().toISOString().replace("Z", ""),
-                modified_at: new Date().toISOString().replace("Z", ""),
-                debtors: create_debtors(),
-                description: "",
-                exchange_rate: "1",
-                paid_by: $groupUsernames[token ?? ""] ?? members[0],
-            };
-        }}
-    >
-        Add transaction
-    </button>
+
 </div>
 
 <style>

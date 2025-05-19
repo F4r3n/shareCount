@@ -51,7 +51,11 @@
     </div>
 {/if}
 
-<main>
+<main class="w-full sm:w-2/3 mx-auto flex flex-col items-center">
+    <div class="my-4">
+        <h1 class="text-2xl font-bold">My Groups</h1>
+        <p class="text-sm">Click on edit to view its details.</p>
+    </div>
     <div>
     {#each groups as group}
        <GroupView {group}></GroupView>
