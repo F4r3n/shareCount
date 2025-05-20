@@ -1,33 +1,19 @@
 <script lang="ts">
     import { onMount } from "svelte";
-    import type { Group } from "$lib/types";
-    import { getGroup } from "$lib/shareCountAPI";
-    import { group_name } from "$lib/store";
     import GroupView from "../components/GroupView.svelte";
+    import { groupsProxy, groupStore } from "../stores/group";
 
-    let groups = $state([] as Group[]);
-    let list_tokens: string[] = ["token_abc123"];
-    let is_connected: boolean = false;
     let current_error: string = $state("");
     
     onMount(async () => {
-        let list_tokens_string;
-
-        if (is_connected) {
-            //get list groups
-        } else {
-            list_tokens_string = localStorage.getItem("list_tokens");
-            if (list_tokens_string) {
-                list_tokens = JSON.parse(list_tokens_string);
-            }
-            groups = [];
-            for (const token of list_tokens) {
-                try {
-                    groups.push(await getGroup(token));
-                } catch (error) {
-                    current_error = error as string;
-                }
-            }
+        const params = new URLSearchParams(window.location.search);
+		const token_id = params.get("id") ?? "";
+        await groupsProxy.synchronize();
+        if(!$groupStore.some((gr)=>{
+            return gr.token == token_id;
+        }))
+        {
+            groupsProxy.add_local_group(await groupsProxy.getGroup(token_id));
         }
     });
 </script>
@@ -54,7 +40,7 @@
 <main class="w-full mx-auto flex flex-col items-center">
 
     <div class="mt-4">
-    {#each groups as group}
+    {#each $groupStore as group}
        <GroupView {group}></GroupView>
     {/each}
     </div>

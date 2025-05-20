@@ -2,9 +2,9 @@
 import { writable, type Writable } from 'svelte/store';
 import { db, type GroupMember_DB } from '../db/db';
 import type { GroupMember } from '$lib/types';
-import { addGroupMembers, deleteGroupMembers, getGroupMembers } from '$lib/shareCountAPI';
 import { getUTC } from '$lib/UTCDate';
 import { v4 as uuidv4 } from 'uuid';
+import { getBackendURL } from '$lib/shareCountAPI';
 
 export const group_members: Writable<GroupMember[]> = writable([]);
 
@@ -12,6 +12,80 @@ export const group_members: Writable<GroupMember[]> = writable([]);
 export class GroupMemberStore {
     SetStoreGroupMembers(members: GroupMember[]) {
         group_members.set(members)
+    }
+
+    private async _get_remote_GroupMembers(tokenID: string): Promise<GroupMember[]> {
+        try {
+            const res = await fetch(`http://${getBackendURL()}/groups/${tokenID}/group_members`, {
+                method: "GET",
+                credentials: "include",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+            });
+
+            if (!res.ok) {
+                throw new Error(`Request failed ${res.status}`);
+            }
+
+            const data = await res.json();
+            const members: GroupMember[] = data;
+            return members;
+
+        } catch (err) {
+            console.error("Error:", err);
+            throw err; // re-throw so the caller can handle the error
+        }
+    }
+
+    private async _delete_remote_GroupMembers(tokenID: string, members: GroupMember[]) {
+        if (members.length <= 0)
+            return;
+        try {
+            const res = await fetch(`http://${getBackendURL()}/groups/${tokenID}/group_members`, {
+                method: "DELETE",
+                credentials: "include",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify(members)
+            });
+
+            if (!res.ok) {
+                throw new Error(`Request failed ${res.status}`);
+            }
+
+
+        } catch (err) {
+            console.error("Error:", err);
+            throw err; // re-throw so the caller can handle the error
+        }
+    }
+
+    private async _add_remote_GroupMembers(tokenID: string, members: GroupMember[]): Promise<GroupMember[]> {
+        if (members.length <= 0)
+            return [];
+        try {
+            const res = await fetch(`http://${getBackendURL()}/groups/${tokenID}/group_members`, {
+                method: "POST",
+                credentials: "include",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify(members)
+            });
+
+            if (!res.ok) {
+                throw new Error(`Request failed ${res.status}`);
+            }
+
+            const data = await res.json();
+            const new_members: GroupMember[] = data;
+            return new_members;
+        } catch (err) {
+            console.error("Error:", err);
+            throw err; // re-throw so the caller can handle the error
+        }
     }
 
     async synchro_group_members(token: string): Promise<GroupMember[]> {
@@ -61,16 +135,16 @@ export class GroupMemberStore {
         let original_members = []
         try {
             original_members = await this._fetch_local_members(in_group_token);
-            await deleteGroupMembers(in_group_token, await this._fetch_local_members_to_delete(in_group_token));
+            await this._delete_remote_GroupMembers(in_group_token, await this._fetch_local_members_to_delete(in_group_token));
             if (original_members.length == 0) {
-                original_members = await getGroupMembers(in_group_token)
+                original_members = await this._get_remote_GroupMembers(in_group_token)
             }
             else {
-                original_members = await addGroupMembers(in_group_token, original_members);
+                original_members = await this._add_remote_GroupMembers(in_group_token, original_members);
 
             }
             await this._update_local_members(in_group_token, original_members);
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
         } catch (_error) {
             original_members = await this._fetch_local_members(in_group_token);
         }

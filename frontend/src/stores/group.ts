@@ -4,25 +4,20 @@ import { db, type Group_DB } from '../db/db';
 import { getUTC } from '$lib/UTCDate';
 import { v4 as uuidv4 } from 'uuid';
 import type { Group } from "$lib/types";
+import { getBackendURL } from '$lib/shareCountAPI';
 
-export const groups: Writable<Group[]> = writable([]);
+export const groupStore: Writable<Group[]> = writable([]);
 
 
-export class GroupStore {
+export class GroupsProxy {
     SetStoreGroup(in_groups: Group[]) {
-        groups.set(in_groups)
+        groupStore.set(in_groups)
     }
 
-    async _get_local_groups(): Promise<Group[]> {
+    async get_local_groups(): Promise<Group[]> {
         const list_local_groups: Group_DB[] = await db.group.toArray();
         const groups: Group[] = list_local_groups.map((group) => {
-            return {
-                name: group.name,
-                currency_id: group.currency_id,
-                created_at: group.created_at,
-                token: group.uuid,
-                modified_at: group.modified_at,
-            }
+            return this._convert_DB_to_Group(group)
         });
         return groups;
     }
@@ -36,14 +31,110 @@ export class GroupStore {
             uuid: uuidv4(),
             modified_at: inGroup.modified_at
         } as Group_DB)
+
+        groupStore.update((values: Group[]) => {
+            values.push(inGroup);
+            return values;
+        })
     }
 
     async modify_local_group(inGroup: Group) {
         db.group.where("uuid").equals(inGroup.token).modify(
-            { currency_id: inGroup.currency_id, 
-                name: inGroup.name, 
-                modified_at: getUTC() 
+            {
+                currency_id: inGroup.currency_id,
+                name: inGroup.name,
+                modified_at: getUTC()
             });
+    }
+
+    async getGroup(tokenID: string): Promise<Group> {
+        try {
+            const res = await fetch(`http://${getBackendURL()}/groups/${tokenID}`, {
+                method: "GET",
+                credentials: "include",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+            });
+
+            if (!res.ok) {
+                throw new Error("Request failed");
+            }
+
+            const data = await res.json() as Group;
+            return data;
+        } catch (err) {
+            console.error("Error:", err);
+            throw err; // re-throw so the caller can handle the error
+        }
+    }
+
+    private async _addGroup(group: Group) {
+        try {
+            const res = await fetch(`http://${getBackendURL()}/groups/`, {
+                method: "POST",
+                credentials: "include",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify(group)
+            });
+
+            if (!res.ok) {
+                throw new Error("Request failed");
+            }
+        } catch (err) {
+            console.error("Error:", err);
+            throw err; // re-throw so the caller can handle the error
+        }
+    }
+
+    private async _deleteGroup(group: Group) {
+        try {
+            const res = await fetch(`http://${getBackendURL()}/groups/`, {
+                method: "DELETE",
+                credentials: "include",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify(group)
+            });
+
+            if (!res.ok) {
+                throw new Error("Request failed");
+            }
+        } catch (err) {
+            console.error("Error:", err);
+            throw err; // re-throw so the caller can handle the error
+        }
+
+        groupStore.update((values: Group[]) => {
+            const index = values.findIndex((gr: Group) => { return gr.token == group.token; });
+            if (index > 0) {
+                values.splice(index, 1);
+            }
+            return values;
+        })
+    }
+
+    private _convert_DB_to_Group(group: Group_DB): Group {
+        return {
+            created_at: group.created_at,
+            currency_id: group.currency_id,
+            modified_at: group.modified_at,
+            name: group.name,
+            token: group.uuid
+        } as Group
+    }
+
+    private _convert_Group_to_DB(group: Group): Group_DB {
+        return {
+            created_at: group.created_at,
+            currency_id: group.currency_id,
+            modified_at: group.modified_at,
+            name: group.name,
+            uuid: group.token
+        } as Group_DB
     }
 
     async delete_local_group(inGroup: Group) {
@@ -51,10 +142,34 @@ export class GroupStore {
     }
 
     async synchronize() {
+        try {
+            for (const group of await db.group.toArray()) {
+                if (group.is_deleted) {
+                    await this._deleteGroup({ modified_at: group.modified_at, token: group.uuid } as Group);
+                }
+                else {
+                    await this._addGroup(this._convert_DB_to_Group(group));
+                }
+            }
+        } catch (e) {
+            console.log("No network");
+        }
 
+
+        for (const group of await db.group.toArray()) {
+            try {
+                const new_group = await this.getGroup(group.uuid);
+                db.group.where("uuid").equals(new_group.token).modify(this._convert_Group_to_DB(new_group));
+            } catch (e) {
+
+            }
+        }
+
+        this.SetStoreGroup(await this.get_local_groups());
     }
 
 }
 
-export const groupMemberStore = new GroupStore();
+export const groupsProxy = new GroupsProxy();
+
 
