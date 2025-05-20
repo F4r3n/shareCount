@@ -1,15 +1,17 @@
 <script lang="ts">
     import { onMount } from "svelte";
     import GroupView from "../components/GroupView.svelte";
-    import { groupsProxy, groupStore } from "../stores/group";
+    import { current_groupStore, groupsProxy, groupsStore } from "../stores/group";
+    import type { Group } from "$lib/types";
 
     let current_error: string = $state("");
     
     onMount(async () => {
+        current_groupStore.set(null)
         const params = new URLSearchParams(window.location.search);
 		const token_id = params.get("id") ?? "";
         await groupsProxy.synchronize();
-        if(!$groupStore.some((gr)=>{
+        if(!$groupsStore.some((gr : Group)=>{
             return gr.token == token_id;
         }))
         {
@@ -40,7 +42,7 @@
 <main class="w-full mx-auto flex flex-col items-center">
 
     <div class="mt-4">
-    {#each $groupStore as group}
+    {#each $groupsStore as group}
        <GroupView {group}></GroupView>
     {/each}
     </div>

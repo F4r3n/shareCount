@@ -1,5 +1,5 @@
 <script lang="ts">
-    import type { GroupMember, Transaction } from "$lib/types";
+    import type { GroupMember } from "$lib/types";
     import { onMount } from "svelte";
     import init, {
         compute_balance,
@@ -59,6 +59,7 @@
         <h2>Settlements</h2>
         <div>
             {#each settlements as settlement}
+            {#if settlement.amount !== "0"}
                 <div class="bg-base-100 rounded-md m-1 p-2 flex flex-col">
                     <div class="flex flex-row justify-between">
                         <div class="flex flex-row">
@@ -80,6 +81,7 @@
                             }}>Mark as paid</button
                         >
                 </div>
+                {/if}
             {/each}
         </div>
     </div>

@@ -1,42 +1,15 @@
 <script lang="ts">
     import { onMount } from "svelte";
-    import type { Transaction, Group, GroupMember } from "$lib/types";
-
-    import {
-        getGroup,
-        getGroupMembers,
-        getTransactions,
-    } from "$lib/shareCountAPI";
-    import { group_name } from "$lib/store";
+ 
     import Balance from "../../components/Balance.svelte";
-    import { group_tokenID } from "../../stores/group_token";
+    import { current_membersStore } from "../../stores/group_members";
 
-    let current_token = $state("");
 
-    let transactions: Transaction[] = $state([]);
     let loading = $state(true);
-    let group_info: Group | null = $state(null);
     let current_error: string = $state("");
-    let group_members: GroupMember[] = $state([]);
 
     onMount(async () => {
-        current_token =
-            new URLSearchParams(window.location.search).get("id") ?? "";
-        if (current_token == "") {
-            current_token = $group_tokenID;
-        }
-        if (current_token) {
-            try {
-                group_info = await getGroup(current_token);
-                group_members = await getGroupMembers(current_token);
-
-                if (group_info) {
-                    group_name.set(group_info.name);
-                }
-            } catch (error) {
-                current_error = error as string;
-            }
-        }
+        
         loading = false;
     });
 </script>
@@ -60,7 +33,7 @@
     </div>
 {/if}
 {#if !loading}
-    <Balance members={group_members}></Balance>
+    <Balance members={$current_membersStore}></Balance>
 {/if}
 
 <style>

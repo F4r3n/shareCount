@@ -1,10 +1,10 @@
 <script lang="ts">
 	import "../app.css";
 	import { goto } from "$app/navigation";
-	import { group_name } from "$lib/store";
 	import { onMount } from "svelte";
 	import { menus } from "$lib/menus";
-    import { setGroupTokenID } from "../stores/group_token";
+    import { current_groupStore } from "../stores/group";
+
 	let { children } = $props();
 
 	let token_id = $state("");
@@ -53,7 +53,7 @@
 						goto(`/`);
 					}}
 				>
-					{`ShareCount${$group_name !== "" ? ": " + $group_name : ""}`}
+					{`ShareCount${$current_groupStore !== null ? ": " + $current_groupStore.name : ""}`}
 				</button>
 			</div>
 			<div class="hidden flex-none lg:block">
@@ -61,7 +61,7 @@
 					class="menu menu-horizontal lg:text-2xl md:text-xl sm:text-lg"
 				>
 					{#each menus as sub}
-						{#if sub.need_group && $group_name}
+						{#if sub.need_group && $current_groupStore}
 							<li>
 								<button
 									class="cursor-pointer"
@@ -89,7 +89,7 @@
 		<ul class="menu bg-base-200 min-h-full w-80 p-4">
 			<!-- Sidebar content here -->
 			{#each menus as sub}
-				{#if !sub.need_group || (sub.need_group && $group_name)}
+				{#if !sub.need_group || (sub.need_group && $current_groupStore)}
 					<li>
 						<button
 							class="cursor-pointer"

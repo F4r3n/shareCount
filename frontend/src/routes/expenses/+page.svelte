@@ -1,45 +1,17 @@
 <script lang="ts">
     import { onMount } from "svelte";
-    import type { Transaction, Group, GroupMember } from "$lib/types";
+    import type { Transaction, GroupMember } from "$lib/types";
     import TransactionsView from "$lib/../components/TransactionsView.svelte";
-    import { group_tokenID } from "../../stores/group_token";
+    import { current_groupStore } from "../../stores/group";
 
-    import {
-        getGroup,
-        getGroupMembers,
-        getTransactions,
-    } from "$lib/shareCountAPI";
-    import { group_name } from "$lib/store";
-    import { group_transactions } from "../../stores/group_transactions";
-
-    let current_token = $state("");
 
     let transactions: Transaction[] = $state([]);
     let loading = $state(true);
-    let group_info: Group | null = $state(null);
     let current_error: string = $state("");
     let group_members: GroupMember[] = $state([]);
 
     onMount(async () => {
-        console.log(window.location.search);
-        current_token =
-            new URLSearchParams(window.location.search).get("id") ?? "";
-        if (current_token == "") {
-            current_token = $group_tokenID;
-        }
-        if (current_token) {
-            try {
-                group_info = await getGroup(current_token);
-                group_transactions.set(await getTransactions(current_token));
-                group_members = await getGroupMembers(current_token);
 
-                if (group_info) {
-                    group_name.set(group_info.name);
-                }
-            } catch (error) {
-                current_error = error as string;
-            }
-        }
         loading = false;
     });
 
@@ -78,10 +50,9 @@
     </div>
 {:else}
     <TransactionsView
-        {transactions}
-        main_currency={group_info?.currency_id}
+        main_currency={$current_groupStore?.currency_id}
         members={group_members}
-        token={current_token}
+        token={$current_groupStore?.token ?? ""}
         onUpdate={handleUpdate}
     ></TransactionsView>
 {/if}

@@ -6,12 +6,12 @@ import { v4 as uuidv4 } from 'uuid';
 import type { Group } from "$lib/types";
 import { getBackendURL } from '$lib/shareCountAPI';
 
-export const groupStore: Writable<Group[]> = writable([]);
-
+export const groupsStore: Writable<Group[]> = writable([]);
+export const current_groupStore: Writable<Group | null> = writable(null);
 
 export class GroupsProxy {
-    SetStoreGroup(in_groups: Group[]) {
-        groupStore.set(in_groups)
+    SetStoreGroups(in_groups: Group[]) {
+        groupsStore.set(in_groups)
     }
 
     async get_local_groups(): Promise<Group[]> {
@@ -24,16 +24,33 @@ export class GroupsProxy {
 
     async add_local_group(inGroup: Group) {
         await db.group.add({
-            created_at: getUTC(),
+            created_at: inGroup.created_at,
             currency_id: inGroup.currency_id,
             name: inGroup.name,
             is_deleted: false,
-            uuid: uuidv4(),
+            uuid: inGroup.token,
             modified_at: inGroup.modified_at
         } as Group_DB)
 
-        groupStore.update((values: Group[]) => {
+        groupsStore.update((values: Group[]) => {
             values.push(inGroup);
+            return values;
+        })
+    }
+
+    async create_local_group() {
+        let new_group = {
+            created_at: getUTC(),
+            currency_id: "USD",
+            name: "NEW",
+            is_deleted: false,
+            uuid: uuidv4(),
+            modified_at: getUTC()
+        } as Group_DB
+        await db.group.add(new_group)
+
+        groupsStore.update((values: Group[]) => {
+            values.push(this._convert_DB_to_Group(new_group));
             return values;
         })
     }
@@ -108,7 +125,7 @@ export class GroupsProxy {
             throw err; // re-throw so the caller can handle the error
         }
 
-        groupStore.update((values: Group[]) => {
+        groupsStore.update((values: Group[]) => {
             const index = values.findIndex((gr: Group) => { return gr.token == group.token; });
             if (index > 0) {
                 values.splice(index, 1);
@@ -146,6 +163,7 @@ export class GroupsProxy {
             for (const group of await db.group.toArray()) {
                 if (group.is_deleted) {
                     await this._deleteGroup({ modified_at: group.modified_at, token: group.uuid } as Group);
+                    db.group.delete(group.uuid);
                 }
                 else {
                     await this._addGroup(this._convert_DB_to_Group(group));
@@ -165,7 +183,7 @@ export class GroupsProxy {
             }
         }
 
-        this.SetStoreGroup(await this.get_local_groups());
+        this.SetStoreGroups(await this.get_local_groups());
     }
 
 }

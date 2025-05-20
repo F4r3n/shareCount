@@ -6,12 +6,12 @@ import { getUTC } from '$lib/UTCDate';
 import { v4 as uuidv4 } from 'uuid';
 import { getBackendURL } from '$lib/shareCountAPI';
 
-export const group_members: Writable<GroupMember[]> = writable([]);
+export const current_membersStore: Writable<GroupMember[]> = writable([]);
 
 
-export class GroupMemberStore {
+export class GroupMemberProxy {
     SetStoreGroupMembers(members: GroupMember[]) {
-        group_members.set(members)
+        current_membersStore.set(members)
     }
 
     private async _get_remote_GroupMembers(tokenID: string): Promise<GroupMember[]> {
@@ -91,7 +91,7 @@ export class GroupMemberStore {
     async synchro_group_members(token: string): Promise<GroupMember[]> {
         let members: GroupMember[] = [];
         try {
-            members = await this.get_group_members(token);
+            members = await this._get_group_members(token);
         } catch (error) { console.error("Error fetching group members:", error); }
         this.SetStoreGroupMembers(members);
         return members;
@@ -131,11 +131,16 @@ export class GroupMemberStore {
         return { nickname: nickname, modified_at: getUTC(), uuid: uuidv4() }
     }
 
-    async get_group_members(in_group_token: string): Promise<GroupMember[]> {
+    private async _get_group_members(in_group_token: string): Promise<GroupMember[]> {
         let original_members = []
         try {
             original_members = await this._fetch_local_members(in_group_token);
-            await this._delete_remote_GroupMembers(in_group_token, await this._fetch_local_members_to_delete(in_group_token));
+            let members_to_delete = await this._fetch_local_members_to_delete(in_group_token)
+            await this._delete_remote_GroupMembers(in_group_token, members_to_delete);
+            for (const member of members_to_delete) {
+                db.group_members.delete(member.uuid)
+
+            }
             if (original_members.length == 0) {
                 original_members = await this._get_remote_GroupMembers(in_group_token)
             }
@@ -151,7 +156,7 @@ export class GroupMemberStore {
         return original_members;
     }
 
-    async _fetch_local_members(in_group_token: string): Promise<GroupMember[]> {
+    private async _fetch_local_members(in_group_token: string): Promise<GroupMember[]> {
         const list_local_members: GroupMember_DB[] = await db.group_members.toArray();
         const list_members: GroupMember[] = []
         for (const member_db of list_local_members) {
@@ -166,7 +171,7 @@ export class GroupMemberStore {
         return list_members;
     }
 
-    async _fetch_local_members_to_delete(in_group_token: string): Promise<GroupMember[]> {
+    private async _fetch_local_members_to_delete(in_group_token: string): Promise<GroupMember[]> {
         const list_local_members = await db.group_members.toArray();
         const list_members: GroupMember[] = []
         for (const member_db of list_local_members) {
@@ -181,7 +186,7 @@ export class GroupMemberStore {
         return list_members;
     }
 
-    async _update_local_members(group_uuid: string, new_members: GroupMember[]) {
+    private async _update_local_members(group_uuid: string, new_members: GroupMember[]) {
         await db.group_members.where("group_uuid").equals(group_uuid).delete();
         for (const member of new_members) {
             try {
@@ -202,5 +207,5 @@ export class GroupMemberStore {
     }
 }
 
-export const groupMemberStore = new GroupMemberStore();
+export const groupMembersProxy = new GroupMemberProxy();
 
