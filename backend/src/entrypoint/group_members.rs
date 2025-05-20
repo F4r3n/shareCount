@@ -23,6 +23,16 @@ pub struct GroupMember {
     pub modified_at: NaiveDateTime,
 }
 
+impl GroupMember {
+    pub fn new(name: &str) -> Self {
+        Self {
+            uuid: uuid::Uuid::new_v4().to_string(),
+            nickname: name.to_string(),
+            modified_at: chrono::Utc::now().naive_utc(),
+        }
+    }
+}
+
 #[derive(Deserialize, Serialize, Queryable, Debug, Clone)]
 pub struct GroupMemberNoDate {
     pub uuid: String,
@@ -55,11 +65,7 @@ pub fn get_all_members(
     let results = groups::table
         .inner_join(group_members::table.on(groups::id.eq(group_members::group_id)))
         .filter(groups::token.eq(token))
-        .select((
-            group_members::uuid,
-            group_members::nickname,
-            group_members::modified_at,
-        ))
+        .select(GroupMember::as_select())
         .get_results::<GroupMember>(conn)?;
 
     Ok(results)
@@ -76,6 +82,49 @@ pub async fn handler_group_members(
     Ok(Json(results))
 }
 
+pub fn add_group_members(
+    group_id: i32,
+    members: Vec<GroupMember>,
+    conn: &mut PooledConnection<ConnectionManager<PgConnection>>,
+) -> Result<(), anyhow::Error> {
+    use diesel::query_dsl::methods::FilterDsl;
+    use diesel::upsert::excluded;
+    #[derive(Insertable, AsChangeset)]
+    #[diesel(table_name = group_members)]
+    pub struct NewGroupMember {
+        uuid: String,
+        group_id: i32,
+        nickname: String,
+        user_id: Option<i32>,
+        modified_at: NaiveDateTime,
+    }
+
+    for member in members {
+        let new_member = NewGroupMember {
+            group_id,
+            modified_at: member.modified_at,
+            nickname: member.nickname,
+            user_id: None,
+            uuid: member.uuid,
+        };
+
+        diesel::insert_into(group_members::table)
+            .values(&new_member)
+            .on_conflict(group_members::uuid)
+            .do_update()
+            .set((
+                group_members::group_id.eq(group_id),
+                group_members::modified_at.eq(&new_member.modified_at),
+                group_members::nickname.eq(&new_member.nickname),
+                group_members::uuid.eq(&new_member.uuid),
+            ))
+            .filter(group_members::modified_at.lt(excluded(group_members::modified_at)))
+            .returning(GroupMember::as_returning())
+            .execute(conn)?;
+    }
+    Ok(())
+}
+
 pub async fn handler_add_group_members(
     State(state_server): State<state_server::StateServer>,
     Path(token): Path<String>,
@@ -84,48 +133,8 @@ pub async fn handler_add_group_members(
     let mut conn = state_server.pool.get()?;
     let result = conn
         .transaction::<Vec<GroupMember>, anyhow::Error, _>(|conn| {
-            use diesel::query_dsl::methods::FilterDsl;
-            use diesel::upsert::excluded;
-
             let group_id = get_group_id(&token, conn)?;
-
-            #[derive(Insertable, AsChangeset)]
-            #[diesel(table_name = group_members)]
-            pub struct NewGroupMember {
-                uuid: String,
-                group_id: i32,
-                nickname: String,
-                user_id: Option<i32>,
-                modified_at: NaiveDateTime,
-            }
-
-            for member in members {
-                let new_member = NewGroupMember {
-                    group_id,
-                    modified_at: member.modified_at,
-                    nickname: member.nickname,
-                    user_id: None,
-                    uuid: member.uuid,
-                };
-
-                diesel::insert_into(group_members::table)
-                    .values(&new_member)
-                    .on_conflict(group_members::uuid)
-                    .do_update()
-                    .set((
-                        group_members::group_id.eq(group_id),
-                        group_members::modified_at.eq(&new_member.modified_at),
-                        group_members::nickname.eq(&new_member.nickname),
-                        group_members::uuid.eq(&new_member.uuid),
-                    ))
-                    .filter(group_members::modified_at.lt(excluded(group_members::modified_at)))
-                    .returning((
-                        group_members::uuid,
-                        group_members::nickname,
-                        group_members::modified_at,
-                    ))
-                    .execute(conn)?;
-            }
+            add_group_members(group_id, members, conn)?;
 
             get_all_members(&token, conn)
         })

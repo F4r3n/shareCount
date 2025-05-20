@@ -13,14 +13,28 @@ use diesel::prelude::*;
 use diesel::r2d2::ConnectionManager;
 use diesel::r2d2::PooledConnection;
 use serde::{Deserialize, Serialize};
-use uuid::Uuid;
 
-#[derive(Deserialize, Serialize, Queryable, Debug)]
-pub struct GroupResponse {
+#[derive(Queryable, Selectable, Debug, Serialize, Insertable, Deserialize, AsChangeset, Clone)]
+#[diesel(table_name = crate::schema::groups)]
+#[diesel(check_for_backend(diesel::pg::Pg))] // Add backend check
+pub struct GroupNoID {
+    pub token: String,
     pub name: String,
-    pub currency_id: String,
-    pub created_at: NaiveDateTime,
     pub modified_at: NaiveDateTime,
+    pub created_at: NaiveDateTime,
+    pub currency_id: String,
+}
+
+impl GroupNoID {
+    pub fn new(name: &str, currency: &str) -> Self {
+        Self {
+            token: uuid::Uuid::new_v4().to_string(),
+            name: name.to_string(),
+            modified_at: chrono::Utc::now().naive_utc(),
+            created_at: chrono::Utc::now().naive_utc(),
+            currency_id: currency.to_string(),
+        }
+    }
 }
 
 pub fn get_group_id(
@@ -35,23 +49,30 @@ pub fn get_group_id(
     Ok(group_id)
 }
 
+pub fn get_group(
+    id: i32,
+    conn: &mut PooledConnection<ConnectionManager<PgConnection>>,
+) -> Result<GroupNoID, anyhow::Error> {
+    let group = groups::table
+        .select(GroupNoID::as_select())
+        .filter(groups::id.eq(id))
+        .get_result::<GroupNoID>(conn)?;
+
+    Ok(group)
+}
+
 //users/{user_id}/groups
 pub async fn handler_users_groups(
     State(state_server): State<state_server::StateServer>,
     Path(user_id): Path<i32>,
-) -> Result<Json<Vec<GroupResponse>>, AppError> {
+) -> Result<Json<Vec<GroupNoID>>, AppError> {
     let mut conn = state_server.pool.get()?;
 
     let results = groups::table
         .inner_join(group_members::table.on(groups::id.eq(group_members::group_id)))
         .filter(group_members::user_id.eq(user_id))
-        .select((
-            groups::name,
-            groups::currency_id,
-            groups::created_at,
-            groups::modified_at,
-        ))
-        .load::<GroupResponse>(&mut conn)?;
+        .select(GroupNoID::as_select())
+        .load::<GroupNoID>(&mut conn)?;
 
     Ok(Json(results))
 }
@@ -60,93 +81,54 @@ pub async fn handler_users_groups(
 pub async fn handler_groups(
     State(state_server): State<state_server::StateServer>,
     Path(token): Path<String>,
-) -> Result<Json<GroupResponse>, AppError> {
+) -> Result<Json<GroupNoID>, AppError> {
     let mut conn = state_server.pool.get()?;
 
     let results = groups::table
-        .select((
-            groups::name,
-            groups::currency_id,
-            groups::created_at,
-            groups::modified_at,
-        ))
+        .select(GroupNoID::as_select())
         .filter(groups::token.eq(token))
-        .first::<GroupResponse>(&mut conn)?;
+        .first::<GroupNoID>(&mut conn)?;
     Ok(Json(results))
 }
 
-#[derive(Deserialize, Serialize)]
-pub struct CreateGroups {
-    name: String,
-    currency_id: String,
-    nicknames: Vec<String>,
-}
-
-impl CreateGroups {
-    pub fn new(name: String, currency_id: String, nicknames: Vec<String>) -> Self {
-        Self {
-            name,
-            currency_id,
-            nicknames,
-        }
-    }
-}
-
 ///groups
-pub async fn handler_create_groups(
+pub async fn handler_create_group(
     State(state_server): State<state_server::StateServer>,
-    Json(create): Json<CreateGroups>,
-) -> Result<Json<String>, AppError> {
+    Json(group_query): Json<GroupNoID>,
+) -> Result<Json<GroupNoID>, AppError> {
     let mut conn = state_server.pool.get()?;
-    let token = Uuid::new_v4().to_string();
 
-    #[derive(Queryable, PartialEq, Debug, Selectable, Identifiable, Serialize, Insertable)]
+    #[derive(Queryable, PartialEq, Debug, Selectable, Serialize, Insertable, AsChangeset)]
     struct Group {
-        id: i32,
         name: String,
         currency_id: String,
         token: String,
         created_at: NaiveDateTime,
+        modified_at: NaiveDateTime,
     }
-    let token = conn
-        .transaction::<String, anyhow::Error, _>(|conn| {
+    let group = conn
+        .transaction::<GroupNoID, anyhow::Error, _>(|conn| {
+            let to_insert = Group {
+                created_at: group_query.created_at,
+                currency_id: group_query.currency_id,
+                name: group_query.name,
+                token: group_query.token,
+                modified_at: group_query.modified_at,
+            };
+            use diesel::query_dsl::methods::FilterDsl;
+            use diesel::upsert::excluded;
             let group_id = insert_into(groups::table)
-                .values((
-                    groups::dsl::name.eq(create.name),
-                    groups::dsl::currency_id.eq(create.currency_id),
-                    groups::dsl::token.eq(token.clone()),
-                ))
+                .values(&to_insert)
+                .on_conflict(groups::token)
+                .do_update()
+                .set(&to_insert)
+                .filter(groups::modified_at.lt(excluded(groups::modified_at)))
                 .returning(groups::id)
                 .get_result::<i32>(conn)?;
 
-            if !create.nicknames.is_empty() {
-                let mut vec = vec![];
-
-                #[derive(Insertable)]
-                #[diesel(table_name = group_members)]
-                pub struct NewGroupMember {
-                    uuid: String,
-                    group_id: i32,
-                    nickname: String,
-                    user_id: Option<i32>,
-                }
-
-                for n in create.nicknames {
-                    vec.push(NewGroupMember {
-                        uuid: Uuid::new_v4().to_string(),
-                        group_id,
-                        user_id: None,
-                        nickname: n,
-                    });
-                }
-
-                insert_into(group_members::table)
-                    .values(&vec)
-                    .execute(conn)?;
-            }
-            Ok(token)
+            Ok(get_group(group_id, conn)?)
         })
         .map_err(AppError::from);
 
-    Ok(Json(token?))
+    Ok(Json(group?))
 }

@@ -28,7 +28,7 @@ pub fn create_router(url: &str, state_server: StateServer) -> Result<Router, any
     let app = Router::new()
         .route("/users/{user_id}/groups", get(groups::handler_users_groups))
         .route("/groups/{token_id}", get(groups::handler_groups))
-        .route("/groups", post(groups::handler_create_groups))
+        .route("/groups", post(groups::handler_create_group))
         .route(
             "/groups/{token_id}/transactions",
             get(transactions::handler_get_all_transactions)

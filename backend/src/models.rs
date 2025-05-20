@@ -22,6 +22,7 @@ pub struct Group {
     pub currency_id: String,
     pub token: String,
     pub created_at: NaiveDateTime,
+    pub modified_at: NaiveDateTime,
 }
 
 #[derive(Queryable, PartialEq, Debug, Selectable, Identifiable, Serialize)]

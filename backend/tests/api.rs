@@ -1,14 +1,14 @@
 use axum_test::TestServer;
 use chrono::{self, Datelike};
 use serde_json::json;
+use share_count::entrypoint::groups::GroupNoID;
 use share_count::state_server;
-use share_count::{entrypoint::groups::GroupResponse, router::create_router};
+use share_count::{router::create_router};
 use std::env;
 //use diesel_migrations::FileBasedMigrations;
 use diesel_migrations::{embed_migrations, EmbeddedMigrations};
 pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!();
 use share_count::entrypoint::group_members::{GroupMember, GroupMemberNoDate};
-use share_count::entrypoint::groups::CreateGroups;
 use share_count::entrypoint::transactions::{TransactionQuery, TransactionResponse};
 use std::sync::Arc;
 use uuid::Uuid;
@@ -22,6 +22,33 @@ async fn get_group_members(
         .await;
     assert_eq!(response.status_code(), 200);
     Ok(response.json::<Vec<GroupMember>>())
+}
+
+async fn create_group(
+    name: &str,
+    currency: &str,
+    members: &[&str],
+    server: &TestServer,
+) -> Result<(GroupNoID, Vec<GroupMember>), anyhow::Error> {
+    let create_group = GroupNoID::new(name, currency);
+
+    let response = server
+        .post("/groups")
+        .json(&serde_json::to_value(create_group)?)
+        .await;
+    assert_eq!(response.status_code(), 200);
+    let group = response.json::<GroupNoID>();
+
+    let members = members
+        .into_iter()
+        .map(|name| GroupMember::new(name))
+        .collect::<Vec<GroupMember>>();
+    let response = server
+        .post(format!("/groups/{}/group_members", &group.token).as_str())
+        .json(&serde_json::to_value(&members)?).await;
+    assert_eq!(response.status_code(), 200);
+    let members = response.json::<Vec<GroupMember>>();
+    Ok((group, members))
 }
 
 static SERVER: tokio::sync::OnceCell<Arc<TestServer>> = tokio::sync::OnceCell::const_new();
@@ -55,7 +82,7 @@ async fn manage_group() -> Result<(), anyhow::Error> {
     let server = create_server().await;
     let response = server.get("/users/1/groups").await;
     assert_eq!(response.status_code(), 200);
-    let json = response.json::<Vec<GroupResponse>>();
+    let json = response.json::<Vec<GroupNoID>>();
 
     assert_eq!(json.len(), 2);
     for group in json {
@@ -69,7 +96,7 @@ async fn manage_group() -> Result<(), anyhow::Error> {
 
     let response = server.get("/groups/token_abc123").await;
     assert_eq!(response.status_code(), 200);
-    let group = response.json::<GroupResponse>();
+    let group = response.json::<GroupNoID>();
     assert_ne!(group.name, "");
     assert_ne!(group.currency_id, "");
     assert!(group.created_at.date().day() > 0);
@@ -80,23 +107,15 @@ async fn manage_group() -> Result<(), anyhow::Error> {
     //create groups
     println!("create groups");
 
-    let response = server
-        .post("/groups")
-        .json(&serde_json::json!({
-            "name": "Tokyo",
-            "currency_id": "USD",
-            "nicknames":["waluigi", "mario", "JOJO"]
-        }))
-        .await;
-    assert_eq!(response.status_code(), 200);
-    let token = response.json::<String>();
+    let create_group = create_group("Tokyo", "USD", &["TEST1"], &server).await?;
+    let token = create_group.0.token;
 
     //get groups
     println!("get groups");
 
     let response = server.get(format!("/groups/{}", token).as_str()).await;
     assert_eq!(response.status_code(), 200);
-    let group = response.json::<GroupResponse>();
+    let group = response.json::<GroupNoID>();
     assert_eq!(group.name, "Tokyo");
     assert_eq!(group.currency_id, "USD");
     assert!(group.created_at.date().day() > 0);
@@ -107,21 +126,8 @@ async fn manage_group() -> Result<(), anyhow::Error> {
 #[tokio::test]
 async fn manage_member() -> Result<(), anyhow::Error> {
     let server = create_server().await;
-    let create_group = CreateGroups::new(
-        "Tokyo".to_string(),
-        "USD".to_string(),
-        ["waluigi", "mario", "JOJO"]
-            .iter()
-            .map(|s| s.to_string())
-            .collect::<Vec<String>>(),
-    );
-
-    let response = server
-        .post("/groups")
-        .json(&serde_json::to_value(create_group)?)
-        .await;
-    assert_eq!(response.status_code(), 200);
-    let token = response.json::<String>();
+    let create_group = create_group("Tokyo", "USD", &["Waluigi", "JOJO", "JOHN"], &server).await?;
+    let token = create_group.0.token;
 
     let group = get_group_members(&token, &server).await?;
     assert_eq!(group.len(), 3);
@@ -206,16 +212,8 @@ async fn get_transaction(
 #[tokio::test]
 async fn manage_transactions() -> Result<(), anyhow::Error> {
     let server = create_server().await;
-    let response = server
-        .post("/groups")
-        .json(&serde_json::json!({
-            "name": "Tokyo",
-            "currency_id": "USD",
-            "nicknames":["waluigi", "mario", "JOJO"]
-        }))
-        .await;
-    assert_eq!(response.status_code(), 200);
-    let token = response.json::<String>();
+    let create_group = create_group("Tokyo", "USD", &["Waluigi", "JOJO", "JOHN"], &server).await?;
+    let token = create_group.0.token;
     let group = get_group_members(&token, &server).await?;
     assert_eq!(group.len(), 3);
 

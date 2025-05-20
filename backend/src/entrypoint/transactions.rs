@@ -464,7 +464,9 @@ pub async fn handler_delete_transaction(
     Ok(())
 }
 
-#[derive(Deserialize, Serialize, Queryable, Debug)]
+#[derive(Deserialize, Serialize, Queryable, Debug, Selectable)]
+#[diesel(table_name = crate::schema::transactions)]
+#[diesel(check_for_backend(diesel::pg::Pg))] // Add backend check
 pub struct TransactionPaidByResponse {
     pub id: i32,
     pub description: String,
@@ -484,13 +486,7 @@ pub fn get_transaction_paid_by(
 ) -> Result<Vec<TransactionPaidByResponse>, anyhow::Error> {
     let transaction_result = transactions::table
         .inner_join(groups::table)
-        .select((
-            transactions::id,
-            transactions::description,
-            transactions::currency_id,
-            transactions::created_at,
-            transactions::amount,
-        ))
+        .select(TransactionPaidByResponse::as_select())
         .filter(groups::id.eq(group_id))
         .filter(transactions::paid_by.eq(group_member_id))
         .load::<TransactionPaidByResponse>(conn)?;
