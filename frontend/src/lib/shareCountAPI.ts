@@ -23,13 +23,8 @@ export async function getGroup(tokenID: string): Promise<Group> {
             throw new Error("Request failed");
         }
 
-        const data = await res.json();
-        return {
-            name: data.name,
-            currency_id: data.currency_id,
-            created_at: new Date(data.created_at),
-            token: tokenID,
-        };
+        const data = await res.json() as Group;
+        return data;
     } catch (err) {
         console.error("Error:", err);
         throw err; // re-throw so the caller can handle the error
@@ -143,7 +138,7 @@ export function sort_transactions(inTransactions: Transaction[]): Transaction[] 
 
 export async function updateTransaction(tokenID: string, inTransaction: Transaction) {
     try {
-        let url = `http://${getBackendURL()}/groups/${tokenID}/transactions`
+        const url = `http://${getBackendURL()}/groups/${tokenID}/transactions`
 
         const res = await fetch(url, {
             method: "POST",

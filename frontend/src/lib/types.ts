@@ -24,8 +24,9 @@ export interface Transaction {
 }
 
 export interface Group {
-    name: string;
-    currency_id: string;
-    created_at: Date;
-    token: string;
+    token: string,
+    name: string,
+    modified_at: string,
+    created_at: string,
+    currency_id: string,
 }

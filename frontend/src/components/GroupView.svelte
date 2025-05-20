@@ -4,17 +4,11 @@
     import type { Group, GroupMember } from "$lib/types";
     import { groupUsernames, setGroupMember } from "../stores/groupUsernames";
     import { slide } from "svelte/transition";
-    import { CheckIcon, XIcon } from "lucide-svelte";
     import { MENU, menus } from "$lib/menus";
     import { group_tokenID, setGroupTokenID } from "../stores/group_token";
     import { SvelteMap } from "svelte/reactivity";
     import {
-        add_local_members,
-        create_group_member,
-        delete_local_members,
-        get_local_members,
-        rename_local_members,
-        synchro_group_members,
+        groupMemberStore
     } from "../stores/group_members";
     import GroupViewMemberItem from "./GroupView_MemberItem.svelte";
     let {
@@ -28,8 +22,7 @@
     let error_members: SvelteMap<string, string> = new SvelteMap();
     let member_me = $state({ nickname: "" } as GroupMember);
     onMount(async () => {
-        console.log("Start synchro");
-        original_members = await synchro_group_members(group.token);
+        original_members = await groupMemberStore.synchro_group_members(group.token);
 
         modified_members = structuredClone(original_members);
         member_me = $groupUsernames[group.token];
@@ -53,7 +46,7 @@
 
     function create_unique_member(): GroupMember {
         let member_number = 1;
-        let new_member = create_group_member("New");
+        let new_member = groupMemberStore.create_group_member("New");
         let found = check_unicity(new_member.nickname);
         if (found) {
             return new_member;
@@ -102,7 +95,6 @@
         for (let member of inMembersModified) {
             set.add(member.nickname);
         }
-        console.log(set.size, inMembersModified.length, inMembersToAdd.length);
         return set.size === inMembersModified.length + inMembersToAdd.length;
     }
 </script>
@@ -222,10 +214,10 @@
                 onclick={async () => {
                     if (check_validity) {
                         edit = false;
-                        await delete_local_members(members_to_delete);
-                        await add_local_members($group_tokenID, members_to_add);
-                        await rename_local_members(modified_members);
-                        let members = await get_local_members($group_tokenID);
+                        await groupMemberStore.delete_local_members(members_to_delete);
+                        await groupMemberStore.add_local_members($group_tokenID, members_to_add);
+                        await groupMemberStore.rename_local_members(modified_members);
+                        let members = await groupMemberStore.get_local_members($group_tokenID);
                         const member = members.find((value) => {
                             value.nickname == member_me.nickname;
                         });
@@ -234,7 +226,7 @@
                             setGroupMember(group.token, member_me);
                         }
 
-                        original_members = await synchro_group_members(
+                        original_members = await groupMemberStore.synchro_group_members(
                             group.token,
                         );
 

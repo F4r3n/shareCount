@@ -2,8 +2,8 @@ use axum_test::TestServer;
 use chrono::{self, Datelike};
 use serde_json::json;
 use share_count::entrypoint::groups::GroupNoID;
+use share_count::router::create_router;
 use share_count::state_server;
-use share_count::{router::create_router};
 use std::env;
 //use diesel_migrations::FileBasedMigrations;
 use diesel_migrations::{embed_migrations, EmbeddedMigrations};
@@ -45,7 +45,8 @@ async fn create_group(
         .collect::<Vec<GroupMember>>();
     let response = server
         .post(format!("/groups/{}/group_members", &group.token).as_str())
-        .json(&serde_json::to_value(&members)?).await;
+        .json(&serde_json::to_value(&members)?)
+        .await;
     assert_eq!(response.status_code(), 200);
     let members = response.json::<Vec<GroupMember>>();
     Ok((group, members))
@@ -295,10 +296,37 @@ async fn manage_transactions() -> Result<(), anyhow::Error> {
     let transaction = get_transaction(&token, &new_transaction.get_uuid(), &server).await?;
     assert_eq!(transaction.description.as_str(), "NEW");
 
+    let new_datetime = new_datetime
+        .unwrap()
+        .checked_sub_signed(chrono::Duration::hours(1));
+    new_transaction.set_time(&new_datetime.unwrap_or_default());
     let response = server
-        .delete(format!("/groups/{}/transactions/{}", token, new_uuid).as_str())
+        .delete(format!("/groups/{}/transactions", token).as_str())
+        .json(&serde_json::to_value(&new_transaction)?)
         .await;
     assert_eq!(response.status_code(), 200);
+    let _transaction = get_transaction(&token, &new_transaction.get_uuid(), &server).await?;
+
+
+    let new_datetime = new_datetime.unwrap().checked_add_days(chrono::Days::new(2));
+    new_transaction.set_time(&new_datetime.unwrap_or_default());
+    let response = server
+        .delete(format!("/groups/{}/transactions", token).as_str())
+        .json(&serde_json::to_value(&new_transaction)?)
+        .await;
+    assert_eq!(response.status_code(), 200);
+
+    let response = server
+        .get(
+            format!(
+                "/groups/{}/transactions/{}",
+                &token,
+                &new_transaction.get_uuid()
+            )
+            .as_str(),
+        )
+        .await;
+    assert_eq!(response.status_code(), 404);
 
     Ok(())
 }

@@ -2,7 +2,7 @@ use crate::entrypoint::{group_members, groups, transactions};
 use crate::state_server;
 use axum::{
     http::HeaderValue,
-    routing::{delete, get, post},
+    routing::{get, post},
     Router,
 };
 
@@ -28,16 +28,19 @@ pub fn create_router(url: &str, state_server: StateServer) -> Result<Router, any
     let app = Router::new()
         .route("/users/{user_id}/groups", get(groups::handler_users_groups))
         .route("/groups/{token_id}", get(groups::handler_groups))
-        .route("/groups", post(groups::handler_create_group))
+        .route(
+            "/groups",
+            post(groups::handler_create_group).delete(groups::handler_delete_group),
+        )
         .route(
             "/groups/{token_id}/transactions",
             get(transactions::handler_get_all_transactions)
+                .delete(transactions::handler_delete_transaction)
                 .post(transactions::handler_modify_transaction),
         )
         .route(
             "/groups/{token_id}/transactions/{transaction_uuid}",
-            delete(transactions::handler_delete_transaction)
-                .get(transactions::handler_get_transaction),
+            get(transactions::handler_get_transaction),
         )
         .route(
             "/groups/{token_id}/group_members",

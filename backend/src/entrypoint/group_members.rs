@@ -182,6 +182,7 @@ pub async fn handler_delete_group_members(
             if !has_debt && !has_paid {
                 diesel::delete(group_members::table)
                     .filter(group_members::id.eq(member_id))
+                    .filter(group_members::modified_at.lt(member.modified_at))
                     .execute(conn)?;
             }
         }

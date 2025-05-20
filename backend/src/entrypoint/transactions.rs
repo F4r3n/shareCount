@@ -253,6 +253,12 @@ pub struct TransactionChangeset {
     pub group_id: i32,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+pub struct TransactionDelete {
+    pub uuid: String,
+    pub modified_at: NaiveDateTime,
+}
+
 #[derive(Debug, AsChangeset)]
 #[diesel(table_name = crate::schema::transaction_debts)]
 pub struct TransactionDebtChangeset {
@@ -446,7 +452,8 @@ pub struct TransactionIDResponse {
 
 pub async fn handler_delete_transaction(
     State(state_server): State<state_server::StateServer>,
-    Path((token, transaction_uuid)): Path<(String, String)>,
+    Path(token): Path<String>,
+    Json(transaction): Json<TransactionDelete>,
 ) -> Result<(), AppError> {
     let mut conn = state_server.pool.get()?;
     conn.transaction::<_, anyhow::Error, _>(|conn| {
@@ -454,7 +461,8 @@ pub async fn handler_delete_transaction(
 
         diesel::delete(transactions::table)
             .filter(transactions::group_id.eq(groud_id))
-            .filter(transactions::uuid.eq(transaction_uuid))
+            .filter(transactions::uuid.eq(transaction.uuid))
+            .filter(transactions::modified_at.lt(transaction.modified_at))
             .execute(conn)?;
 
         Ok(())

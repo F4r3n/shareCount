@@ -132,3 +132,19 @@ pub async fn handler_create_group(
 
     Ok(Json(group?))
 }
+
+pub async fn handler_delete_group(
+    State(state_server): State<state_server::StateServer>,
+    Json(group_query): Json<GroupNoID>,
+) -> Result<(), AppError> {
+    let mut conn = state_server.pool.get()?;
+
+    conn.transaction::<(), anyhow::Error, _>(|conn| {
+        diesel::delete(groups::table)
+            .filter(groups::modified_at.lt(group_query.modified_at))
+            .filter(groups::token.eq(group_query.token))
+            .execute(conn)?;
+        Ok(())
+    })
+    .map_err(AppError::from)
+}
