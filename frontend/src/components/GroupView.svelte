@@ -9,7 +9,7 @@
     import GroupViewMemberItem from "./GroupView_MemberItem.svelte";
     import { current_groupStore } from "../stores/group";
     import { current_user, userProxy, users } from "../stores/groupUsernames";
-    import { getUTC } from "$lib/UTCDate";
+
     let {
         group,
     }: {
@@ -23,10 +23,10 @@
     let member_me = $derived(get_member_from_uuid(member_me_uuid));
     onMount(async () => {
         userProxy.synchronize_store(group.token);
-        original_members = await groupMembersProxy.synchro_group_members(
+        await groupMembersProxy.synchro_group_members(group.token);
+        original_members = await groupMembersProxy.get_group_members(
             group.token,
         );
-
         modified_members = structuredClone(original_members);
         if ($users[group.token]) {
             member_me_uuid = $users[group.token].member_uuid;
@@ -135,7 +135,7 @@
                     disabled={!member_me_uuid}
                     onclick={() => {
                         current_groupStore.set(group);
-                        current_user.set($users[group.token])
+                        current_user.set($users[group.token]);
                         goto(`${menus[MENU.EXPENSES].path}?id=${group.token}`);
                     }}
                     >Go
@@ -247,10 +247,9 @@
                             userProxy.set_user_group(group.token, member.uuid);
                         }
 
-                        original_members =
-                            await groupMembersProxy.synchro_group_members(
-                                group.token,
-                            );
+                        await groupMembersProxy.synchro_group_members(
+                            group.token,
+                        );
 
                         clean();
                     }

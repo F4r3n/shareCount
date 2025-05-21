@@ -1,6 +1,6 @@
 // src/lib/stores/group_members.ts
 import { writable, type Writable } from 'svelte/store';
-import { db, type Group_DB } from '../db/db';
+import { db, STATUS, type Group_DB } from '../db/db';
 import { getUTC } from '$lib/UTCDate';
 import { v4 as uuidv4 } from 'uuid';
 import type { Group } from "$lib/types";
@@ -27,7 +27,7 @@ export class GroupsProxy {
             created_at: inGroup.created_at,
             currency_id: inGroup.currency_id,
             name: inGroup.name,
-            is_deleted: false,
+            status: STATUS.TO_CREATE,
             uuid: inGroup.token,
             modified_at: inGroup.modified_at
         } as Group_DB)
@@ -43,7 +43,7 @@ export class GroupsProxy {
             created_at: getUTC(),
             currency_id: "USD",
             name: "NEW",
-            is_deleted: false,
+            status: STATUS.TO_CREATE,
             uuid: uuidv4(),
             modified_at: getUTC()
         } as Group_DB
@@ -154,14 +154,15 @@ export class GroupsProxy {
         } as Group_DB
     }
 
-    async delete_local_group(inGroup: Group) {
-        db.group.where("uuid").equals(inGroup.token).modify({ is_deleted: true, modified_at: getUTC() });
+    async delete_local_group(uuid: string) {
+        db.group.where("uuid").equals(uuid).modify({ status: STATUS.TO_DELETE, modified_at: getUTC() });
     }
 
     async synchronize() {
+
         try {
             for (const group of await db.group.toArray()) {
-                if (group.is_deleted) {
+                if (group.status === STATUS.TO_DELETE) {
                     await this._deleteGroup({ modified_at: group.modified_at, token: group.uuid } as Group);
                     db.group.delete(group.uuid);
                 }

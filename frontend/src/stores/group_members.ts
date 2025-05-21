@@ -1,6 +1,6 @@
 // src/lib/stores/group_members.ts
 import { writable, type Writable } from 'svelte/store';
-import { db, type GroupMember_DB } from '../db/db';
+import { db, STATUS, type GroupMember_DB } from '../db/db';
 import type { GroupMember } from '$lib/types';
 import { getUTC } from '$lib/UTCDate';
 import { v4 as uuidv4 } from 'uuid';
@@ -88,18 +88,11 @@ export class GroupMemberProxy {
         }
     }
 
-    async synchro_group_members(token: string): Promise<GroupMember[]> {
-        let members: GroupMember[] = [];
-        try {
-            members = await this._get_group_members(token);
-        } catch (error) { console.error("Error fetching group members:", error); }
-        this.SetStoreGroupMembers(members);
-        return members;
-    }
+
 
     async delete_local_members(group_members: GroupMember[]) {
         for (const member of group_members) {
-            db.group_members.where("uuid").equals(member.uuid).modify({ is_deleted: true, modified_at: getUTC() });
+            db.group_members.where("uuid").equals(member.uuid).modify({ status: STATUS.TO_DELETE, modified_at: getUTC() });
         }
     }
 
@@ -111,99 +104,102 @@ export class GroupMemberProxy {
 
     async add_local_members(uuid: string, group_members: GroupMember[]) {
         for (const member of group_members) {
-            await db.group_members.add({
-                uuid: member.uuid,
-                is_deleted: false,
-                is_me: false,
-                modified_at: member.modified_at,
-                group_uuid: uuid,
-                nickname: member.nickname
-            });
+            await db.group_members.add(
+                this._convert_member_memberDB(uuid, member, STATUS.TO_CREATE));
         }
     }
 
     async get_local_members(uuid: string): Promise<GroupMember[]> {
-        return await db.group_members.where("group_uuid").equals(uuid).and((member) => { return member.is_deleted == false }).toArray();
+        return await db.group_members.where("group_uuid").equals(uuid).and((member) => { return member.status !== STATUS.TO_DELETE }).toArray();
     }
 
+    async get_local_member(uuid: string): Promise<GroupMember | null> {
+        const member = await db.group_members.where("uuid").equals(uuid).and((member) => { return member.status !== STATUS.TO_DELETE }).first();
+        if (member) {
+            return member;
+        }
+        return null;
+    }
 
     create_group_member(nickname: string): GroupMember {
         return { nickname: nickname, modified_at: getUTC(), uuid: uuidv4() }
     }
 
-    private async _get_group_members(in_group_token: string): Promise<GroupMember[]> {
-        let original_members = []
-        try {
-            original_members = await this._fetch_local_members(in_group_token);
-            const members_to_delete = await this._fetch_local_members_to_delete(in_group_token)
-            await this._delete_remote_GroupMembers(in_group_token, members_to_delete);
-            for (const member of members_to_delete) {
-                db.group_members.delete(member.uuid)
+    _convert_member_memberDB(group_uuid: string, member: GroupMember, status: STATUS): GroupMember_DB {
+        return {
+            group_uuid: group_uuid,
+            modified_at: member.modified_at,
+            nickname: member.nickname,
+            status: status,
+            uuid: member.uuid
 
-            }
-            if (original_members.length == 0) {
-                original_members = await this._get_remote_GroupMembers(in_group_token)
-            }
-            else {
-                original_members = await this._add_remote_GroupMembers(in_group_token, original_members);
-
-            }
-            await this._update_local_members(in_group_token, original_members);
-            // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        } catch (_error) {
-            original_members = await this._fetch_local_members(in_group_token);
-        }
-        return original_members;
+        } as GroupMember_DB
     }
 
-    private async _fetch_local_members(in_group_token: string): Promise<GroupMember[]> {
-        const list_local_members: GroupMember_DB[] = await db.group_members.toArray();
-        const list_members: GroupMember[] = []
-        for (const member_db of list_local_members) {
-            if (in_group_token == member_db.group_uuid) {
-                list_members.push({
-                    uuid: member_db.uuid,
-                    nickname: member_db.nickname,
-                    modified_at: member_db.modified_at
-                } as GroupMember)
-            }
-        }
-        return list_members;
+    _convert_memberDB_member(member: GroupMember_DB): GroupMember {
+        return {
+            modified_at: member.modified_at,
+            nickname: member.nickname,
+            uuid: member.uuid
+
+        } as GroupMember
     }
 
-    private async _fetch_local_members_to_delete(in_group_token: string): Promise<GroupMember[]> {
-        const list_local_members = await db.group_members.toArray();
-        const list_members: GroupMember[] = []
-        for (const member_db of list_local_members) {
-            if (in_group_token == member_db.group_uuid && member_db.is_deleted) {
-                list_members.push({
-                    uuid: member_db.uuid,
-                    nickname: member_db.nickname,
-                    modified_at: member_db.modified_at
-                } as GroupMember)
-            }
-        }
-        return list_members;
+    private async _fetch_local_members(in_group_token: string): Promise<GroupMember_DB[]> {
+        const list_local_members: GroupMember_DB[] = await db.group_members.where("group_uuid").equals(in_group_token).toArray();
+       return list_local_members;
     }
 
-    private async _update_local_members(group_uuid: string, new_members: GroupMember[]) {
-        await db.group_members.where("group_uuid").equals(group_uuid).delete();
-        for (const member of new_members) {
-            try {
+    async synchro_group_members(in_group_token: string) {
+        const original_members = await this._fetch_local_members(in_group_token);
+        const to_send_members = [];
+        const to_delete_members = [];
 
-                await db.group_members.add({
-                    uuid: member.uuid,
-                    is_deleted: false,
-                    is_me: false,
-                    modified_at: member.modified_at,
-                    group_uuid: group_uuid,
-                    nickname: member.nickname
-                });
-
-            } catch (error) {
-                console.error("Error adding member to local database:", error);
+        const map: Map<string, GroupMember_DB> = new Map();
+        for (const member of original_members)
+        {
+            map.set(member.uuid, member);
+            if(member.status  == STATUS.TO_CREATE) {
+                to_send_members.push(this._convert_memberDB_member(member))
+            }
+            else if(member.status === STATUS.TO_DELETE) {
+                to_delete_members.push(this._convert_memberDB_member(member))
             }
         }
+        const remote_members = await this._get_remote_GroupMembers(in_group_token);
+        for (const member of remote_members)
+        {
+            if(map.has(member.uuid))
+            {
+                to_send_members.push(member);
+            }
+            map.set(member.uuid, this._convert_member_memberDB(in_group_token, member, STATUS.NOTHING));
+        }
+
+        await this._add_remote_GroupMembers(in_group_token, to_send_members);
+        await this._reset_status(in_group_token);
+        await this._delete_remote_GroupMembers(in_group_token, to_delete_members);
+        await this._delete_marked_delete(in_group_token);
+
+
+    }
+
+    async get_group_members(in_group_token: string): Promise<GroupMember[]> {
+        const new_members = await (await this._fetch_local_members(in_group_token)).map((value)=>{return this._convert_memberDB_member(value)})
+        this.SetStoreGroupMembers(new_members);
+        return new_members;
+    }
+
+    async _reset_status(in_group_token : string) {
+        await db.group_members.where("group_uuid").equals(in_group_token)
+        .and((member)=>{return member.status === STATUS.TO_CREATE})
+        .modify({status:STATUS.NOTHING})
+    }
+
+    async _delete_marked_delete(in_group_token : string) {
+        await db.group_members.where("group_uuid").equals(in_group_token)
+        .and((member)=>{return member.status === STATUS.TO_DELETE})
+        .delete()
     }
 }
 

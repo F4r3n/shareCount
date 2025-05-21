@@ -1,13 +1,18 @@
 // db.ts
 import Dexie, { type EntityTable } from 'dexie';
 
+export enum STATUS {
+    NOTHING = 0,
+    TO_DELETE = 1,
+    TO_CREATE = 2,
+}
+
 interface GroupMember_DB {
     uuid: string;
     group_uuid: string;
     nickname: string;
     modified_at: string;
-    is_me: boolean;
-    is_deleted: boolean;
+    status: STATUS;
 }
 
 interface Group_DB {
@@ -16,13 +21,13 @@ interface Group_DB {
     created_at: string;
     modified_at: string;
     currency_id: string;
-    is_deleted: boolean;
+    status: STATUS;
 }
 
 interface Debt_DB {
     id: number;
     transaction_uuid: string;
-    group_uuid: string;
+    member_uuid: string;
     amount: string;
 }
 
@@ -37,7 +42,7 @@ interface Transaction_DB {
     paid_by: string;
     exchange_rate: string;
     currency_id: string;
-    is_deleted: boolean;
+    status: STATUS;
 }
 
 
@@ -49,7 +54,7 @@ interface User_DB {
 
 
 if (import.meta.env.DEV) {
-    //Dexie.delete("shareCount_DB");
+    Dexie.delete("shareCount_DB");
 }
 
 
@@ -78,10 +83,10 @@ const db = new Dexie('shareCount_DB') as Dexie & {
 
 // Schema declaration:
 db.version(1).stores({
-    group_members: '++uuid, group_uuid, nickname, modified_at, is_me, is_deleted',
-    group: '++uuid, name, created_at, modified_at, currency_id, is_deleted',
-    transaction: '++uuid, group_uuid, description, amount, created_at, modified_at, paid_by, exchange_rate, currency_id, is_deleted',
-    debt: '++id, transaction_uuid, group_uuid, amount',
+    group_members: '++uuid, group_uuid, nickname, modified_at, status',
+    group: '++uuid, name, created_at, modified_at, currency_id, status',
+    transaction: '++uuid, group_uuid, description, amount, created_at, modified_at, paid_by, exchange_rate, currency_id, status',
+    debt: '++id, transaction_uuid, member_uuid, amount',
     user_data: '++id, group_uuid, member_uuid'
 });
 
