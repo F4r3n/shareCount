@@ -54,12 +54,12 @@ interface User_DB {
 
 
 if (import.meta.env.DEV) {
-    Dexie.delete("shareCount_DB");
+    //Dexie.delete("shareCount_DB");
 }
 
 
 const db = new Dexie('shareCount_DB') as Dexie & {
-    group: EntityTable<
+    groups: EntityTable<
         Group_DB,
         'uuid' // primary key "id" (for the typings only)
     >;
@@ -67,11 +67,11 @@ const db = new Dexie('shareCount_DB') as Dexie & {
         GroupMember_DB,
         'uuid' // primary key "id" (for the typings only)
     >;
-    transaction: EntityTable<
+    transactions: EntityTable<
         Transaction_DB,
         'uuid' // primary key "id" (for the typings only)
     >;
-    debt: EntityTable<
+    debts: EntityTable<
         Debt_DB,
         'id' // primary key "id" (for the typings only)
     >;
@@ -84,9 +84,9 @@ const db = new Dexie('shareCount_DB') as Dexie & {
 // Schema declaration:
 db.version(1).stores({
     group_members: '++uuid, group_uuid, nickname, modified_at, status',
-    group: '++uuid, name, created_at, modified_at, currency_id, status',
-    transaction: '++uuid, group_uuid, description, amount, created_at, modified_at, paid_by, exchange_rate, currency_id, status',
-    debt: '++id, transaction_uuid, member_uuid, amount',
+    groups: '++uuid, name, created_at, modified_at, currency_id, status',
+    transactions: '++uuid, group_uuid, description, amount, created_at, modified_at, paid_by, exchange_rate, currency_id, status',
+    debts: '++id, transaction_uuid, member_uuid, amount',
     user_data: '++id, group_uuid, member_uuid'
 });
 

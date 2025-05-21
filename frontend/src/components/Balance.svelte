@@ -9,7 +9,7 @@
     } from "wasm-lib";
     import Modal from "./Modal.svelte";
     import { type ModalButton } from "./ModalTypes";
-    import { group_transactions } from "../stores/group_transactions";
+    import { current_transactions, group_transactions } from "../stores/group_transactions";
 
     let {
         members,
@@ -24,7 +24,7 @@
             amounts.push({ member: member, amount: "0" } as Amount);
         }
 
-        for (const transaction of $group_transactions) {
+        for (const transaction of $current_transactions) {
             amounts.push({
                 member: transaction.paid_by,
                 amount: transaction.amount,

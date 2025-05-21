@@ -1,13 +1,17 @@
 <script lang="ts">
     import type { Debt, Transaction, GroupMember } from "$lib/types";
     import TransactionView from "./TransactionView.svelte";
+
+    import { v4 as uuidv4 } from "uuid";
     import {
-        updateTransaction,
-        deleteTransaction,
-    } from "$lib/shareCountAPI";
-    import {v4 as uuidv4} from 'uuid';
-    import { groupUsernames } from "../stores/groupUsernames";
-    import { AddTransaction, DeleteTransaction, group_transactions, setTransactionID } from "../stores/group_transactions";
+        current_transactions,
+        group_transactions,
+        transactionsProxy,
+    } from "../stores/group_transactions";
+    import { current_user } from "../stores/groupUsernames";
+    import { current_membersStore } from "../stores/group_members";
+    import { current_groupStore } from "../stores/group";
+    import { STATUS } from "../db/db";
     let {
         main_currency,
         members,
@@ -23,32 +27,6 @@
     let creating_transaction: Transaction | null = $state(null);
     let creating: boolean = $state(false);
 
-    async function handler_updateTransaction(
-        transaction: Transaction,
-    ): Promise<boolean> {
-        try {
-            await updateTransaction(token ?? "", transaction);
-            return true;
-        } catch (e) {
-            console.error(e);
-            return false;
-        }
-    }
-
-    async function handler_deleteTransaction(
-        transaction: Transaction,
-    ): Promise<boolean> {
-        try {
-            if (transaction.uuid) {
-                await deleteTransaction(token ?? "", transaction.uuid);
-            }
-            return true;
-        } catch (e) {
-            console.error(e);
-            return false;
-        }
-    }
-
     function create_debtors(): Debt[] {
         let debts = [] as Debt[];
         for (const member of members) {
@@ -57,9 +35,6 @@
         return debts;
     }
 
-    function updateTransactionLocal(id: number, modified: Transaction) {
-        setTransactionID(id, modified);
-    }
     const options = {
         weekday: undefined,
         year: "numeric",
@@ -69,11 +44,14 @@
 </script>
 
 <div class="flex flex-col h-dvh">
-        <button
+    <button
         class="btn btn-accent w-2/3 md:w-1/3 mx-auto add-button mt-5"
         onclick={() => {
+            const current_member = $current_membersStore.find((value) => {
+                value.uuid == $current_user?.member_uuid;
+            });
             creating = true;
-            index_count-=1;
+            index_count -= 1;
             creating_transaction = {
                 uuid: uuidv4(),
                 amount: "0",
@@ -83,7 +61,7 @@
                 debtors: create_debtors(),
                 description: "",
                 exchange_rate: "1",
-                paid_by: $groupUsernames[token ?? ""] ?? members[0],
+                paid_by: current_member ?? ({} as GroupMember),
             };
         }}
     >
@@ -104,22 +82,20 @@
                     onSave={async (
                         newTransaction: Transaction,
                     ): Promise<boolean> => {
-                        let result = await handler_updateTransaction(
-                            $state.snapshot(newTransaction),
+                        transactionsProxy.add_local_transaction(
+                            $current_groupStore?.token ?? "",
+                            newTransaction,
+                            STATUS.TO_CREATE
                         );
-                        if (result) {
-                            creating = false;
-                            AddTransaction(newTransaction)
-                        }
-                        return result;
+                        return true;
                     }}
                     onDelete={async (newTransaction: Transaction) => {}}
                 ></TransactionView>
             {/if}
-            {#each $group_transactions as transaction, id (transaction.uuid)}
+            {#each $current_transactions as transaction, id (transaction.uuid)}
                 <div class="font-semibold text-base md:text-md lg:text-lg">
                     {#if id > 0}
-                        {#if new Date(transaction.created_at.split("T")[0]).getDate() != new Date($group_transactions[id - 1].created_at.split("T")[0]).getDate()}
+                        {#if new Date(transaction.created_at.split("T")[0]).getDate() != new Date($current_transactions[id - 1].created_at.split("T")[0]).getDate()}
                             <div class="my-2">
                                 {new Date(
                                     transaction.created_at.split("T")[0],
@@ -142,37 +118,26 @@
                         onSave={async (
                             newTransaction: Transaction,
                         ): Promise<boolean> => {
-                            newTransaction.modified_at = new Date().toISOString().replace("Z", "");
-
-                            let result = await handler_updateTransaction(
-                                $state.snapshot(newTransaction),
+                            transactionsProxy.modify_local_transaction(
+                                $current_groupStore?.token ?? "",
+                                newTransaction,
                             );
-                            updateTransactionLocal(id, newTransaction);
-                            return result;
+                            return true;
                         }}
                         onDelete={async (transaction: Transaction) => {
-                            let result =
-                                await handler_deleteTransaction(transaction);
-                            let index = $group_transactions.findIndex(
-                                (tr: Transaction) => {
-                                    return tr.uuid == transaction.uuid;
-                                },
+                            transactionsProxy.delete_local_transaction(
+                                $current_groupStore?.token ?? "",
+                                transaction.uuid,
                             );
-
-                            if (index >= 0) {
-                                DeleteTransaction(index);
-                            }
                         }}
                         onCancel={(transaction) => {
-                            updateTransactionLocal(id, transaction);
+                            //updateTransactionLocal(id, transaction);
                         }}
                     ></TransactionView>
                 </div>
             {/each}
         </div>
     </div>
-
-
 </div>
 
 <style>

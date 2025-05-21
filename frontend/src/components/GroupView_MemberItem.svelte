@@ -13,7 +13,7 @@
         current_member: GroupMember;
         id: number;
         error_message: string;
-        member_me: GroupMember | null;
+        member_me: string;
         onDelete: () => void;
         onChange: (member: GroupMember) => void;
         onMESelect: () => void;
@@ -48,7 +48,7 @@
         />
     </div>
 
-    {#if member_me?.nickname == current_member.nickname}
+    {#if member_me == current_member.uuid}
         <div class="flex items-center align-middle">
             <CheckIcon></CheckIcon>
         </div>

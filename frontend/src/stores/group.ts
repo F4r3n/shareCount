@@ -15,7 +15,7 @@ export class GroupsProxy {
     }
 
     async get_local_groups(): Promise<Group[]> {
-        const list_local_groups: Group_DB[] = await db.group.toArray();
+        const list_local_groups: Group_DB[] = await db.groups.toArray();
         const groups: Group[] = list_local_groups.map((group) => {
             return this._convert_DB_to_Group(group)
         });
@@ -23,7 +23,7 @@ export class GroupsProxy {
     }
 
     async add_local_group(inGroup: Group) {
-        await db.group.add({
+        await db.groups.add({
             created_at: inGroup.created_at,
             currency_id: inGroup.currency_id,
             name: inGroup.name,
@@ -47,7 +47,7 @@ export class GroupsProxy {
             uuid: uuidv4(),
             modified_at: getUTC()
         } as Group_DB
-        await db.group.add(new_group)
+        await db.groups.add(new_group)
 
         groupsStore.update((values: Group[]) => {
             values.push(this._convert_DB_to_Group(new_group));
@@ -56,7 +56,7 @@ export class GroupsProxy {
     }
 
     async modify_local_group(inGroup: Group) {
-        db.group.where("uuid").equals(inGroup.token).modify(
+        db.groups.where("uuid").equals(inGroup.token).modify(
             {
                 currency_id: inGroup.currency_id,
                 name: inGroup.name,
@@ -88,7 +88,7 @@ export class GroupsProxy {
 
     private async _addGroup(group: Group) {
         try {
-            const res = await fetch(`http://${getBackendURL()}/groups/`, {
+            const res = await fetch(`http://${getBackendURL()}/groups`, {
                 method: "POST",
                 credentials: "include",
                 headers: {
@@ -101,14 +101,13 @@ export class GroupsProxy {
                 throw new Error("Request failed");
             }
         } catch (err) {
-            console.error("Error:", err);
             throw err; // re-throw so the caller can handle the error
         }
     }
 
     private async _deleteGroup(group: Group) {
         try {
-            const res = await fetch(`http://${getBackendURL()}/groups/`, {
+            const res = await fetch(`http://${getBackendURL()}/groups`, {
                 method: "DELETE",
                 credentials: "include",
                 headers: {
@@ -155,30 +154,29 @@ export class GroupsProxy {
     }
 
     async delete_local_group(uuid: string) {
-        db.group.where("uuid").equals(uuid).modify({ status: STATUS.TO_DELETE, modified_at: getUTC() });
+        db.groups.where("uuid").equals(uuid).modify({ status: STATUS.TO_DELETE, modified_at: getUTC() });
     }
 
     async synchronize() {
 
         try {
-            for (const group of await db.group.toArray()) {
+            for (const group of await db.groups.toArray()) {
                 if (group.status === STATUS.TO_DELETE) {
                     await this._deleteGroup({ modified_at: group.modified_at, token: group.uuid } as Group);
-                    db.group.delete(group.uuid);
+                    db.groups.delete(group.uuid);
                 }
                 else {
                     await this._addGroup(this._convert_DB_to_Group(group));
                 }
             }
         } catch (e) {
-            console.log("No network");
         }
 
 
-        for (const group of await db.group.toArray()) {
+        for (const group of await db.groups.toArray()) {
             try {
                 const new_group = await this.getGroup(group.uuid);
-                db.group.where("uuid").equals(new_group.token).modify(this._convert_Group_to_DB(new_group));
+                db.groups.where("uuid").equals(new_group.token).modify(this._convert_Group_to_DB(new_group));
             } catch (e) {
 
             }

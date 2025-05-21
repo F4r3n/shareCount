@@ -112,7 +112,7 @@ pub async fn handler_create_group(
                 created_at: group_query.created_at,
                 currency_id: group_query.currency_id,
                 name: group_query.name,
-                token: group_query.token,
+                token: group_query.token.clone(),
                 modified_at: group_query.modified_at,
             };
             use diesel::query_dsl::methods::FilterDsl;
@@ -124,9 +124,10 @@ pub async fn handler_create_group(
                 .set(&to_insert)
                 .filter(groups::modified_at.lt(excluded(groups::modified_at)))
                 .returning(groups::id)
-                .get_result::<i32>(conn)?;
+                .get_result::<i32>(conn)
+                .or(get_group_id(&group_query.token, conn))?;
 
-            Ok(get_group(group_id, conn)?)
+            get_group(group_id, conn)
         })
         .map_err(AppError::from);
 

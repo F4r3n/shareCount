@@ -88,11 +88,14 @@ export class GroupMemberProxy {
         }
     }
 
+    async _delete_local_member(member: GroupMember) {
+        db.group_members.where("uuid").equals(member.uuid).modify({ status: STATUS.TO_DELETE, modified_at: getUTC() });
 
+    }
 
     async delete_local_members(group_members: GroupMember[]) {
         for (const member of group_members) {
-            db.group_members.where("uuid").equals(member.uuid).modify({ status: STATUS.TO_DELETE, modified_at: getUTC() });
+            await this._delete_local_member(member);
         }
     }
 
@@ -102,10 +105,10 @@ export class GroupMemberProxy {
         }
     }
 
-    async add_local_members(uuid: string, group_members: GroupMember[]) {
+    async add_local_members(uuid: string, group_members: GroupMember[], status : STATUS) {
         for (const member of group_members) {
             await db.group_members.add(
-                this._convert_member_memberDB(uuid, member, STATUS.TO_CREATE));
+                this._convert_member_memberDB(uuid, member, status));
         }
     }
 
@@ -150,6 +153,11 @@ export class GroupMemberProxy {
         return list_local_members;
     }
 
+    private async _modify_local_member(in_group_token: string, member: GroupMember) {
+        await db.group_members.where("uuid").equals(member.uuid)
+            .modify(await this._convert_member_memberDB(in_group_token, member, STATUS.NOTHING))
+    }
+
     async synchro_group_members(in_group_token: string) {
         const original_members = await this._fetch_local_members(in_group_token);
         const to_send_members = [];
@@ -165,20 +173,35 @@ export class GroupMemberProxy {
                 to_delete_members.push(this._convert_memberDB_member(member))
             }
         }
-        const remote_members = await this._get_remote_GroupMembers(in_group_token);
-        for (const member of remote_members) {
-            if (map.has(member.uuid)) {
-                to_send_members.push(member);
-            }
-            map.set(member.uuid, this._convert_member_memberDB(in_group_token, member, STATUS.NOTHING));
+
+        try {
+            await this._add_remote_GroupMembers(in_group_token, to_send_members);
+            await this._delete_remote_GroupMembers(in_group_token, to_delete_members);
+
+        } catch (e) {
         }
 
-        await this._add_remote_GroupMembers(in_group_token, to_send_members);
-        await this._reset_status(in_group_token);
-        await this._delete_remote_GroupMembers(in_group_token, to_delete_members);
-        await this._delete_marked_delete(in_group_token);
+        const members_to_save = []
+        try {
+            const remote_members = await this._get_remote_GroupMembers(in_group_token);
+            for (const member of remote_members) {
+                if (map.has(member.uuid)) {
+                    this._modify_local_member(in_group_token, member);
+                    map.delete(member.uuid);
+                }
+                else {
+                    members_to_save.push(member);
+                }
+            }
+        } catch (e) { }
+        await this.add_local_members(in_group_token, members_to_save, STATUS.NOTHING);
+
+        for (const [uuid, member] of map) {
+            await this._delete_local_member(member);
+        }
 
 
+        this.SetStoreGroupMembers(await this.get_group_members(in_group_token));
     }
 
     async get_group_members(in_group_token: string): Promise<GroupMember[]> {

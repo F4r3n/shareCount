@@ -13,7 +13,7 @@ export const current_transactions: Writable<Transaction[]> = writable([]);
 export class TransactionsProxy {
 
     private async _get_local_debts(transaction_uuid: string): Promise<Debt[]> {
-        const debts_db = await db.debt.where("transaction_uuid").equals(transaction_uuid).toArray()
+        const debts_db = await db.debts.where("transaction_uuid").equals(transaction_uuid).toArray()
         const result: Debt[] = [];
 
         for (const de of debts_db) {
@@ -32,19 +32,20 @@ export class TransactionsProxy {
     }
 
     private async _get_local_transactionsDB(group_uuid: string): Promise<Transaction_DB[]> {
-        const tr = (await db.transaction.where("group_uuid").equals(group_uuid).toArray());
+        const tr = (await db.transactions.where("group_uuid").equals(group_uuid).toArray());
         return tr;
     }
 
     private async _add_local_debts(transaction_uuid: string, debts: Debt[]) {
         for (const debt of debts) {
-            await db.debt.add(this._convert_debt_debtDB(transaction_uuid, debt))
+            await db.debts.add(this._convert_debt_debtDB(transaction_uuid, debt))
         }
     }
 
-    async add_local_transaction(group_uuid: string, inTransaction: Transaction) {
-        const transaction_db = this._convert_transaction_transactionDB(group_uuid, inTransaction, STATUS.TO_CREATE);
-        await db.transaction.add(transaction_db);
+    async add_local_transaction(group_uuid: string, inTransaction: Transaction, status : STATUS) {
+        const transaction_db = this._convert_transaction_transactionDB(group_uuid, inTransaction, status);
+        this._add_local_debts(transaction_db.uuid, inTransaction.debtors);
+        await db.transactions.add(transaction_db);
         group_transactions.update((values: Record<string, Transaction[]>) => {
             values[group_uuid].push(inTransaction);
             return values;
@@ -52,7 +53,7 @@ export class TransactionsProxy {
     }
 
     async delete_local_transaction(group_uuid: string, transaction_uuid: string) {
-        await db.transaction.where("uuid").equals(transaction_uuid).modify({ status: STATUS.TO_DELETE, modified_at: getUTC() });
+        await db.transactions.where("uuid").equals(transaction_uuid).modify({ status: STATUS.TO_DELETE, modified_at: getUTC() });
         group_transactions.update((values: Record<string, Transaction[]>) => {
             const id = values[group_uuid].findIndex((value) => { return value.uuid === transaction_uuid })
             values[group_uuid].splice(id, 1);
@@ -61,11 +62,11 @@ export class TransactionsProxy {
     }
 
     async modify_local_transaction(group_uuid: string, transaction: Transaction) {
-        await db.debt.where("transaction_uuid").equals(transaction.uuid).delete();
+        await db.debts.where("transaction_uuid").equals(transaction.uuid).delete();
         await this._add_local_debts(transaction.uuid, transaction.debtors);
         const new_tr_db = this._convert_transaction_transactionDB(group_uuid, transaction, STATUS.NOTHING);
         new_tr_db.modified_at = getUTC();
-        await db.transaction.where("uuid").equals(transaction.uuid).modify(new_tr_db);
+        await db.transactions.where("uuid").equals(transaction.uuid).modify(new_tr_db);
     }
 
     async synchonize(group_uuid: string) {
@@ -77,30 +78,39 @@ export class TransactionsProxy {
         const map: Map<string, Transaction_DB> = new Map();
         for (const transaction of original_transactions) {
             map.set(transaction.uuid, transaction);
-            if (transaction.status == STATUS.TO_CREATE) {
+            if (transaction.status == STATUS.TO_CREATE || transaction.status == STATUS.NOTHING) {
                 to_send_transactions.push(await this._convert_transactionDB_transaction(transaction))
             }
             else if (transaction.status === STATUS.TO_DELETE) {
                 to_delete_transactions.push(await this._convert_transactionDB_transaction(transaction))
             }
         }
-        const remote_transactions = await this._get_remote_transactions(group_uuid)
-        for (const transaction of remote_transactions) {
-            if (map.has(transaction.uuid)) {
-                to_send_transactions.push(transaction);
+        try {
+            for (const transaction of to_delete_transactions) {
+                await this._delete_remote_transaction(group_uuid, transaction);
             }
-            map.set(transaction.uuid, this._convert_transaction_transactionDB(group_uuid, transaction, STATUS.NOTHING));
-        }
+            for (const transaction of to_send_transactions) {
+                await this._update_remote_transaction(group_uuid, transaction);
+            }
 
-        for (const transaction of to_send_transactions) {
-            await this._update_remote_transaction(group_uuid, transaction);
-        }
-        await this._reset_status(group_uuid);
-        for (const transaction of to_delete_transactions) {
-            await this._delete_remote_transaction(group_uuid, transaction);
+            let remote_transactions = await this._get_remote_transactions(group_uuid);
+            for (const transaction of remote_transactions) {
+                if (map.has(transaction.uuid)) {
+                    this.modify_local_transaction(group_uuid, transaction);
+                    map.delete(transaction.uuid)
+                }
+                else {
+                    this.add_local_transaction(group_uuid, transaction, STATUS.NOTHING);
+                }
+            }
+
+            for (const [uuid, tr] of map) {
+                await this.delete_local_transaction(group_uuid, uuid);
+            }
+
+        } catch (e) {
 
         }
-        await this._delete_marked_delete(group_uuid);
 
         const new_transactions = await this.get_local_transactions(group_uuid)
 
@@ -108,16 +118,18 @@ export class TransactionsProxy {
             values[group_uuid] = new_transactions;
             return values;
         })
+
+        current_transactions.set(new_transactions);
     }
 
     private async _reset_status(in_group_token: string) {
-        await db.transaction.where("group_uuid").equals(in_group_token)
+        await db.transactions.where("group_uuid").equals(in_group_token)
             .and((member) => { return member.status === STATUS.TO_CREATE })
             .modify({ status: STATUS.NOTHING })
     }
 
     private async _delete_marked_delete(in_group_token: string) {
-        await db.transaction.where("group_uuid").equals(in_group_token)
+        await db.transactions.where("group_uuid").equals(in_group_token)
             .and((member) => { return member.status === STATUS.TO_DELETE })
             .delete()
     }

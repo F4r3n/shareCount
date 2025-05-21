@@ -1,7 +1,7 @@
 <script lang="ts">
     import { onMount } from "svelte";
     import { goto } from "$app/navigation";
-    import type { Group, GroupMember, User } from "$lib/types";
+    import type { Group, GroupMember } from "$lib/types";
     import { slide } from "svelte/transition";
     import { MENU, menus } from "$lib/menus";
     import { SvelteMap } from "svelte/reactivity";
@@ -10,6 +10,7 @@
     import { current_groupStore } from "../stores/group";
     import { current_user, userProxy, users } from "../stores/groupUsernames";
     import { transactionsProxy } from "../stores/group_transactions";
+    import { STATUS } from "../db/db";
 
     let {
         group,
@@ -20,19 +21,17 @@
     let modified_members: GroupMember[] = $state([]);
     let original_members: GroupMember[];
     let error_members: SvelteMap<string, string> = new SvelteMap();
-    let member_me_uuid = $state("");
-    let member_me = $derived(get_member_from_uuid(member_me_uuid));
+
     onMount(async () => {
-        userProxy.synchronize_store(group.token);
+        await userProxy.synchronize_store(group.token);
         await groupMembersProxy.synchro_group_members(group.token);
         original_members = await groupMembersProxy.get_group_members(
             group.token,
         );
+        await transactionsProxy.synchonize(group.token);
         modified_members = structuredClone(original_members);
-        if ($users[group.token]) {
-            member_me_uuid = $users[group.token].member_uuid;
-        }
-        edit = !member_me_uuid;
+        
+        edit = !$current_user;
     });
     let members_to_delete: GroupMember[] = [];
     let members_to_add: GroupMember[] = $state([]);
@@ -116,9 +115,9 @@
     <div class="card bg-base-100 w-sm sm:w-md shadow-sm">
         <div class="card-body">
             <h1 class="card-title">{group.name}</h1>
-            {#if member_me_uuid}
+            {#if $current_user}
                 <div class="card-body">
-                    {`${get_member_from_uuid(member_me_uuid)?.nickname} (me)`}
+                    {`${get_member_from_uuid($current_user.member_uuid)?.nickname} (me)`}
                 </div>
             {/if}
             <div class="card-actions justify-end">
@@ -126,7 +125,7 @@
                     class="btn btn-primary"
                     onclick={() => {
                         edit = !edit;
-                        if(edit) {
+                        if (edit) {
                             transactionsProxy.synchonize(group.token);
                         }
                         clean();
@@ -136,7 +135,7 @@
 
                 <button
                     class="btn btn-primary"
-                    disabled={!member_me_uuid}
+                    disabled={!$current_user}
                     onclick={() => {
                         current_groupStore.set(group);
                         current_user.set($users[group.token]);
@@ -167,7 +166,7 @@
                         current_member={member}
                         {id}
                         error_message={error_members.get(member.uuid) ?? ""}
-                        {member_me}
+                        member_me={$current_user?.member_uuid ?? ""}
                         onDelete={() => {
                             members_to_delete.push(member);
                             modified_members.splice(id, 1);
@@ -184,7 +183,6 @@
                             }
                         }}
                         onMESelect={() => {
-                            member_me_uuid = member.uuid;
                             userProxy.set_user_group(group.token, member.uuid);
                         }}
                     ></GroupViewMemberItem>
@@ -195,7 +193,7 @@
                         current_member={member}
                         {id}
                         error_message={error_members.get(member.uuid) ?? ""}
-                        {member_me}
+                        member_me={$current_user?.member_uuid ?? ""}
                         onDelete={() => {
                             members_to_add.splice(id, 1);
                         }}
@@ -211,7 +209,6 @@
                             }
                         }}
                         onMESelect={() => {
-                            member_me_uuid = member.uuid;
                             userProxy.set_user_group(group.token, member.uuid);
                         }}
                     ></GroupViewMemberItem>
@@ -237,6 +234,7 @@
                         await groupMembersProxy.add_local_members(
                             group.token,
                             members_to_add,
+                            STATUS.TO_CREATE
                         );
                         await groupMembersProxy.rename_local_members(
                             modified_members,
@@ -245,7 +243,7 @@
                             group.token,
                         );
                         const member = members.find((value) => {
-                            value.uuid == member_me_uuid;
+                            value.uuid == $current_user?.member_uuid;
                         });
                         if (member) {
                             userProxy.set_user_group(group.token, member.uuid);
