@@ -8,10 +8,11 @@ import { getUTC } from '$lib/UTCDate';
 
 
 export const group_transactions: Writable<Record<string, Transaction[]>> = writable({});
+export const current_transactions: Writable<Transaction[]> = writable([]);
 
 export class TransactionsProxy {
 
-    async _get_local_debts(transaction_uuid: string): Promise<Debt[]> {
+    private async _get_local_debts(transaction_uuid: string): Promise<Debt[]> {
         const debts_db = await db.debt.where("transaction_uuid").equals(transaction_uuid).toArray()
         const result: Debt[] = [];
 
@@ -21,7 +22,7 @@ export class TransactionsProxy {
         return result;
     }
 
-    async get_local_transactions(group_uuid: string): Promise<Transaction[]> {
+    private async get_local_transactions(group_uuid: string): Promise<Transaction[]> {
         const tr = await this._get_local_transactionsDB(group_uuid)
         const result: Transaction[] = [];
         for (const t of tr) {
@@ -30,12 +31,12 @@ export class TransactionsProxy {
         return result;
     }
 
-    async _get_local_transactionsDB(group_uuid: string): Promise<Transaction_DB[]> {
+    private async _get_local_transactionsDB(group_uuid: string): Promise<Transaction_DB[]> {
         const tr = (await db.transaction.where("group_uuid").equals(group_uuid).toArray());
         return tr;
     }
 
-    async _add_local_debts(transaction_uuid: string, debts: Debt[]) {
+    private async _add_local_debts(transaction_uuid: string, debts: Debt[]) {
         for (const debt of debts) {
             await db.debt.add(this._convert_debt_debtDB(transaction_uuid, debt))
         }
@@ -109,19 +110,19 @@ export class TransactionsProxy {
         })
     }
 
-    async _reset_status(in_group_token: string) {
+    private async _reset_status(in_group_token: string) {
         await db.transaction.where("group_uuid").equals(in_group_token)
             .and((member) => { return member.status === STATUS.TO_CREATE })
             .modify({ status: STATUS.NOTHING })
     }
 
-    async _delete_marked_delete(in_group_token: string) {
+    private async _delete_marked_delete(in_group_token: string) {
         await db.transaction.where("group_uuid").equals(in_group_token)
             .and((member) => { return member.status === STATUS.TO_DELETE })
             .delete()
     }
 
-    async _convert_debtDB_debt(debt: Debt_DB): Promise<Debt> {
+    private async _convert_debtDB_debt(debt: Debt_DB): Promise<Debt> {
         const member = await groupMembersProxy.get_local_member(debt.member_uuid);
         return {
             amount: debt.amount,
@@ -129,7 +130,7 @@ export class TransactionsProxy {
         } as Debt
     }
 
-    _convert_debt_debtDB(transaction_uuid: string, debt: Debt): Debt_DB {
+    private _convert_debt_debtDB(transaction_uuid: string, debt: Debt): Debt_DB {
         return {
             amount: debt.amount,
             member_uuid: debt.member.uuid,
@@ -137,7 +138,7 @@ export class TransactionsProxy {
         } as Debt_DB
     }
 
-    _convert_transaction_transactionDB(group_uuid: string, tr: Transaction, status: STATUS): Transaction_DB {
+    private _convert_transaction_transactionDB(group_uuid: string, tr: Transaction, status: STATUS): Transaction_DB {
         return {
             amount: tr.amount,
             created_at: tr.created_at,
@@ -152,9 +153,9 @@ export class TransactionsProxy {
         } as Transaction_DB
     }
 
-    async _convert_transactionDB_transaction(tr: Transaction_DB): Promise<Transaction> {
+    private async _convert_transactionDB_transaction(tr: Transaction_DB): Promise<Transaction> {
         const member = await groupMembersProxy.get_local_member(tr.paid_by);
-        const debts: Debt[] = [] as Debt[]
+        const debts: Debt[] = await this._get_local_debts(tr.uuid);
         return {
             uuid: tr.uuid,
             amount: tr.amount,
@@ -168,7 +169,7 @@ export class TransactionsProxy {
         } as Transaction
     }
 
-    async _get_remote_transactions(tokenID: string): Promise<Transaction[]> {
+    private async _get_remote_transactions(tokenID: string): Promise<Transaction[]> {
         try {
             const res = await fetch(`http://${getBackendURL()}/groups/${tokenID}/transactions`, {
                 method: "GET",
@@ -199,7 +200,7 @@ export class TransactionsProxy {
             new Date(a.created_at).getTime())
     }
 
-    async _update_remote_transaction(tokenID: string, inTransaction: Transaction) {
+    private async _update_remote_transaction(tokenID: string, inTransaction: Transaction) {
         try {
             const url = `http://${getBackendURL()}/groups/${tokenID}/transactions`
 
@@ -222,7 +223,7 @@ export class TransactionsProxy {
         }
     }
 
-    async _delete_remote_transaction(tokenID: string, inTransaction: Transaction) {
+    private async _delete_remote_transaction(tokenID: string, inTransaction: Transaction) {
         try {
             const res = await fetch(`http://${getBackendURL()}/groups/${tokenID}/transactions}`, {
                 method: "DELETE",
@@ -246,3 +247,4 @@ export class TransactionsProxy {
 
 }
 
+export const transactionsProxy = new TransactionsProxy();

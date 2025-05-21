@@ -147,7 +147,7 @@ export class GroupMemberProxy {
 
     private async _fetch_local_members(in_group_token: string): Promise<GroupMember_DB[]> {
         const list_local_members: GroupMember_DB[] = await db.group_members.where("group_uuid").equals(in_group_token).toArray();
-       return list_local_members;
+        return list_local_members;
     }
 
     async synchro_group_members(in_group_token: string) {
@@ -156,21 +156,18 @@ export class GroupMemberProxy {
         const to_delete_members = [];
 
         const map: Map<string, GroupMember_DB> = new Map();
-        for (const member of original_members)
-        {
+        for (const member of original_members) {
             map.set(member.uuid, member);
-            if(member.status  == STATUS.TO_CREATE) {
+            if (member.status == STATUS.TO_CREATE) {
                 to_send_members.push(this._convert_memberDB_member(member))
             }
-            else if(member.status === STATUS.TO_DELETE) {
+            else if (member.status === STATUS.TO_DELETE) {
                 to_delete_members.push(this._convert_memberDB_member(member))
             }
         }
         const remote_members = await this._get_remote_GroupMembers(in_group_token);
-        for (const member of remote_members)
-        {
-            if(map.has(member.uuid))
-            {
+        for (const member of remote_members) {
+            if (map.has(member.uuid)) {
                 to_send_members.push(member);
             }
             map.set(member.uuid, this._convert_member_memberDB(in_group_token, member, STATUS.NOTHING));
@@ -185,21 +182,21 @@ export class GroupMemberProxy {
     }
 
     async get_group_members(in_group_token: string): Promise<GroupMember[]> {
-        const new_members = await (await this._fetch_local_members(in_group_token)).map((value)=>{return this._convert_memberDB_member(value)})
+        const new_members = await (await this._fetch_local_members(in_group_token)).map((value) => { return this._convert_memberDB_member(value) })
         this.SetStoreGroupMembers(new_members);
         return new_members;
     }
 
-    async _reset_status(in_group_token : string) {
+    async _reset_status(in_group_token: string) {
         await db.group_members.where("group_uuid").equals(in_group_token)
-        .and((member)=>{return member.status === STATUS.TO_CREATE})
-        .modify({status:STATUS.NOTHING})
+            .and((member) => { return member.status === STATUS.TO_CREATE })
+            .modify({ status: STATUS.NOTHING })
     }
 
-    async _delete_marked_delete(in_group_token : string) {
+    async _delete_marked_delete(in_group_token: string) {
         await db.group_members.where("group_uuid").equals(in_group_token)
-        .and((member)=>{return member.status === STATUS.TO_DELETE})
-        .delete()
+            .and((member) => { return member.status === STATUS.TO_DELETE })
+            .delete()
     }
 }
 

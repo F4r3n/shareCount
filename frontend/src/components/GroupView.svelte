@@ -9,6 +9,7 @@
     import GroupViewMemberItem from "./GroupView_MemberItem.svelte";
     import { current_groupStore } from "../stores/group";
     import { current_user, userProxy, users } from "../stores/groupUsernames";
+    import { transactionsProxy } from "../stores/group_transactions";
 
     let {
         group,
@@ -125,6 +126,9 @@
                     class="btn btn-primary"
                     onclick={() => {
                         edit = !edit;
+                        if(edit) {
+                            transactionsProxy.synchonize(group.token);
+                        }
                         clean();
                     }}
                     >Edit
