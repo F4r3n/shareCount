@@ -1,47 +1,40 @@
 // src/lib/stores/groupUsernames.ts
 import { writable, type Writable } from 'svelte/store';
-import { browser } from '$app/environment';
-import type { GroupMember } from '$lib/types';
+import type { User } from '$lib/types';
+import { db } from '../db/db';
 
-const LOCAL_KEY = 'groupUsernames';
-type GroupUsernames = Record<string, GroupMember>;
+export const users: Writable<Record<string, User>> = writable({});
+export const current_user : Writable<User | null> = writable(null)
 
-function getInitialUsernames(): GroupUsernames {
-    if (!browser) return {};
+export class UserProxy {
 
-    try {
-        const stored = localStorage.getItem(LOCAL_KEY);
-        if (!stored) return {};
+    async set_user_group(group_uuid: string, member_uuid: string) {
+        if (await this.get_user_group(group_uuid)) {
+            await db.user_data.where("group_uuid").equals(group_uuid).modify({ member_uuid: member_uuid });
+        }
+        else {
+            db.user_data.add({ group_uuid: group_uuid, member_uuid: member_uuid });
+        }
+        await this.synchronize_store(group_uuid);
+    }
 
-        const parsed = JSON.parse(stored);
-        return isValidGroupUsernames(parsed) ? parsed : {};
-    } catch {
-        return {};
+    async synchronize_store(group_uuid: string) {
+        const data = await this.get_user_group(group_uuid);
+        if (data) {
+            users.update((values: Record<string, User>) => {
+                values[group_uuid] = { group_uuid: data.group_uuid, member_uuid: data.member_uuid };
+                return values;
+            })
+        }
+    }
+
+    async get_user_group(group_uuid: string): Promise<User | null> {
+        const data = (await db.user_data.where("group_uuid").equals(group_uuid).toArray()).at(0);
+        if (data) {
+            return { group_uuid: data.group_uuid, member_uuid: data.member_uuid } as User
+        }
+        return null;
     }
 }
 
-function isValidGroupUsernames(value: unknown): value is GroupUsernames {
-    return typeof value === 'object' && value !== null &&
-        Object.values(value).every(v => typeof v === 'string');
-}
-
-export const groupUsernames: Writable<GroupUsernames> = writable(getInitialUsernames());
-
-// Persist changes to localStorage
-if (browser) {
-    groupUsernames.subscribe((value) => {
-        localStorage.setItem(LOCAL_KEY, JSON.stringify(value));
-    });
-}
-
-// Helper functions
-export function getGroupMember(store: GroupUsernames, groupId: string): GroupMember {
-    return store[groupId] || {nickname:""};
-}
-
-export function setGroupMember(groupId: string, member: GroupMember): void {
-    groupUsernames.update(store => ({
-        ...store,
-        [groupId]: member
-    }));
-}
+export const userProxy = new UserProxy();

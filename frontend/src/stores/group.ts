@@ -39,7 +39,7 @@ export class GroupsProxy {
     }
 
     async create_local_group() {
-        let new_group = {
+        const new_group = {
             created_at: getUTC(),
             currency_id: "USD",
             name: "NEW",

@@ -135,7 +135,7 @@ export class GroupMemberProxy {
         let original_members = []
         try {
             original_members = await this._fetch_local_members(in_group_token);
-            let members_to_delete = await this._fetch_local_members_to_delete(in_group_token)
+            const members_to_delete = await this._fetch_local_members_to_delete(in_group_token)
             await this._delete_remote_GroupMembers(in_group_token, members_to_delete);
             for (const member of members_to_delete) {
                 db.group_members.delete(member.uuid)

@@ -1,16 +1,15 @@
 <script lang="ts">
     import { onMount } from "svelte";
     import { goto } from "$app/navigation";
-    import type { Group, GroupMember } from "$lib/types";
-    import { groupUsernames, setGroupMember } from "../stores/groupUsernames";
+    import type { Group, GroupMember, User } from "$lib/types";
     import { slide } from "svelte/transition";
     import { MENU, menus } from "$lib/menus";
     import { SvelteMap } from "svelte/reactivity";
-    import {
-        groupMembersProxy
-    } from "../stores/group_members";
+    import { groupMembersProxy } from "../stores/group_members";
     import GroupViewMemberItem from "./GroupView_MemberItem.svelte";
     import { current_groupStore } from "../stores/group";
+    import { current_user, userProxy, users } from "../stores/groupUsernames";
+    import { getUTC } from "$lib/UTCDate";
     let {
         group,
     }: {
@@ -20,20 +19,19 @@
     let modified_members: GroupMember[] = $state([]);
     let original_members: GroupMember[];
     let error_members: SvelteMap<string, string> = new SvelteMap();
-    let member_me = $state({ nickname: "" } as GroupMember);
+    let member_me_uuid = $state("");
+    let member_me = $derived(get_member_from_uuid(member_me_uuid));
     onMount(async () => {
-        original_members = await groupMembersProxy.synchro_group_members(group.token);
+        userProxy.synchronize_store(group.token);
+        original_members = await groupMembersProxy.synchro_group_members(
+            group.token,
+        );
 
         modified_members = structuredClone(original_members);
-        member_me = $groupUsernames[group.token];
-        if (!member_me) {
-            member_me = {
-                nickname: "",
-                uuid: "",
-                modified_at: new Date().toISOString().replace("Z", ""),
-            };
+        if ($users[group.token]) {
+            member_me_uuid = $users[group.token].member_uuid;
         }
-        edit = !member_me.nickname;
+        edit = !member_me_uuid;
     });
     let members_to_delete: GroupMember[] = [];
     let members_to_add: GroupMember[] = $state([]);
@@ -97,6 +95,18 @@
         }
         return set.size === inMembersModified.length + inMembersToAdd.length;
     }
+
+    function get_member_from_uuid(uuid: string): GroupMember | null {
+        let member = members_to_add.find((value) => {
+            return value.uuid === uuid;
+        });
+        if (member) return member;
+        member = modified_members.find((value) => {
+            return value.uuid === uuid;
+        });
+        if (member) return member;
+        return null;
+    }
 </script>
 
 <main
@@ -105,8 +115,10 @@
     <div class="card bg-base-100 w-sm sm:w-md shadow-sm">
         <div class="card-body">
             <h1 class="card-title">{group.name}</h1>
-            {#if member_me && member_me.nickname != ""}
-                <div class="card-body">{`${member_me.nickname} (me)`}</div>
+            {#if member_me_uuid}
+                <div class="card-body">
+                    {`${get_member_from_uuid(member_me_uuid)?.nickname} (me)`}
+                </div>
             {/if}
             <div class="card-actions justify-end">
                 <button
@@ -120,9 +132,10 @@
 
                 <button
                     class="btn btn-primary"
-                    disabled={!member_me.nickname}
+                    disabled={!member_me_uuid}
                     onclick={() => {
                         current_groupStore.set(group);
+                        current_user.set($users[group.token])
                         goto(`${menus[MENU.EXPENSES].path}?id=${group.token}`);
                     }}
                     >Go
@@ -167,8 +180,8 @@
                             }
                         }}
                         onMESelect={() => {
-                            member_me = member;
-                            setGroupMember(group.token, member);
+                            member_me_uuid = member.uuid;
+                            userProxy.set_user_group(group.token, member.uuid);
                         }}
                     ></GroupViewMemberItem>
                 {/each}
@@ -194,8 +207,8 @@
                             }
                         }}
                         onMESelect={() => {
-                            member_me = member;
-                            setGroupMember(group.token, member);
+                            member_me_uuid = member.uuid;
+                            userProxy.set_user_group(group.token, member.uuid);
                         }}
                     ></GroupViewMemberItem>
                 {/each}
@@ -214,21 +227,30 @@
                 onclick={async () => {
                     if (check_validity) {
                         edit = false;
-                        await groupMembersProxy.delete_local_members(members_to_delete);
-                        await groupMembersProxy.add_local_members(group.token, members_to_add);
-                        await groupMembersProxy.rename_local_members(modified_members);
-                        let members = await groupMembersProxy.get_local_members(group.token);
-                        const member = members.find((value) => {
-                            value.nickname == member_me.nickname;
-                        });
-                        if (member) {
-                            member_me = member;
-                            setGroupMember(group.token, member_me);
-                        }
-
-                        original_members = await groupMembersProxy.synchro_group_members(
+                        await groupMembersProxy.delete_local_members(
+                            members_to_delete,
+                        );
+                        await groupMembersProxy.add_local_members(
+                            group.token,
+                            members_to_add,
+                        );
+                        await groupMembersProxy.rename_local_members(
+                            modified_members,
+                        );
+                        let members = await groupMembersProxy.get_local_members(
                             group.token,
                         );
+                        const member = members.find((value) => {
+                            value.uuid == member_me_uuid;
+                        });
+                        if (member) {
+                            userProxy.set_user_group(group.token, member.uuid);
+                        }
+
+                        original_members =
+                            await groupMembersProxy.synchro_group_members(
+                                group.token,
+                            );
 
                         clean();
                     }
