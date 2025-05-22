@@ -8,7 +8,22 @@ interface User {
 }
 
 export const users: Writable<Record<string, User>> = writable({});
-export const current_user: Writable<User | null> = writable(null)
+
+const userStore_name = "current_user"
+function getInitialUserStore(): User | null {
+    const string = localStorage.getItem(userStore_name);
+    if (string)
+        return JSON.parse(string);
+    return null;
+}
+
+export const current_user: Writable<User | null> = writable(getInitialUserStore());
+
+current_user.subscribe((value) => {
+    localStorage.setItem(userStore_name, JSON.stringify(current_user))
+})
+
+
 
 export class UserProxy {
 

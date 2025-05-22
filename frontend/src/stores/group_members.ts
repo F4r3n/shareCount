@@ -105,7 +105,7 @@ export class GroupMemberProxy {
         }
     }
 
-    async add_local_members(uuid: string, group_members: GroupMember[], status : STATUS) {
+    async add_local_members(uuid: string, group_members: GroupMember[], status: STATUS) {
         for (const member of group_members) {
             await db.group_members.add(
                 this._convert_member_memberDB(uuid, member, status));
@@ -156,6 +156,12 @@ export class GroupMemberProxy {
     private async _modify_local_member(in_group_token: string, member: GroupMember) {
         await db.group_members.where("uuid").equals(member.uuid)
             .modify(await this._convert_member_memberDB(in_group_token, member, STATUS.NOTHING))
+    }
+
+    async local_synchronize(in_group_token: string): Promise<GroupMember[]> {
+        const members = await this.get_group_members(in_group_token)
+        this.SetStoreGroupMembers(members);
+        return members;
     }
 
     async synchro_group_members(in_group_token: string) {

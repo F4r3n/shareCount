@@ -278,7 +278,7 @@ async fn manage_transactions() -> Result<(), anyhow::Error> {
         .post(format!("/groups/{}/transactions", token).as_str())
         .json(&serde_json::to_value(&new_transaction)?)
         .await;
-    assert_eq!(response.status_code(), 404);
+    assert_eq!(response.status_code(), 200);
 
     let transaction = get_transaction(&token, &new_transaction.get_uuid(), &server).await?;
     assert_eq!(transaction.description.as_str(), "AAAA");
@@ -306,7 +306,6 @@ async fn manage_transactions() -> Result<(), anyhow::Error> {
         .await;
     assert_eq!(response.status_code(), 200);
     let _transaction = get_transaction(&token, &new_transaction.get_uuid(), &server).await?;
-
 
     let new_datetime = new_datetime.unwrap().checked_add_days(chrono::Days::new(2));
     new_transaction.set_time(&new_datetime.unwrap_or_default());

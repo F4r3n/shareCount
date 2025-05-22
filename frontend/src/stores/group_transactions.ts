@@ -42,7 +42,7 @@ export class TransactionsProxy {
         }
     }
 
-    async add_local_transaction(group_uuid: string, inTransaction: Transaction, status : STATUS) {
+    async add_local_transaction(group_uuid: string, inTransaction: Transaction, status: STATUS) {
         const transaction_db = this._convert_transaction_transactionDB(group_uuid, inTransaction, status);
         this._add_local_debts(transaction_db.uuid, inTransaction.debtors);
         await db.transactions.add(transaction_db);
@@ -69,7 +69,20 @@ export class TransactionsProxy {
         await db.transactions.where("uuid").equals(transaction.uuid).modify(new_tr_db);
     }
 
-    async synchonize(group_uuid: string) {
+    async local_synchronize(group_uuid: string) {
+        const original_transactions = await this._get_local_transactionsDB(group_uuid);
+        const transactions: Transaction[] = [];
+        for (const tr of original_transactions) {
+            transactions.push(await this._convert_transactionDB_transaction(tr))
+        }
+        group_transactions.update((values: Record<string, Transaction[]>) => {
+            values[group_uuid] = transactions;
+            return values;
+        })
+        return transactions;
+    }
+
+    async synchronize(group_uuid: string) {
 
         const original_transactions = await this._get_local_transactionsDB(group_uuid);
         const to_send_transactions: Transaction[] = [];

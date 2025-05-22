@@ -3,7 +3,9 @@
     import type { Transaction, GroupMember } from "$lib/types";
     import TransactionsView from "$lib/../components/TransactionsView.svelte";
     import { current_groupStore } from "../../stores/group";
-
+    import { current_user } from "../../stores/groupUsernames";
+    import { groupMembersProxy } from "../../stores/group_members";
+    import { transactionsProxy } from "../../stores/group_transactions";
 
     let transactions: Transaction[] = $state([]);
     let loading = $state(true);
@@ -11,6 +13,10 @@
     let group_members: GroupMember[] = $state([]);
 
     onMount(async () => {
+        if ($current_user) {
+            await groupMembersProxy.local_synchronize($current_user.group_uuid);
+            await transactionsProxy.local_synchronize($current_user.group_uuid);
+        }
 
         loading = false;
     });

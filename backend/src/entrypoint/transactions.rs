@@ -385,45 +385,46 @@ pub fn modify_create_transaction(
         group_id,
     };
     use diesel::query_dsl::methods::FilterDsl;
-    let transaction_id = diesel::insert_into(transactions::table)
+    if let Ok(transaction_id) = diesel::insert_into(transactions::table)
         .values(&changeset)
         .on_conflict(transactions::uuid)
         .do_update()
         .set(&changeset)
         .filter(transactions::modified_at.lt(excluded(transactions::modified_at)))
         .returning(transactions::id)
-        .get_result::<i32>(conn)?;
+        .get_result::<i32>(conn)
+    {
+        let debts = transaction
+            .debtors
+            .into_iter()
+            .map(|debt| {
+                let id: Option<i32> = if debt.id.is_some_and(|v| v > 0) {
+                    debt.id
+                } else {
+                    None
+                };
+                let member_id = get_member_id(group_id, debt.member.uuid, conn);
 
-    let debts = transaction
-        .debtors
-        .into_iter()
-        .map(|debt| {
-            let id: Option<i32> = if debt.id.is_some_and(|v| v > 0) {
-                debt.id
-            } else {
-                None
-            };
-            let member_id = get_member_id(group_id, debt.member.uuid, conn);
+                TransactionDebtUpsert {
+                    transaction_id,
+                    group_member_id: member_id.unwrap_or(0),
+                    amount: debt.amount,
+                    // Include ID only for updates
+                    id, //can be optional,
+                }
+            })
+            .collect::<Vec<_>>();
 
-            TransactionDebtUpsert {
-                transaction_id,
-                group_member_id: member_id.unwrap_or(0),
-                amount: debt.amount,
-                // Include ID only for updates
-                id, //can be optional,
-            }
-        })
-        .collect::<Vec<_>>();
-
-    diesel::insert_into(transaction_debts::table)
-        .values(&debts)
-        .on_conflict((
-            transaction_debts::transaction_id,
-            transaction_debts::group_member_id,
-        ))
-        .do_update()
-        .set(transaction_debts::amount.eq(diesel::upsert::excluded(transaction_debts::amount)))
-        .execute(conn)?;
+        diesel::insert_into(transaction_debts::table)
+            .values(&debts)
+            .on_conflict((
+                transaction_debts::transaction_id,
+                transaction_debts::group_member_id,
+            ))
+            .do_update()
+            .set(transaction_debts::amount.eq(diesel::upsert::excluded(transaction_debts::amount)))
+            .execute(conn)?;
+    }
 
     Ok(())
 }

@@ -1,15 +1,20 @@
 <script lang="ts">
     import { onMount } from "svelte";
- 
-    import Balance from "../../components/Balance.svelte";
-    import { current_membersStore } from "../../stores/group_members";
 
+    import Balance from "../../components/Balance.svelte";
+    import { current_membersStore, groupMembersProxy } from "../../stores/group_members";
+    import { current_user } from "../../stores/groupUsernames";
+    import { transactionsProxy } from "../../stores/group_transactions";
 
     let loading = $state(true);
     let current_error: string = $state("");
 
     onMount(async () => {
-        
+        if ($current_user) {
+            await groupMembersProxy.local_synchronize($current_user.group_uuid);
+            await transactionsProxy.local_synchronize($current_user.group_uuid);
+        }
+
         loading = false;
     });
 </script>

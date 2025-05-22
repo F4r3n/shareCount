@@ -5,9 +5,29 @@ import { getUTC } from '$lib/UTCDate';
 import { v4 as uuidv4 } from 'uuid';
 import type { Group } from "$lib/types";
 import { getBackendURL } from '$lib/shareCountAPI';
+import { browser } from '$app/environment';
 
 export const groupsStore: Writable<Group[]> = writable([]);
-export const current_groupStore: Writable<Group | null> = writable(null);
+
+const groupStore_name = "current_groupStore"
+function getInitialGroupStore(): Group | null {
+    if (!browser) {
+        return null;
+    }
+    const string = localStorage.getItem(groupStore_name);
+    if (string)
+        return JSON.parse(string);
+    return null;
+}
+export const current_groupStore: Writable<Group | null> = writable(getInitialGroupStore());
+
+if (browser) {
+    current_groupStore.subscribe((value) => {
+        localStorage.setItem(groupStore_name, JSON.stringify(current_groupStore))
+    })
+}
+
+
 
 export class GroupsProxy {
     SetStoreGroups(in_groups: Group[]) {
@@ -22,12 +42,12 @@ export class GroupsProxy {
         return groups;
     }
 
-    async add_local_group(inGroup: Group) {
+    private async add_local_group(inGroup: Group, status: STATUS) {
         await db.groups.add({
             created_at: inGroup.created_at,
             currency_id: inGroup.currency_id,
             name: inGroup.name,
-            status: STATUS.TO_CREATE,
+            status: status,
             uuid: inGroup.token,
             modified_at: inGroup.modified_at
         } as Group_DB)
@@ -62,9 +82,16 @@ export class GroupsProxy {
                 name: inGroup.name,
                 modified_at: getUTC()
             });
+        groupsStore.update((values: Group[]) => {
+            const index = values.findIndex((gr) => { return gr.token == inGroup.token; })
+            if (index >= 0) {
+                values[index] = inGroup;
+            }
+            return values;
+        })
     }
 
-    async getGroup(tokenID: string): Promise<Group> {
+    private async _getGroup(tokenID: string): Promise<Group> {
         try {
             const res = await fetch(`http://${getBackendURL()}/groups/${tokenID}`, {
                 method: "GET",
@@ -157,6 +184,17 @@ export class GroupsProxy {
         db.groups.where("uuid").equals(uuid).modify({ status: STATUS.TO_DELETE, modified_at: getUTC() });
     }
 
+    async add_group_from_id(uuid: string) {
+        if (uuid != "") {
+            const new_group = await this._getGroup(uuid);
+            this.add_local_group(new_group, STATUS.NOTHING)
+            groupsStore.update((values: Group[]) => {
+                values.push(new_group);
+                return values;
+            })
+        }
+    }
+
     async synchronize() {
 
         try {
@@ -175,7 +213,7 @@ export class GroupsProxy {
 
         for (const group of await db.groups.toArray()) {
             try {
-                const new_group = await this.getGroup(group.uuid);
+                const new_group = await this._getGroup(group.uuid);
                 db.groups.where("uuid").equals(new_group.token).modify(this._convert_Group_to_DB(new_group));
             } catch (e) {
 

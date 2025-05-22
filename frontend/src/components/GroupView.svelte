@@ -7,7 +7,7 @@
     import { SvelteMap } from "svelte/reactivity";
     import { groupMembersProxy } from "../stores/group_members";
     import GroupViewMemberItem from "./GroupView_MemberItem.svelte";
-    import { current_groupStore } from "../stores/group";
+    import { current_groupStore, groupsProxy } from "../stores/group";
     import { current_user, userProxy, users } from "../stores/groupUsernames";
     import { transactionsProxy } from "../stores/group_transactions";
     import { STATUS } from "../db/db";
@@ -21,14 +21,14 @@
     let modified_members: GroupMember[] = $state([]);
     let original_members: GroupMember[];
     let error_members: SvelteMap<string, string> = new SvelteMap();
-
+    let group_modified = $state(structuredClone($state.snapshot(group)))
     onMount(async () => {
         await userProxy.synchronize_store(group.token);
         await groupMembersProxy.synchro_group_members(group.token);
         original_members = await groupMembersProxy.get_group_members(
             group.token,
         );
-        await transactionsProxy.synchonize(group.token);
+        await transactionsProxy.synchronize(group.token);
         modified_members = structuredClone(original_members);
         
         edit = !$current_user;
@@ -114,7 +114,7 @@
 >
     <div class="card bg-base-100 w-sm sm:w-md shadow-sm">
         <div class="card-body">
-            <h1 class="card-title">{group.name}</h1>
+            <h1 class="card-title">{group_modified.name}</h1>
             {#if $current_user}
                 <div class="card-body">
                     {`${get_member_from_uuid($current_user.member_uuid)?.nickname} (me)`}
@@ -126,7 +126,7 @@
                     onclick={() => {
                         edit = !edit;
                         if (edit) {
-                            transactionsProxy.synchonize(group.token);
+                            transactionsProxy.synchronize(group.token);
                         }
                         clean();
                     }}
@@ -156,7 +156,10 @@
                 <input
                     class="input input-ghost"
                     type="text"
-                    bind:value={group.name}
+                    bind:value={group_modified.name}
+                    onchange={()=>{
+                          
+                    }}
                 />
             </fieldset>
             <fieldset class="fieldset">
@@ -228,6 +231,7 @@
                 onclick={async () => {
                     if (check_validity) {
                         edit = false;
+                        groupsProxy.modify_local_group(group_modified);
                         await groupMembersProxy.delete_local_members(
                             members_to_delete,
                         );

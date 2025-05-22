@@ -1,21 +1,28 @@
 <script lang="ts">
     import { onMount } from "svelte";
     import GroupView from "../components/GroupView.svelte";
-    import { current_groupStore, groupsProxy, groupsStore } from "../stores/group";
+    import {
+        current_groupStore,
+        groupsProxy,
+        groupsStore,
+    } from "../stores/group";
     import type { Group } from "$lib/types";
 
     let current_error: string = $state("");
-    
+
     onMount(async () => {
-        current_groupStore.set(null)
+        current_groupStore.set(null);
         const params = new URLSearchParams(window.location.search);
-		const token_id = params.get("id") ?? "";
+        const token_id = params.get("id") ?? "";
         await groupsProxy.synchronize();
-        if(!$groupsStore.some((gr : Group)=>{
-            return gr.token == token_id;
-        }))
-        {
-            groupsProxy.add_local_group(await groupsProxy.getGroup(token_id));
+        if (
+            !$groupsStore.some((gr: Group) => {
+                return gr.token == token_id;
+            })
+        ) {
+            if (token_id !== "") {
+                groupsProxy.add_group_from_id(token_id);
+            }
         }
     });
 </script>
@@ -40,13 +47,11 @@
 {/if}
 
 <main class="w-full mx-auto flex flex-col items-center">
-
     <div class="mt-4">
-    {#each $groupsStore as group}
-       <GroupView {group}></GroupView>
-    {/each}
+        {#each $groupsStore as group}
+            <GroupView {group}></GroupView>
+        {/each}
     </div>
-
 </main>
 
 <style>
@@ -55,5 +60,4 @@
         width: 100%;
         justify-content: center;
     }
-
 </style>
