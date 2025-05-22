@@ -58,15 +58,9 @@ export class GroupsProxy {
         })
     }
 
-    async create_local_group() {
-        const new_group = {
-            created_at: getUTC(),
-            currency_id: "USD",
-            name: "NEW",
-            status: STATUS.TO_CREATE,
-            uuid: uuidv4(),
-            modified_at: getUTC()
-        } as Group_DB
+    async add_new_local_group(inGroup: Group) {
+        const new_group = this._convert_Group_to_DB(inGroup);
+        new_group.status = STATUS.TO_CREATE;
         await db.groups.add(new_group)
 
         groupsStore.update((values: Group[]) => {
@@ -181,7 +175,10 @@ export class GroupsProxy {
     }
 
     async delete_local_group(uuid: string) {
-        db.groups.where("uuid").equals(uuid).modify({ status: STATUS.TO_DELETE, modified_at: getUTC() });
+        await db.groups.where("uuid").equals(uuid).and((gr) => { return gr.status == STATUS.TO_CREATE }).delete();
+        await db.groups.where("uuid").equals(uuid).modify({ status: STATUS.TO_DELETE, modified_at: getUTC() });
+        this.SetStoreGroups(await this.get_local_groups());
+
     }
 
     async add_group_from_id(uuid: string) {
@@ -214,7 +211,7 @@ export class GroupsProxy {
         for (const group of await db.groups.toArray()) {
             try {
                 const new_group = await this._getGroup(group.uuid);
-                db.groups.where("uuid").equals(new_group.token).modify(this._convert_Group_to_DB(new_group));
+                await db.groups.where("uuid").equals(new_group.token).modify(this._convert_Group_to_DB(new_group));
             } catch (e) {
 
             }

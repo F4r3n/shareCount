@@ -1,16 +1,15 @@
 <script lang="ts">
     import type { ModalButton } from "./ModalTypes";
-    let {
-        title,
-        yesButton,
-        noButton,
-    }: {
-        title : string
-        yesButton: ModalButton;
-        noButton: ModalButton;
-    } = $props();
-    let modal : HTMLDialogElement | null = $state(null);
-    export function open() {
+
+    let modal: HTMLDialogElement | null = $state(null);
+    let title = $state("");
+    let yesButton: ModalButton | null = $state(null);
+    let noButton: ModalButton | null = $state(null);
+
+    export function open(inTitle : string, yes : ModalButton, no : ModalButton) {
+        yesButton = yes;
+        noButton = no;
+        title = inTitle
         modal?.showModal();
     }
 
@@ -32,13 +31,17 @@
             {title}
         </h3>
         <div class="modal-action flex flex-col sm:flex-row gap-2">
-            <button
-                class="btn btn-error w-full sm:w-auto"
-                type="button"
-                onclick={yesButton.callback}
-            >
-                {yesButton.text}
-            </button>
+            {#if yesButton}
+                <button
+                    class="btn btn-error w-full sm:w-auto"
+                    type="button"
+                    onclick={yesButton.callback}
+                >
+                    {yesButton.text}
+                </button>
+            {/if}
+
+            {#if noButton}
             <form method="dialog" class="w-full sm:w-auto">
                 <button
                     class="btn w-full sm:w-auto"
@@ -46,6 +49,7 @@
                     onclick={noButton.callback}>{noButton.text}</button
                 >
             </form>
+            {/if}
         </div>
     </div>
 </dialog>

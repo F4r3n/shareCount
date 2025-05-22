@@ -7,6 +7,8 @@
         groupsStore,
     } from "../stores/group";
     import type { Group } from "$lib/types";
+    import { getUTC } from "$lib/UTCDate";
+    import { v4 as uuidv4 } from "uuid";
 
     let current_error: string = $state("");
 
@@ -24,6 +26,14 @@
                 groupsProxy.add_group_from_id(token_id);
             }
         }
+    });
+    let create = $state(false);
+    let new_group: Group = $state({
+        token: uuidv4(),
+        created_at: getUTC(),
+        currency_id: "USD",
+        modified_at: getUTC(),
+        name: "New Group",
     });
 </script>
 
@@ -47,9 +57,21 @@
 {/if}
 
 <main class="w-full mx-auto flex flex-col items-center">
+    <button
+        disabled={create}
+        onclick={() => {
+            create = true;
+        }}
+        class="btn btn-accent mt-5">Add Group</button
+    >
+    {#if create}
+    <div class="mt-4">
+        <GroupView creating={true} group={new_group}  onDone={()=>{create = false}}></GroupView>
+    </div>
+    {/if}
     <div class="mt-4">
         {#each $groupsStore as group}
-            <GroupView {group}></GroupView>
+            <GroupView creating={false} {group} onDone={()=>{}}></GroupView>
         {/each}
     </div>
 </main>

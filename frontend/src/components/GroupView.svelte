@@ -11,27 +11,38 @@
     import { current_user, userProxy, users } from "../stores/groupUsernames";
     import { transactionsProxy } from "../stores/group_transactions";
     import { STATUS } from "../db/db";
+    import Modal from "./Modal.svelte";
+    import { type ModalButton } from "./ModalTypes";
 
     let {
         group,
+        creating,
+        onDone,
     }: {
         group: Group;
+        creating: boolean;
+        onDone: () => void;
     } = $props();
     let edit = $state(false);
     let modified_members: GroupMember[] = $state([]);
     let original_members: GroupMember[];
     let error_members: SvelteMap<string, string> = new SvelteMap();
-    let group_modified = $state(structuredClone($state.snapshot(group)))
+    let group_modified = $state(structuredClone($state.snapshot(group)));
+    let modal: Modal | null = $state(null);
     onMount(async () => {
-        await userProxy.synchronize_store(group.token);
-        await groupMembersProxy.synchro_group_members(group.token);
-        original_members = await groupMembersProxy.get_group_members(
-            group.token,
-        );
-        await transactionsProxy.synchronize(group.token);
-        modified_members = structuredClone(original_members);
-        
-        edit = !$current_user;
+        if (!creating) {
+            await userProxy.synchronize_store(group.token);
+            await groupMembersProxy.synchro_group_members(group.token);
+            original_members = await groupMembersProxy.get_group_members(
+                group.token,
+            );
+            await transactionsProxy.synchronize(group.token);
+           clean();
+            edit = !$current_user;
+        } else {
+            edit = true;
+            members_to_add.push(create_unique_member());
+        }
     });
     let members_to_delete: GroupMember[] = [];
     let members_to_add: GroupMember[] = $state([]);
@@ -41,6 +52,7 @@
         members_to_add = [];
         members_to_delete = [];
     }
+
 
     function create_unique_member(): GroupMember {
         let member_number = 1;
@@ -121,28 +133,65 @@
                 </div>
             {/if}
             <div class="card-actions justify-end">
-                <button
-                    class="btn btn-primary"
-                    onclick={() => {
-                        edit = !edit;
-                        if (edit) {
-                            transactionsProxy.synchronize(group.token);
-                        }
-                        clean();
-                    }}
-                    >Edit
-                </button>
+                {#if creating}
+                    <button
+                        class="btn btn-error"
+                        onclick={() => {
+                            onDone();
+                            clean();
+                        }}
+                        >Cancel
+                    </button>
+                {:else}
+                    <button
+                        class="btn btn-error"
+                        onclick={() => {
+                            modal?.open(
+                                "Should I delete a a group",
+                                {
+                                    text: "Yes delete",
+                                    callback: () => {
+                                        groupsProxy.delete_local_group(
+                                            group.token,
+                                        );
+                                        clean();
+                                    },
+                                } as ModalButton,
+                                {
+                                    text: "No forget",
+                                    callback: () => {},
+                                } as ModalButton,
+                            );
+                        }}
+                        >Delete
+                    </button>
+                    <button
+                        class="btn btn-primary"
+                        onclick={() => {
+                            edit = !edit;
+                            if (edit) {
+                                groupMembersProxy.local_synchronize(
+                                    group.token,
+                                );
+                            }
+                            clean();
+                        }}
+                        >Edit
+                    </button>
 
-                <button
-                    class="btn btn-primary"
-                    disabled={!$current_user}
-                    onclick={() => {
-                        current_groupStore.set(group);
-                        current_user.set($users[group.token]);
-                        goto(`${menus[MENU.EXPENSES].path}?id=${group.token}`);
-                    }}
-                    >Go
-                </button>
+                    <button
+                        class="btn btn-primary"
+                        disabled={!$current_user}
+                        onclick={() => {
+                            current_groupStore.set(group);
+                            current_user.set($users[group.token]);
+                            goto(
+                                `${menus[MENU.EXPENSES].path}?id=${group.token}`,
+                            );
+                        }}
+                        >Go
+                    </button>
+                {/if}
             </div>
         </div>
     </div>
@@ -157,9 +206,7 @@
                     class="input input-ghost"
                     type="text"
                     bind:value={group_modified.name}
-                    onchange={()=>{
-                          
-                    }}
+                    onchange={() => {}}
                 />
             </fieldset>
             <fieldset class="fieldset">
@@ -231,32 +278,55 @@
                 onclick={async () => {
                     if (check_validity) {
                         edit = false;
-                        await userProxy.synchronize_store(group.token);
-                        groupsProxy.modify_local_group(group_modified);
-                        await groupMembersProxy.delete_local_members(
-                            members_to_delete,
-                        );
-                        await groupMembersProxy.add_local_members(
-                            group.token,
-                            members_to_add,
-                            STATUS.TO_CREATE
-                        );
-                        await groupMembersProxy.rename_local_members(
-                            modified_members,
-                        );
-                        let members = await groupMembersProxy.get_local_members(
-                            group.token,
-                        );
-                        const member = members.find((value) => {
-                            value.uuid == $current_user?.member_uuid;
-                        });
-                        if (member) {
-                            userProxy.set_user_group(group.token, member.uuid);
-                        }
+                        onDone();
+                        if (creating) {
+                            await groupsProxy.add_new_local_group(
+                                group_modified,
+                            );
+                            await groupMembersProxy.add_local_members(
+                                group.token,
+                                members_to_add,
+                                STATUS.TO_CREATE,
+                            );
+                            await groupsProxy.synchronize();
+                            await groupMembersProxy.synchro_group_members(
+                                group.token,
+                            );
+                        } else {
+                            console.log(members_to_add);
+                            await userProxy.synchronize_store(group.token);
+                            await groupsProxy.modify_local_group(
+                                group_modified,
+                            );
+                            await groupMembersProxy.delete_local_members(
+                                members_to_delete,
+                            );
+                            await groupMembersProxy.add_local_members(
+                                group.token,
+                                members_to_add,
+                                STATUS.TO_CREATE,
+                            );
+                            await groupMembersProxy.rename_local_members(
+                                modified_members,
+                            );
 
-                        await groupMembersProxy.synchro_group_members(
-                            group.token,
-                        );
+                            original_members =
+                                await groupMembersProxy.local_synchronize(
+                                    group.token,
+                                );
+                            const member = original_members.find((value) => {
+                                value.uuid == $current_user?.member_uuid;
+                            });
+                            if (member) {
+                                userProxy.set_user_group(
+                                    group.token,
+                                    member.uuid,
+                                );
+                            }
+                            try {
+                                await groupMembersProxy.synchro_group_members(group.token);
+                            } catch (e) {}
+                        }
 
                         clean();
                     }
@@ -266,6 +336,7 @@
         </div>
     {/if}
 </main>
+<Modal bind:this={modal}></Modal>
 
 <style>
 </style>

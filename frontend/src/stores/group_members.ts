@@ -171,15 +171,17 @@ export class GroupMemberProxy {
 
         const map: Map<string, GroupMember_DB> = new Map();
         for (const member of original_members) {
-            map.set(member.uuid, member);
             if (member.status == STATUS.TO_CREATE) {
-                to_send_members.push(this._convert_memberDB_member(member))
+                to_send_members.push(this._convert_memberDB_member(member));
             }
             else if (member.status === STATUS.TO_DELETE) {
-                to_delete_members.push(this._convert_memberDB_member(member))
+                to_delete_members.push(this._convert_memberDB_member(member));
+                map.set(member.uuid, member);
+            }
+            else {
+                map.set(member.uuid, member);
             }
         }
-
         try {
             await this._add_remote_GroupMembers(in_group_token, to_send_members);
             await this._delete_remote_GroupMembers(in_group_token, to_delete_members);
@@ -187,32 +189,30 @@ export class GroupMemberProxy {
         } catch (e) {
         }
 
-        const members_to_save = []
         try {
             const remote_members = await this._get_remote_GroupMembers(in_group_token);
+            console.log(remote_members)
+            console.log(map)
             for (const member of remote_members) {
+                this._modify_local_member(in_group_token, member);
                 if (map.has(member.uuid)) {
-                    this._modify_local_member(in_group_token, member);
                     map.delete(member.uuid);
                 }
-                else {
-                    members_to_save.push(member);
-                }
+
             }
         } catch (e) { }
-        await this.add_local_members(in_group_token, members_to_save, STATUS.NOTHING);
 
         for (const [uuid, member] of map) {
             await this._delete_local_member(member);
         }
-
-
-        this.SetStoreGroupMembers(await this.get_group_members(in_group_token));
+        await this._delete_marked_delete(in_group_token);
+        this.local_synchronize(in_group_token)
     }
 
     async get_group_members(in_group_token: string): Promise<GroupMember[]> {
-        const new_members = await (await this._fetch_local_members(in_group_token)).map((value) => { return this._convert_memberDB_member(value) })
-        this.SetStoreGroupMembers(new_members);
+        const new_members = await (await this._fetch_local_members(in_group_token))
+            .filter((member) => { return member.status != STATUS.TO_DELETE })
+            .map((value) => { return this._convert_memberDB_member(value) })
         return new_members;
     }
 

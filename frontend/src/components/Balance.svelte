@@ -12,9 +12,7 @@
     import { transactionsProxy } from "../stores/group_transactions";
     import { current_user } from "../stores/groupUsernames";
 
-    let {
-        members,
-    }: { members: GroupMember[] } = $props();
+    let { members }: { members: GroupMember[] } = $props();
     let modal: Modal | null = $state(null);
     let balances: Amount[] = $state([]);
     let settlements: Settlement[] = $state([]);
@@ -24,9 +22,11 @@
         for (const member of members) {
             amounts.push({ member: member, amount: "0" } as Amount);
         }
-        let transactions = [] as Transaction[]
+        let transactions = [] as Transaction[];
         if ($current_user?.group_uuid) {
-            transactions = await transactionsProxy.local_synchronize($current_user.group_uuid);
+            transactions = await transactionsProxy.local_synchronize(
+                $current_user.group_uuid,
+            );
         }
         for (const transaction of transactions) {
             amounts.push({
@@ -63,28 +63,39 @@
         <h2>Settlements</h2>
         <div>
             {#each settlements as settlement}
-            {#if settlement.amount !== "0"}
-                <div class="bg-base-100 rounded-md m-1 p-2 flex flex-col">
-                    <div class="flex flex-row justify-between">
-                        <div class="flex flex-row">
-                            <div class="pl-2">
-                                {settlement.member_from.nickname}
+                {#if settlement.amount !== "0"}
+                    <div class="bg-base-100 rounded-md m-1 p-2 flex flex-col">
+                        <div class="flex flex-row justify-between">
+                            <div class="flex flex-row">
+                                <div class="pl-2">
+                                    {settlement.member_from.nickname}
+                                </div>
+                                <span class="px-2 text-base-content/80"
+                                    >(owes)</span
+                                >
+                                <div>{settlement.member_to.nickname}</div>
                             </div>
-                            <span class="px-2 text-base-content/80">(owes)</span
-                            >
-                            <div>{settlement.member_to.nickname}</div>
+
+                            <div>{settlement.amount}</div>
                         </div>
 
-                        <div>{settlement.amount}</div>
-                    </div>
-
                         <button
-                        class="btn mt-3 btn-accent"
+                            class="btn mt-3 btn-accent"
                             onclick={() => {
-                                modal?.open();
+                                modal?.open(
+                                    "Should I create a transaction",
+                                    {
+                                        text: "Yes create",
+                                        callback: () => {},
+                                    } as ModalButton,
+                                    {
+                                        text: "No forget",
+                                        callback: () => {},
+                                    } as ModalButton,
+                                );
                             }}>Mark as paid</button
                         >
-                </div>
+                    </div>
                 {/if}
             {/each}
         </div>
@@ -93,7 +104,4 @@
 
 <Modal
     bind:this={modal}
-    title={"Should I create a transaction"}
-    yesButton={{ text: "Yes create", callback: () => {} } as ModalButton}
-    noButton={{ text: "No forget", callback: () => {} } as ModalButton}
 ></Modal>

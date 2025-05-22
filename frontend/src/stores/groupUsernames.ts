@@ -1,6 +1,6 @@
 // src/lib/stores/groupUsernames.ts
 import { writable, type Writable } from 'svelte/store';
-import { db, type User_DB } from '../db/db';
+import { db } from '../db/db';
 
 interface User {
     group_uuid: string;
