@@ -33,7 +33,6 @@ export class GroupMemberProxy {
             return members;
 
         } catch (err) {
-            console.error("Error:", err);
             throw err; // re-throw so the caller can handle the error
         }
     }
@@ -57,7 +56,6 @@ export class GroupMemberProxy {
 
 
         } catch (err) {
-            console.error("Error:", err);
             throw err; // re-throw so the caller can handle the error
         }
     }
@@ -83,7 +81,6 @@ export class GroupMemberProxy {
             const new_members: GroupMember[] = data;
             return new_members;
         } catch (err) {
-            console.error("Error:", err);
             throw err; // re-throw so the caller can handle the error
         }
     }
@@ -176,36 +173,38 @@ export class GroupMemberProxy {
             }
             else if (member.status === STATUS.TO_DELETE) {
                 to_delete_members.push(this._convert_memberDB_member(member));
-                map.set(member.uuid, member);
             }
-            else {
-                map.set(member.uuid, member);
-            }
+            map.set(member.uuid, member);
         }
         try {
             await this._add_remote_GroupMembers(in_group_token, to_send_members);
             await this._delete_remote_GroupMembers(in_group_token, to_delete_members);
-
+            await this._delete_marked_delete(in_group_token);
         } catch (e) {
         }
-
         try {
             const remote_members = await this._get_remote_GroupMembers(in_group_token);
-            console.log(remote_members)
-            console.log(map)
             for (const member of remote_members) {
-                this._modify_local_member(in_group_token, member);
                 if (map.has(member.uuid)) {
+                    this._modify_local_member(in_group_token, member);
                     map.delete(member.uuid);
                 }
+                else {
+                    this.add_local_members(in_group_token, [member], STATUS.NOTHING);
+                }
+            }
+            for(const member of remote_members) {
+                await db.group_members.where("group_uuid").equals(in_group_token)
+                .and((gr : GroupMember_DB)=>{return gr.uuid != member.uuid && gr.nickname === member.nickname})
+                .modify(member);
+            }
 
+            for (const [uuid, member] of map) {
+                if(member.status !=  STATUS.TO_CREATE)
+                await this._delete_local_member(member);
             }
         } catch (e) { }
 
-        for (const [uuid, member] of map) {
-            await this._delete_local_member(member);
-        }
-        await this._delete_marked_delete(in_group_token);
         this.local_synchronize(in_group_token)
     }
 

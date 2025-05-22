@@ -102,7 +102,6 @@ export class GroupsProxy {
             const data = await res.json() as Group;
             return data;
         } catch (err) {
-            console.error("Error:", err);
             throw err; // re-throw so the caller can handle the error
         }
     }
@@ -141,7 +140,6 @@ export class GroupsProxy {
                 throw new Error("Request failed");
             }
         } catch (err) {
-            console.error("Error:", err);
             throw err; // re-throw so the caller can handle the error
         }
 

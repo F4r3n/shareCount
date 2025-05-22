@@ -211,7 +211,6 @@ export class TransactionsProxy {
             return transactions.reverse();
 
         } catch (err) {
-            console.error("Error:", err);
             throw err; // re-throw so the caller can handle the error
         }
     }
@@ -240,7 +239,6 @@ export class TransactionsProxy {
             }
 
         } catch (err) {
-            console.error("Error:", err);
             throw err; // re-throw so the caller can handle the error
         }
     }
@@ -261,7 +259,6 @@ export class TransactionsProxy {
             }
 
         } catch (err) {
-            console.error("Error:", err);
             throw err; // re-throw so the caller can handle the error
         }
     }

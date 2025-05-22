@@ -3,6 +3,7 @@ use crate::schema::group_members;
 use crate::schema::groups;
 pub use crate::state_server;
 
+use anyhow::anyhow;
 use axum::{
     extract::{Path, State},
     response::Json,
@@ -82,13 +83,24 @@ pub async fn handler_group_members(
     Ok(Json(results))
 }
 
+pub fn get_uuid(
+    in_group_id: i32,
+    nickname: &str,
+    conn: &mut PooledConnection<ConnectionManager<PgConnection>>,
+) -> Result<String, anyhow::Error> {
+    group_members::table
+        .select(group_members::uuid)
+        .filter(group_members::nickname.eq(nickname))
+        .filter(group_members::group_id.eq(in_group_id))
+        .get_result::<String>(conn)
+        .map_err(|v| anyhow!(v))
+}
+
 pub fn add_group_members(
     group_id: i32,
     members: Vec<GroupMember>,
     conn: &mut PooledConnection<ConnectionManager<PgConnection>>,
 ) -> Result<(), anyhow::Error> {
-    use diesel::query_dsl::methods::FilterDsl;
-    use diesel::upsert::excluded;
     #[derive(Insertable, AsChangeset)]
     #[diesel(table_name = group_members)]
     pub struct NewGroupMember {
@@ -108,6 +120,13 @@ pub fn add_group_members(
             uuid: member.uuid,
         };
 
+        if let Ok(uuid) = get_uuid(group_id, &new_member.nickname, conn) {
+            if !uuid.eq(&new_member.uuid) {
+                continue;
+            }
+        }
+        use diesel::query_dsl::methods::FilterDsl;
+        use diesel::upsert::excluded;
         diesel::insert_into(group_members::table)
             .values(&new_member)
             .on_conflict(group_members::uuid)
@@ -170,20 +189,21 @@ pub async fn handler_delete_group_members(
     conn.transaction::<(), anyhow::Error, _>(|conn| {
         let group_id = get_group_id(&token, conn)?;
         for member in members {
-            let member_id = get_member_id(group_id, member.uuid, conn)?;
-            let transaction_debts = get_transaction_debt(group_id, member_id, conn)?;
-            let has_debt = transaction_debts
-                .iter()
-                .any(|(_id, number)| !number.is_zero());
+            if let Ok(member_id) = get_member_id(group_id, member.uuid, conn) {
+                let transaction_debts = get_transaction_debt(group_id, member_id, conn)?;
+                let has_debt = transaction_debts
+                    .iter()
+                    .any(|(_id, number)| !number.is_zero());
 
-            let transaction_paid = get_transaction_paid_by(group_id, member_id, conn)?;
-            let has_paid = transaction_paid.iter().any(|tr| !tr.amount.is_zero());
+                let transaction_paid = get_transaction_paid_by(group_id, member_id, conn)?;
+                let has_paid = transaction_paid.iter().any(|tr| !tr.amount.is_zero());
 
-            if !has_debt && !has_paid {
-                diesel::delete(group_members::table)
-                    .filter(group_members::id.eq(member_id))
-                    .filter(group_members::modified_at.lt(member.modified_at))
-                    .execute(conn)?;
+                if !has_debt && !has_paid {
+                    diesel::delete(group_members::table)
+                        .filter(group_members::id.eq(member_id))
+                        .filter(group_members::modified_at.lt(member.modified_at))
+                        .execute(conn)?;
+                }
             }
         }
 
