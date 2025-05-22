@@ -10,7 +10,7 @@
     let current_error: string = $state("");
 
     onMount(async () => {
-        if ($current_user) {
+        if ($current_user?.group_uuid) {
             await groupMembersProxy.local_synchronize($current_user.group_uuid);
             await transactionsProxy.local_synchronize($current_user.group_uuid);
         }

@@ -23,7 +23,7 @@ export const current_groupStore: Writable<Group | null> = writable(getInitialGro
 
 if (browser) {
     current_groupStore.subscribe((value) => {
-        localStorage.setItem(groupStore_name, JSON.stringify(current_groupStore))
+        localStorage.setItem(groupStore_name, JSON.stringify(value))
     })
 }
 

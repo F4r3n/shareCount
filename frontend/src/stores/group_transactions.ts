@@ -8,7 +8,6 @@ import { getUTC } from '$lib/UTCDate';
 
 
 export const group_transactions: Writable<Record<string, Transaction[]>> = writable({});
-export const current_transactions: Writable<Transaction[]> = writable([]);
 
 export class TransactionsProxy {
 
@@ -131,8 +130,6 @@ export class TransactionsProxy {
             values[group_uuid] = new_transactions;
             return values;
         })
-
-        current_transactions.set(new_transactions);
     }
 
     private async _reset_status(in_group_token: string) {

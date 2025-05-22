@@ -1,11 +1,9 @@
 <script lang="ts">
     import type { Debt, Transaction, GroupMember } from "$lib/types";
     import TransactionView from "./TransactionView.svelte";
-
+    import {onMount} from "svelte"
     import { v4 as uuidv4 } from "uuid";
     import {
-        current_transactions,
-        group_transactions,
         transactionsProxy,
     } from "../stores/group_transactions";
     import { current_user } from "../stores/groupUsernames";
@@ -15,18 +13,14 @@
     let {
         main_currency,
         members,
-        token,
-        onUpdate,
     }: {
         main_currency: string | undefined;
         members: GroupMember[];
-        token: string | null;
-        onUpdate: (tx: Transaction[]) => void;
     } = $props();
     let index_count = -1;
     let creating_transaction: Transaction | null = $state(null);
     let creating: boolean = $state(false);
-
+    let transactions : Transaction[] = $state([])
     function create_debtors(): Debt[] {
         let debts = [] as Debt[];
         for (const member of members) {
@@ -34,6 +28,12 @@
         }
         return debts;
     }
+
+    onMount(async () => {
+        if ($current_user?.group_uuid) {
+            transactions = await transactionsProxy.local_synchronize($current_user.group_uuid);
+        }
+    });
 
     const options = {
         weekday: undefined,
@@ -92,10 +92,10 @@
                     onDelete={async (newTransaction: Transaction) => {}}
                 ></TransactionView>
             {/if}
-            {#each $current_transactions as transaction, id (transaction.uuid)}
+            {#each transactions as transaction, id (transaction.uuid)}
                 <div class="font-semibold text-base md:text-md lg:text-lg">
                     {#if id > 0}
-                        {#if new Date(transaction.created_at.split("T")[0]).getDate() != new Date($current_transactions[id - 1].created_at.split("T")[0]).getDate()}
+                        {#if new Date(transaction.created_at.split("T")[0]).getDate() != new Date(transactions[id - 1].created_at.split("T")[0]).getDate()}
                             <div class="my-2">
                                 {new Date(
                                     transaction.created_at.split("T")[0],

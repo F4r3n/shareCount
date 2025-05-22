@@ -231,6 +231,7 @@
                 onclick={async () => {
                     if (check_validity) {
                         edit = false;
+                        await userProxy.synchronize_store(group.token);
                         groupsProxy.modify_local_group(group_modified);
                         await groupMembersProxy.delete_local_members(
                             members_to_delete,

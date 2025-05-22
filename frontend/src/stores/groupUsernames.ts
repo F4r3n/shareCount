@@ -20,7 +20,7 @@ function getInitialUserStore(): User | null {
 export const current_user: Writable<User | null> = writable(getInitialUserStore());
 
 current_user.subscribe((value) => {
-    localStorage.setItem(userStore_name, JSON.stringify(current_user))
+    localStorage.setItem(userStore_name, JSON.stringify(value))
 })
 
 
@@ -38,6 +38,7 @@ export class UserProxy {
     }
 
     async synchronize_store(group_uuid: string) {
+        
         const data = await this.get_user_group(group_uuid);
         if (data) {
             users.update((values: Record<string, User>) => {

@@ -1,29 +1,23 @@
 <script lang="ts">
     import { onMount } from "svelte";
-    import type { Transaction, GroupMember } from "$lib/types";
+    import type { GroupMember } from "$lib/types";
     import TransactionsView from "$lib/../components/TransactionsView.svelte";
     import { current_groupStore } from "../../stores/group";
     import { current_user } from "../../stores/groupUsernames";
     import { groupMembersProxy } from "../../stores/group_members";
-    import { transactionsProxy } from "../../stores/group_transactions";
 
-    let transactions: Transaction[] = $state([]);
     let loading = $state(true);
     let current_error: string = $state("");
     let group_members: GroupMember[] = $state([]);
 
     onMount(async () => {
-        if ($current_user) {
-            await groupMembersProxy.local_synchronize($current_user.group_uuid);
-            await transactionsProxy.local_synchronize($current_user.group_uuid);
+        if ($current_user?.group_uuid) {
+            group_members = await groupMembersProxy.local_synchronize($current_user.group_uuid);
         }
 
         loading = false;
     });
 
-    function handleUpdate(newTransactions: Transaction[]) {
-        transactions = newTransactions;
-    }
 </script>
 
 {#if current_error}
@@ -58,8 +52,6 @@
     <TransactionsView
         main_currency={$current_groupStore?.currency_id}
         members={group_members}
-        token={$current_groupStore?.token ?? ""}
-        onUpdate={handleUpdate}
     ></TransactionsView>
 {/if}
 

@@ -1,5 +1,5 @@
 <script lang="ts">
-    import type { GroupMember } from "$lib/types";
+    import type { GroupMember, Transaction } from "$lib/types";
     import { onMount } from "svelte";
     import init, {
         compute_balance,
@@ -9,7 +9,8 @@
     } from "wasm-lib";
     import Modal from "./Modal.svelte";
     import { type ModalButton } from "./ModalTypes";
-    import { current_transactions, group_transactions } from "../stores/group_transactions";
+    import { transactionsProxy } from "../stores/group_transactions";
+    import { current_user } from "../stores/groupUsernames";
 
     let {
         members,
@@ -23,8 +24,11 @@
         for (const member of members) {
             amounts.push({ member: member, amount: "0" } as Amount);
         }
-
-        for (const transaction of $current_transactions) {
+        let transactions = [] as Transaction[]
+        if ($current_user?.group_uuid) {
+            transactions = await transactionsProxy.local_synchronize($current_user.group_uuid);
+        }
+        for (const transaction of transactions) {
             amounts.push({
                 member: transaction.paid_by,
                 amount: transaction.amount,
