@@ -16,9 +16,16 @@
     let modal: Modal | null = $state(null);
     let balances: Amount[] = $state([]);
     let settlements: Settlement[] = $state([]);
+
+    async function compute(amounts: Amount[]) {
+        await init("wasm_lib_bg.wasm");
+        balances = compute_balance(amounts);
+        settlements = compute_settlements(balances);
+    }
+
     onMount(async () => {
         let amounts = [];
-        await init(); // Initialize WASM memory
+
         for (const member of members) {
             amounts.push({ member: member, amount: "0" } as Amount);
         }
@@ -40,8 +47,7 @@
                 } as Amount);
             }
         }
-        balances = compute_balance(amounts);
-        settlements = compute_settlements(balances);
+        await compute(amounts);
     });
 </script>
 
@@ -102,6 +108,4 @@
     </div>
 </main>
 
-<Modal
-    bind:this={modal}
-></Modal>
+<Modal bind:this={modal}></Modal>
