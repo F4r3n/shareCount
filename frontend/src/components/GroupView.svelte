@@ -13,6 +13,7 @@
     import { STATUS } from "../db/db";
     import Modal from "./Modal.svelte";
     import { type ModalButton } from "./ModalTypes";
+	import { base } from '$app/paths';
 
     let {
         group,
@@ -185,7 +186,7 @@
                             current_groupStore.set(group);
                             current_user.set($users[group.token]);
                             goto(
-                                `${menus[MENU.EXPENSES].path}?id=${group.token}`,
+                                base + `${menus[MENU.EXPENSES].path}?id=${group.token}`,
                             );
                         }}
                         >Go
