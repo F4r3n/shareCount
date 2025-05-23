@@ -2,6 +2,12 @@ name: Frontend
 
 on:
   workflow_call:
+    inputs:
+      upload:
+        default: false
+        description: "Upload"
+        required: true
+        type: boolean
 
 jobs:
   build:
@@ -24,6 +30,7 @@ jobs:
     - name: Build
       run: npm run build
     - name: Upload artifact
+      if: ${{ inputs.upload }}
       uses: actions/upload-pages-artifact@v3
       with:
-        path: './build'
+        path: 'build'

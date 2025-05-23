@@ -25,6 +25,8 @@ jobs:
   build_frontend:
     uses: ./.github/workflows/build_frontend.yml
     secrets: inherit
+    with:
+        upload: true
   # Single deploy job since we're just deploying
   deploy:
     needs: build_frontend

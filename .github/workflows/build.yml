@@ -16,4 +16,6 @@ jobs:
   build_frontend:
     uses: ./.github/workflows/build_frontend.yml
     secrets: inherit
+    with:
+      upload: false
 
