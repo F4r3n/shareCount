@@ -81,6 +81,14 @@ export class TransactionsProxy {
         return transactions;
     }
 
+    private async _delete_all_transactions(group : string) {
+        for(const tr of await db.transactions.where("group_uuid").equals(group).toArray())
+        {
+            await db.debts.where("transaction_uuid").equals(tr.uuid).delete();
+        }
+        await db.transactions.where("group_uuid").equals(group).delete();
+    }
+
     async synchronize(group_uuid: string) {
 
         const original_transactions = await this._get_local_transactionsDB(group_uuid);
@@ -104,25 +112,16 @@ export class TransactionsProxy {
             for (const transaction of to_send_transactions) {
                 await this._update_remote_transaction(group_uuid, transaction);
             }
-
-            let remote_transactions = await this._get_remote_transactions(group_uuid);
+            await this._delete_all_transactions(group_uuid);
+            const remote_transactions = await this._get_remote_transactions(group_uuid);
             for (const transaction of remote_transactions) {
+                this.add_local_transaction(group_uuid, transaction, STATUS.NOTHING);
                 if (map.has(transaction.uuid)) {
-                    this.modify_local_transaction(group_uuid, transaction);
                     map.delete(transaction.uuid)
                 }
-                else {
-                    this.add_local_transaction(group_uuid, transaction, STATUS.NOTHING);
-                }
             }
 
-            for (const [uuid, tr] of map) {
-                await this.delete_local_transaction(group_uuid, uuid);
-            }
-
-        } catch (e) {
-
-        }
+        } catch (e) { /* empty */ }
 
         const new_transactions = await this.get_local_transactions(group_uuid)
 
@@ -132,17 +131,6 @@ export class TransactionsProxy {
         })
     }
 
-    private async _reset_status(in_group_token: string) {
-        await db.transactions.where("group_uuid").equals(in_group_token)
-            .and((member) => { return member.status === STATUS.TO_CREATE })
-            .modify({ status: STATUS.NOTHING })
-    }
-
-    private async _delete_marked_delete(in_group_token: string) {
-        await db.transactions.where("group_uuid").equals(in_group_token)
-            .and((member) => { return member.status === STATUS.TO_DELETE })
-            .delete()
-    }
 
     private async _convert_debtDB_debt(debt: Debt_DB): Promise<Debt> {
         const member = await groupMembersProxy.get_local_member(debt.member_uuid);
@@ -192,27 +180,23 @@ export class TransactionsProxy {
     }
 
     private async _get_remote_transactions(tokenID: string): Promise<Transaction[]> {
-        try {
-            const res = await fetch(`http://${getBackendURL()}/groups/${tokenID}/transactions`, {
-                method: "GET",
-                credentials: "include",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-            });
+        const res = await fetch(`http://${getBackendURL()}/groups/${tokenID}/transactions`, {
+            method: "GET",
+            credentials: "include",
+            headers: {
+                "Content-Type": "application/json",
+            },
+        });
 
-            if (!res.ok) {
-                throw new Error(`Request failed ${res.status}`);
-            }
-
-            const data = await res.json();
-            const transactions: Transaction[] = data;
-
-            return transactions.reverse();
-
-        } catch (err) {
-            throw err; // re-throw so the caller can handle the error
+        if (!res.ok) {
+            throw new Error(`Request failed ${res.status}`);
         }
+
+        const data = await res.json();
+        const transactions: Transaction[] = data;
+
+        return transactions.reverse();
+
     }
 
 
@@ -222,45 +206,36 @@ export class TransactionsProxy {
     }
 
     private async _update_remote_transaction(tokenID: string, inTransaction: Transaction) {
-        try {
-            const url = `http://${getBackendURL()}/groups/${tokenID}/transactions`
+        const url = `http://${getBackendURL()}/groups/${tokenID}/transactions`
 
-            const res = await fetch(url, {
-                method: "POST",
-                credentials: "include",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify(inTransaction)
-            });
+        const res = await fetch(url, {
+            method: "POST",
+            credentials: "include",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify(inTransaction)
+        });
 
-            if (!res.ok) {
-                throw new Error(`Request failed ${res.status}`);
-            }
-
-        } catch (err) {
-            throw err; // re-throw so the caller can handle the error
+        if (!res.ok) {
+            throw new Error(`Request failed ${res.status}`);
         }
     }
 
     private async _delete_remote_transaction(tokenID: string, inTransaction: Transaction) {
-        try {
-            const res = await fetch(`http://${getBackendURL()}/groups/${tokenID}/transactions}`, {
-                method: "DELETE",
-                credentials: "include",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify(inTransaction)
-            });
+        const res = await fetch(`http://${getBackendURL()}/groups/${tokenID}/transactions}`, {
+            method: "DELETE",
+            credentials: "include",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify(inTransaction)
+        });
 
-            if (!res.ok) {
-                throw new Error(`Request failed ${res.status}`);
-            }
-
-        } catch (err) {
-            throw err; // re-throw so the caller can handle the error
+        if (!res.ok) {
+            throw new Error(`Request failed ${res.status}`);
         }
+
     }
 
 

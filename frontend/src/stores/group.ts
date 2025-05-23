@@ -86,61 +86,49 @@ export class GroupsProxy {
     }
 
     private async _getGroup(tokenID: string): Promise<Group> {
-        try {
-            const res = await fetch(`http://${getBackendURL()}/groups/${tokenID}`, {
-                method: "GET",
-                credentials: "include",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-            });
+        const res = await fetch(`http://${getBackendURL()}/groups/${tokenID}`, {
+            method: "GET",
+            credentials: "include",
+            headers: {
+                "Content-Type": "application/json",
+            },
+        });
 
-            if (!res.ok) {
-                throw new Error("Request failed");
-            }
-
-            const data = await res.json() as Group;
-            return data;
-        } catch (err) {
-            throw err; // re-throw so the caller can handle the error
+        if (!res.ok) {
+            throw new Error("Request failed");
         }
+
+        const data = await res.json() as Group;
+        return data;
     }
 
     private async _addGroup(group: Group) {
-        try {
-            const res = await fetch(`http://${getBackendURL()}/groups`, {
-                method: "POST",
-                credentials: "include",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify(group)
-            });
+        const res = await fetch(`http://${getBackendURL()}/groups`, {
+            method: "POST",
+            credentials: "include",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify(group)
+        });
 
-            if (!res.ok) {
-                throw new Error("Request failed");
-            }
-        } catch (err) {
-            throw err; // re-throw so the caller can handle the error
+        if (!res.ok) {
+            throw new Error("Request failed");
         }
     }
 
     private async _deleteGroup(group: Group) {
-        try {
-            const res = await fetch(`http://${getBackendURL()}/groups`, {
-                method: "DELETE",
-                credentials: "include",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify(group)
-            });
+        const res = await fetch(`http://${getBackendURL()}/groups`, {
+            method: "DELETE",
+            credentials: "include",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify(group)
+        });
 
-            if (!res.ok) {
-                throw new Error("Request failed");
-            }
-        } catch (err) {
-            throw err; // re-throw so the caller can handle the error
+        if (!res.ok) {
+            throw new Error("Request failed");
         }
 
         groupsStore.update((values: Group[]) => {

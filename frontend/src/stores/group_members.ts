@@ -15,78 +15,69 @@ export class GroupMemberProxy {
     }
 
     private async _get_remote_GroupMembers(tokenID: string): Promise<GroupMember[]> {
-        try {
-            const res = await fetch(`http://${getBackendURL()}/groups/${tokenID}/group_members`, {
-                method: "GET",
-                credentials: "include",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-            });
+        const res = await fetch(`http://${getBackendURL()}/groups/${tokenID}/group_members`, {
+            method: "GET",
+            credentials: "include",
+            headers: {
+                "Content-Type": "application/json",
+            },
+        });
 
-            if (!res.ok) {
-                throw new Error(`Request failed ${res.status}`);
-            }
-
-            const data = await res.json();
-            const members: GroupMember[] = data;
-            return members;
-
-        } catch (err) {
-            throw err; // re-throw so the caller can handle the error
+        if (!res.ok) {
+            throw new Error(`Request failed ${res.status}`);
         }
+
+        const data = await res.json();
+        const members: GroupMember[] = data;
+        return members;
+
     }
 
     private async _delete_remote_GroupMembers(tokenID: string, members: GroupMember[]) {
         if (members.length <= 0)
             return;
-        try {
-            const res = await fetch(`http://${getBackendURL()}/groups/${tokenID}/group_members`, {
-                method: "DELETE",
-                credentials: "include",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify(members)
-            });
+        const res = await fetch(`http://${getBackendURL()}/groups/${tokenID}/group_members`, {
+            method: "DELETE",
+            credentials: "include",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify(members)
+        });
 
-            if (!res.ok) {
-                throw new Error(`Request failed ${res.status}`);
-            }
-
-
-        } catch (err) {
-            throw err; // re-throw so the caller can handle the error
+        if (!res.ok) {
+            throw new Error(`Request failed ${res.status}`);
         }
     }
 
     private async _add_remote_GroupMembers(tokenID: string, members: GroupMember[]): Promise<GroupMember[]> {
         if (members.length <= 0)
             return [];
-        try {
-            const res = await fetch(`http://${getBackendURL()}/groups/${tokenID}/group_members`, {
-                method: "POST",
-                credentials: "include",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify(members)
-            });
+        const res = await fetch(`http://${getBackendURL()}/groups/${tokenID}/group_members`, {
+            method: "POST",
+            credentials: "include",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify(members)
+        });
 
-            if (!res.ok) {
-                throw new Error(`Request failed ${res.status}`);
-            }
-
-            const data = await res.json();
-            const new_members: GroupMember[] = data;
-            return new_members;
-        } catch (err) {
-            throw err; // re-throw so the caller can handle the error
+        if (!res.ok) {
+            throw new Error(`Request failed ${res.status}`);
         }
+
+        const data = await res.json();
+        const new_members: GroupMember[] = data;
+        return new_members;
     }
 
-    async _delete_local_member(member: GroupMember) {
+    private async _delete_local_member(member: GroupMember) {
         db.group_members.where("uuid").equals(member.uuid).modify({ status: STATUS.TO_DELETE, modified_at: getUTC() });
+
+    }
+
+    private async _delete_local_members_from_group(group_uuid : string) {
+        db.group_members.where("group_uuid").equals(group_uuid).delete();
 
     }
 
@@ -125,7 +116,7 @@ export class GroupMemberProxy {
         return { nickname: nickname, modified_at: getUTC(), uuid: uuidv4() }
     }
 
-    _convert_member_memberDB(group_uuid: string, member: GroupMember, status: STATUS): GroupMember_DB {
+    private _convert_member_memberDB(group_uuid: string, member: GroupMember, status: STATUS): GroupMember_DB {
         return {
             group_uuid: group_uuid,
             modified_at: member.modified_at,
@@ -136,7 +127,7 @@ export class GroupMemberProxy {
         } as GroupMember_DB
     }
 
-    _convert_memberDB_member(member: GroupMember_DB): GroupMember {
+    private _convert_memberDB_member(member: GroupMember_DB): GroupMember {
         return {
             modified_at: member.modified_at,
             nickname: member.nickname,
@@ -148,11 +139,6 @@ export class GroupMemberProxy {
     private async _fetch_local_members(in_group_token: string): Promise<GroupMember_DB[]> {
         const list_local_members: GroupMember_DB[] = await db.group_members.where("group_uuid").equals(in_group_token).toArray();
         return list_local_members;
-    }
-
-    private async _modify_local_member(in_group_token: string, member: GroupMember) {
-        await db.group_members.where("uuid").equals(member.uuid)
-            .modify(await this._convert_member_memberDB(in_group_token, member, STATUS.NOTHING))
     }
 
     async local_synchronize(in_group_token: string): Promise<GroupMember[]> {
@@ -179,29 +165,16 @@ export class GroupMemberProxy {
         try {
             await this._add_remote_GroupMembers(in_group_token, to_send_members);
             await this._delete_remote_GroupMembers(in_group_token, to_delete_members);
-            await this._delete_marked_delete(in_group_token);
-        } catch (e) {
-        }
-        try {
+
             const remote_members = await this._get_remote_GroupMembers(in_group_token);
+            this._delete_local_members_from_group(in_group_token);
+
             for (const member of remote_members) {
+                this.add_local_members(in_group_token, [member], STATUS.NOTHING);
+                //Used to get modified members
                 if (map.has(member.uuid)) {
-                    this._modify_local_member(in_group_token, member);
                     map.delete(member.uuid);
                 }
-                else {
-                    this.add_local_members(in_group_token, [member], STATUS.NOTHING);
-                }
-            }
-            for(const member of remote_members) {
-                await db.group_members.where("group_uuid").equals(in_group_token)
-                .and((gr : GroupMember_DB)=>{return gr.uuid != member.uuid && gr.nickname === member.nickname})
-                .modify(member);
-            }
-
-            for (const [uuid, member] of map) {
-                if(member.status !=  STATUS.TO_CREATE)
-                await this._delete_local_member(member);
             }
         } catch (e) { }
 
@@ -215,17 +188,6 @@ export class GroupMemberProxy {
         return new_members;
     }
 
-    async _reset_status(in_group_token: string) {
-        await db.group_members.where("group_uuid").equals(in_group_token)
-            .and((member) => { return member.status === STATUS.TO_CREATE })
-            .modify({ status: STATUS.NOTHING })
-    }
-
-    async _delete_marked_delete(in_group_token: string) {
-        await db.group_members.where("group_uuid").equals(in_group_token)
-            .and((member) => { return member.status === STATUS.TO_DELETE })
-            .delete()
-    }
 }
 
 export const groupMembersProxy = new GroupMemberProxy();
