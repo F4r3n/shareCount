@@ -19,7 +19,7 @@
     let settlements: Settlement[] = $state([]);
 
     async function compute(amounts: Amount[]) {
-        await init(base + "assets/wasm_lib_bg.wasm");
+        await init(base + "/assets/wasm_lib_bg.wasm");
         balances = compute_balance(amounts);
         settlements = compute_settlements(balances);
     }
