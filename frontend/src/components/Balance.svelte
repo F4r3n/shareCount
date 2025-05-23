@@ -17,9 +17,7 @@
     let settlements: Settlement[] = $state([]);
 
     async function compute(amounts: Amount[]) {
-        const wasmUrl = new URL('./wasm_lib_bg.wasm', import.meta.url).href;
-        console.log(wasmUrl, import.meta.url)
-        await init(wasmUrl);
+        await init("/wasm_lib_bg.wasm");
         balances = compute_balance(amounts);
         settlements = compute_settlements(balances);
     }
