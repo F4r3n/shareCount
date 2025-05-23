@@ -31,7 +31,7 @@
     let new_group: Group = $state({
         token: uuidv4(),
         created_at: getUTC(),
-        currency_id: "USD",
+        currency_id: "EUR",
         modified_at: getUTC(),
         name: "New Group",
     });

@@ -37,7 +37,7 @@
                 group.token,
             );
             await transactionsProxy.synchronize(group.token);
-           clean();
+            clean();
             edit = !$current_user;
         } else {
             edit = true;
@@ -52,7 +52,6 @@
         members_to_add = [];
         members_to_delete = [];
     }
-
 
     function create_unique_member(): GroupMember {
         let member_number = 1;
@@ -200,15 +199,27 @@
             class="flex flex-col bg-base-100 w-sm sm:w-md shadow-sm pl-2"
             transition:slide
         >
-            <fieldset class="fieldset">
-                <legend class="fieldset-legend">Title</legend>
-                <input
-                    class="input input-ghost"
-                    type="text"
-                    bind:value={group_modified.name}
-                    onchange={() => {}}
-                />
-            </fieldset>
+            <div class="flex flex-row">
+                <fieldset class="fieldset">
+                    <legend class="fieldset-legend">Title</legend>
+                    <input
+                        class="input input-ghost"
+                        type="text"
+                        bind:value={group_modified.name}
+                        onchange={() => {}}
+                    />
+                </fieldset>
+                <fieldset class="fieldset">
+                    <legend class="fieldset-legend">Currency</legend>
+                    <input
+                        class="input input-ghost"
+                        type="text"
+                        bind:value={group_modified.currency_id}
+                        onchange={() => {}}
+                    />
+                </fieldset>
+            </div>
+
             <fieldset class="fieldset">
                 <legend class="fieldset-legend">Members</legend>
                 {#each modified_members as member, id}
@@ -324,7 +335,9 @@
                                 );
                             }
                             try {
-                                await groupMembersProxy.synchro_group_members(group.token);
+                                await groupMembersProxy.synchro_group_members(
+                                    group.token,
+                                );
                             } catch (e) {}
                         }
 

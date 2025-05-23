@@ -182,7 +182,8 @@ export class GroupsProxy {
         try {
             for (const group of await db.groups.toArray()) {
                 if (group.status === STATUS.TO_DELETE) {
-                    await this._deleteGroup({ modified_at: group.modified_at, token: group.uuid } as Group);
+                    //Do not delete a group, just hide it
+                    //await this._deleteGroup({ modified_at: group.modified_at, token: group.uuid } as Group);
                     db.groups.delete(group.uuid);
                 }
                 else {

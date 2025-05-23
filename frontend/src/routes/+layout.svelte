@@ -4,7 +4,7 @@
 	import { onMount } from "svelte";
 	import { menus } from "$lib/menus";
     import { current_groupStore } from "../stores/group";
-
+	import { base } from '$app/paths';
 	let { children } = $props();
 
 	let token_id = $state("");
@@ -50,7 +50,7 @@
 				<button
 					class="hover:cursor-pointer"
 					onclick={() => {
-						goto(`/`);
+						goto(base + '/');
 					}}
 				>
 					{`ShareCount${$current_groupStore !== null ? ": " + $current_groupStore.name : ""}`}
@@ -66,7 +66,7 @@
 								<button
 									class="cursor-pointer"
 									onclick={() => {
-										goto(`${sub.path}?id=${token_id}`);
+										goto(base + `${sub.path}?id=${token_id}`);
 										drawerState = false;
 									}}
 								>
@@ -94,7 +94,7 @@
 						<button
 							class="cursor-pointer"
 							onclick={() => {
-								goto(`${sub.path}?id=${token_id}`);
+								goto(base + `${sub.path}?id=${token_id}`);
 								drawerState = false;
 							}}
 						>
