@@ -2,7 +2,6 @@
 import { writable, type Writable } from 'svelte/store';
 import { db, STATUS, type Group_DB } from '../db/db';
 import { getUTC } from '$lib/UTCDate';
-import { v4 as uuidv4 } from 'uuid';
 import type { Group } from "$lib/types";
 import { getBackendURL } from '$lib/shareCountAPI';
 import { browser } from '$app/environment';
@@ -190,7 +189,7 @@ export class GroupsProxy {
                     await this._addGroup(this._convert_DB_to_Group(group));
                 }
             }
-        } catch (e) {
+        } catch {/** */
         }
 
 
@@ -198,9 +197,7 @@ export class GroupsProxy {
             try {
                 const new_group = await this._getGroup(group.uuid);
                 await db.groups.where("uuid").equals(new_group.token).modify(this._convert_Group_to_DB(new_group));
-            } catch (e) {
-
-            }
+            } catch {/**/}
         }
 
         this.SetStoreGroups(await this.get_local_groups());

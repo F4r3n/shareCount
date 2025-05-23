@@ -121,7 +121,7 @@ export class TransactionsProxy {
                 }
             }
 
-        } catch (e) { /* empty */ }
+        } catch { /* empty */ }
 
         const new_transactions = await this.get_local_transactions(group_uuid)
 

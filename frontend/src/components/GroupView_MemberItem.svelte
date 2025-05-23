@@ -47,7 +47,7 @@
             }}
         />
     </div>
-
+    
     {#if member_me == current_member.uuid}
         <div class="flex items-center align-middle">
             <CheckIcon></CheckIcon>

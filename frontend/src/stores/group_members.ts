@@ -176,7 +176,7 @@ export class GroupMemberProxy {
                     map.delete(member.uuid);
                 }
             }
-        } catch (e) { }
+        } catch { /* empty */ }
 
         this.local_synchronize(in_group_token)
     }
