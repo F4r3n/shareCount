@@ -11,13 +11,15 @@
     import { type ModalButton } from "./ModalTypes";
     import { transactionsProxy } from "../stores/group_transactions";
     import { current_user } from "../stores/groupUsernames";
+    import { base } from '$app/paths';
+
     let { members }: { members: GroupMember[] } = $props();
     let modal: Modal | null = $state(null);
     let balances: Amount[] = $state([]);
     let settlements: Settlement[] = $state([]);
 
     async function compute(amounts: Amount[]) {
-        await init("/wasm_lib_bg.wasm");
+        await init(base + "assets/wasm_lib_bg.wasm");
         balances = compute_balance(amounts);
         settlements = compute_settlements(balances);
     }
