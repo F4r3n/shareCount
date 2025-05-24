@@ -5,7 +5,7 @@ services:
       context: ../
       dockerfile: docker/backend/Dockerfile.yml
     ports:
-      - "4000:4000"
+      - "127.0.0.1:4000:4000"
     env_file:
       - ../backend/.env
     environment:
@@ -17,8 +17,8 @@ services:
     restart: always
     env_file:
       - ../backend/.env
-    ports:
-      - "5432:5432"
+    expose:
+      - "5432"
     volumes:
       - ./db/init/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
 volumes:
