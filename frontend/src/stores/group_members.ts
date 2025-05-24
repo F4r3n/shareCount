@@ -15,7 +15,7 @@ export class GroupMemberProxy {
     }
 
     private async _get_remote_GroupMembers(tokenID: string): Promise<GroupMember[]> {
-        const res = await fetch(`https://${getBackendURL()}/groups/${tokenID}/group_members`, {
+        const res = await fetch(`${getBackendURL()}/groups/${tokenID}/group_members`, {
             method: "GET",
             credentials: "include",
             headers: {
@@ -36,7 +36,7 @@ export class GroupMemberProxy {
     private async _delete_remote_GroupMembers(tokenID: string, members: GroupMember[]) {
         if (members.length <= 0)
             return;
-        const res = await fetch(`https://${getBackendURL()}/groups/${tokenID}/group_members`, {
+        const res = await fetch(`${getBackendURL()}/groups/${tokenID}/group_members`, {
             method: "DELETE",
             credentials: "include",
             headers: {
@@ -53,7 +53,7 @@ export class GroupMemberProxy {
     private async _add_remote_GroupMembers(tokenID: string, members: GroupMember[]): Promise<GroupMember[]> {
         if (members.length <= 0)
             return [];
-        const res = await fetch(`https://${getBackendURL()}/groups/${tokenID}/group_members`, {
+        const res = await fetch(`${getBackendURL()}/groups/${tokenID}/group_members`, {
             method: "POST",
             credentials: "include",
             headers: {
