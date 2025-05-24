@@ -9,6 +9,12 @@ ShareCount is a tool for tracking and managing shared expenses among groups. Eas
 - Track individual balances
 - Generate reports for settlements
 
+## How to use:
+
+```bash
+podman compose -f docker/docker-compose.yml up
+```
+
 ## Getting Started
 
 ### 1. Clone the repository
@@ -21,7 +27,7 @@ cd shareCount
 
 #### Backend (Rust)
 - Ensure you have [Rust](https://www.rust-lang.org/tools/install) installed.
-- Postgresql
+- Postgresql (libpq-dev)
 - Install backend dependencies:
     ```bash
     cd backend

@@ -11,7 +11,10 @@ use dotenvy::dotenv;
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     dotenv().ok();
+    println!("Start server...");
     let connection = state_server::establish_connection()?;
+    println!("Connection established...");
+
     let state_server = state_server::StateServer { pool: connection };
     let front_url = env::var("FRONT_URL")?;
 
