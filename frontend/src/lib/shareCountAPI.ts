@@ -1,10 +1,15 @@
 
+const storage_name = "URL_BACKEND"
+
+export function store_url(in_url : string) {
+    localStorage.setItem(storage_name, in_url)
+}
+
 export function getBackendURL(): string {
-    const backendURL = import.meta.env.VITE_BACKEND_URL;
-    if (!backendURL) {
-        const params = new URLSearchParams(window.location.search);
-		return params.get("url") ?? "";
+    let url = import.meta.env.VITE_BACKEND_URL;
+    if (!url) {
+        url = localStorage.getItem(storage_name)
     }
-    return backendURL;
+    return url;
 }
 

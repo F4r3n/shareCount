@@ -9,6 +9,7 @@
     import type { Group } from "$lib/types";
     import { getUTC } from "$lib/UTCDate";
     import { v4 as uuidv4 } from "uuid";
+    import { store_url } from "$lib/shareCountAPI";
 
     let current_error: string = $state("");
 
@@ -16,6 +17,10 @@
         current_groupStore.set(null);
         const params = new URLSearchParams(window.location.search);
         const token_id = params.get("id") ?? "";
+        const url = params.get("url") ?? null;
+        if(url) {
+            store_url(url)
+        }
         await groupsProxy.synchronize();
         if (
             !$groupsStore.some((gr: Group) => {
