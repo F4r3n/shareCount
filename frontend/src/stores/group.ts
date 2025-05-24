@@ -85,7 +85,7 @@ export class GroupsProxy {
     }
 
     private async _getGroup(tokenID: string): Promise<Group> {
-        const res = await fetch(`http://${getBackendURL()}/groups/${tokenID}`, {
+        const res = await fetch(`https://${getBackendURL()}/groups/${tokenID}`, {
             method: "GET",
             credentials: "include",
             headers: {
@@ -102,7 +102,7 @@ export class GroupsProxy {
     }
 
     private async _addGroup(group: Group) {
-        const res = await fetch(`http://${getBackendURL()}/groups`, {
+        const res = await fetch(`https://${getBackendURL()}/groups`, {
             method: "POST",
             credentials: "include",
             headers: {
@@ -117,7 +117,7 @@ export class GroupsProxy {
     }
 
     private async _deleteGroup(group: Group) {
-        const res = await fetch(`http://${getBackendURL()}/groups`, {
+        const res = await fetch(`https://${getBackendURL()}/groups`, {
             method: "DELETE",
             credentials: "include",
             headers: {

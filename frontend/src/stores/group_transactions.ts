@@ -180,7 +180,7 @@ export class TransactionsProxy {
     }
 
     private async _get_remote_transactions(tokenID: string): Promise<Transaction[]> {
-        const res = await fetch(`http://${getBackendURL()}/groups/${tokenID}/transactions`, {
+        const res = await fetch(`https://${getBackendURL()}/groups/${tokenID}/transactions`, {
             method: "GET",
             credentials: "include",
             headers: {
@@ -206,7 +206,7 @@ export class TransactionsProxy {
     }
 
     private async _update_remote_transaction(tokenID: string, inTransaction: Transaction) {
-        const url = `http://${getBackendURL()}/groups/${tokenID}/transactions`
+        const url = `https://${getBackendURL()}/groups/${tokenID}/transactions`
 
         const res = await fetch(url, {
             method: "POST",
@@ -223,7 +223,7 @@ export class TransactionsProxy {
     }
 
     private async _delete_remote_transaction(tokenID: string, inTransaction: Transaction) {
-        const res = await fetch(`http://${getBackendURL()}/groups/${tokenID}/transactions}`, {
+        const res = await fetch(`https://${getBackendURL()}/groups/${tokenID}/transactions}`, {
             method: "DELETE",
             credentials: "include",
             headers: {
