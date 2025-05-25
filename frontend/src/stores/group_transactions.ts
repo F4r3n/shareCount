@@ -51,6 +51,9 @@ export class TransactionsProxy {
         this._add_local_debts(transaction_db.uuid, inTransaction.debtors);
         await db.transactions.add(transaction_db);
         group_transactions.update((values: Record<string, Transaction[]>) => {
+            if(!values[group_uuid]) {
+                values[group_uuid] = [];
+            }
             values[group_uuid].push(inTransaction);
             return values;
         })

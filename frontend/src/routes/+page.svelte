@@ -18,19 +18,27 @@
         const params = new URLSearchParams(window.location.search);
         const token_id = params.get("id") ?? "";
         const url = params.get("url") ?? null;
-        if(url) {
-            store_url(url)
+        if (url) {
+            store_url(url);
         }
         await groupsProxy.synchronize();
-        if (
-            !$groupsStore.some((gr: Group) => {
-                return gr.token == token_id;
-            })
-        ) {
+
+        if ($groupsStore.length > 0) {
+            if (
+                !$groupsStore.some((gr: Group) => {
+                    return gr.token == token_id;
+                })
+            ) {
+                if (token_id !== "") {
+                    groupsProxy.add_group_from_id(token_id);
+                }
+            }
+        } else {
             if (token_id !== "") {
                 groupsProxy.add_group_from_id(token_id);
             }
         }
+
     });
     let create = $state(false);
     let new_group: Group = $state({
@@ -70,13 +78,19 @@
         class="btn btn-accent mt-5">Add Group</button
     >
     {#if create}
-    <div class="mt-4">
-        <GroupView creating={true} group={new_group}  onDone={()=>{create = false}}></GroupView>
-    </div>
+        <div class="mt-4">
+            <GroupView
+                creating={true}
+                group={new_group}
+                onDone={() => {
+                    create = false;
+                }}
+            ></GroupView>
+        </div>
     {/if}
     <div class="mt-4">
         {#each $groupsStore as group}
-            <GroupView creating={false} {group} onDone={()=>{}}></GroupView>
+            <GroupView creating={false} {group} onDone={() => {}}></GroupView>
         {/each}
     </div>
 </main>

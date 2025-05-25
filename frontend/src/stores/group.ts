@@ -62,10 +62,7 @@ export class GroupsProxy {
         new_group.status = STATUS.TO_CREATE;
         await db.groups.add(new_group)
 
-        groupsStore.update((values: Group[]) => {
-            values.push(this._convert_DB_to_Group(new_group));
-            return values;
-        })
+        this.SetStoreGroups(await this.get_local_groups());
     }
 
     async modify_local_group(inGroup: Group) {
@@ -129,14 +126,6 @@ export class GroupsProxy {
         if (!res.ok) {
             throw new Error("Request failed");
         }
-
-        groupsStore.update((values: Group[]) => {
-            const index = values.findIndex((gr: Group) => { return gr.token == group.token; });
-            if (index > 0) {
-                values.splice(index, 1);
-            }
-            return values;
-        })
     }
 
     private _convert_DB_to_Group(group: Group_DB): Group {
@@ -166,14 +155,12 @@ export class GroupsProxy {
 
     }
 
+
     async add_group_from_id(uuid: string) {
         if (uuid != "") {
             const new_group = await this._getGroup(uuid);
+            await this.delete_local_group(uuid);
             this.add_local_group(new_group, STATUS.NOTHING)
-            groupsStore.update((values: Group[]) => {
-                values.push(new_group);
-                return values;
-            })
         }
     }
 
@@ -198,10 +185,14 @@ export class GroupsProxy {
             try {
                 const new_group = await this._getGroup(group.uuid);
                 await db.groups.where("uuid").equals(new_group.token).modify(this._convert_Group_to_DB(new_group));
-            } catch {/**/}
+            } catch {/**/ }
         }
+        try {
+            this.SetStoreGroups(await this.get_local_groups());
+        } catch {
+            this.SetStoreGroups([]);
 
-        this.SetStoreGroups(await this.get_local_groups());
+        }
     }
 
 }
