@@ -1,11 +1,9 @@
 <script lang="ts">
     import type { Debt, Transaction, GroupMember } from "$lib/types";
     import TransactionView from "./TransactionView.svelte";
-    import {onMount} from "svelte"
+    import { onMount } from "svelte";
     import { v4 as uuidv4 } from "uuid";
-    import {
-        transactionsProxy,
-    } from "../stores/group_transactions";
+    import { transactionsProxy } from "../stores/group_transactions";
     import { current_user } from "../stores/groupUsernames";
     import { groupMembersProxy } from "../stores/group_members";
     import { current_groupStore } from "../stores/group";
@@ -20,7 +18,7 @@
     let index_count = -1;
     let creating_transaction: Transaction | null = $state(null);
     let creating: boolean = $state(false);
-    let transactions : Transaction[] = $state([])
+    let transactions: Transaction[] = $state([]);
     function create_debtors(): Debt[] {
         let debts = [] as Debt[];
         for (const member of members) {
@@ -31,7 +29,9 @@
 
     onMount(async () => {
         if ($current_user?.group_uuid) {
-            transactions = await transactionsProxy.local_synchronize($current_user.group_uuid);
+            transactions = await transactionsProxy.local_synchronize(
+                $current_user.group_uuid,
+            );
         }
     });
 
@@ -47,7 +47,9 @@
     <button
         class="btn btn-accent w-2/3 md:w-1/3 mx-auto add-button mt-5"
         onclick={async () => {
-            const current_member = await groupMembersProxy.get_local_member($current_user?.member_uuid ?? "")
+            const current_member = await groupMembersProxy.get_local_member(
+                $current_user?.member_uuid ?? "",
+            );
             creating = true;
             index_count -= 1;
             creating_transaction = {
@@ -80,11 +82,16 @@
                     onSave={async (
                         newTransaction: Transaction,
                     ): Promise<boolean> => {
-                        transactionsProxy.add_local_transaction(
-                            $current_groupStore?.token ?? "",
-                            newTransaction,
-                            STATUS.TO_CREATE
-                        );
+                        if ($current_groupStore) {
+                            await transactionsProxy.add_local_transaction(
+                                $current_groupStore.token,
+                                newTransaction,
+                                STATUS.TO_CREATE,
+                            );
+                            transactionsProxy.synchronize(
+                                $current_groupStore.token,
+                            );
+                        }
                         return true;
                     }}
                     onDelete={async (newTransaction: Transaction) => {}}
@@ -116,17 +123,28 @@
                         onSave={async (
                             newTransaction: Transaction,
                         ): Promise<boolean> => {
-                            transactionsProxy.modify_local_transaction(
-                                $current_groupStore?.token ?? "",
-                                newTransaction,
-                            );
+                            if ($current_groupStore) {
+                                await transactionsProxy.modify_local_transaction(
+                                    $current_groupStore.token,
+                                    newTransaction,
+                                );
+                                transactionsProxy.synchronize(
+                                    $current_groupStore.token,
+                                );
+                            }
+
                             return true;
                         }}
                         onDelete={async (transaction: Transaction) => {
-                            transactionsProxy.delete_local_transaction(
-                                $current_groupStore?.token ?? "",
-                                transaction.uuid,
-                            );
+                            if ($current_groupStore) {
+                                await transactionsProxy.delete_local_transaction(
+                                    $current_groupStore.token,
+                                    transaction.uuid,
+                                );
+                                transactionsProxy.synchronize(
+                                    $current_groupStore.token,
+                                );
+                            }
                         }}
                         onCancel={(transaction) => {
                             //updateTransactionLocal(id, transaction);

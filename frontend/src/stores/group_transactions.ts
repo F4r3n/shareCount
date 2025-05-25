@@ -12,12 +12,13 @@ export const group_transactions: Writable<Record<string, Transaction[]>> = writa
 export class TransactionsProxy {
 
     private async _get_local_debts(transaction_uuid: string): Promise<Debt[]> {
-        const debts_db = await db.debts.where("transaction_uuid").equals(transaction_uuid).toArray()
+        const debts_db = await db.debts.where("transaction_uuid").equals(transaction_uuid).toArray();
         const result: Debt[] = [];
 
         for (const de of debts_db) {
             result.push(await this._convert_debtDB_debt(de));
         }
+
         return result;
     }
 
@@ -41,6 +42,10 @@ export class TransactionsProxy {
         }
     }
 
+    private async _delete_local_debts(transaction_uuid: string) {
+        await db.debts.where("transaction_uuid").equals(transaction_uuid).delete();
+    }
+
     async add_local_transaction(group_uuid: string, inTransaction: Transaction, status: STATUS) {
         const transaction_db = this._convert_transaction_transactionDB(group_uuid, inTransaction, status);
         this._add_local_debts(transaction_db.uuid, inTransaction.debtors);
@@ -61,7 +66,7 @@ export class TransactionsProxy {
     }
 
     async modify_local_transaction(group_uuid: string, transaction: Transaction) {
-        await db.debts.where("transaction_uuid").equals(transaction.uuid).delete();
+        await this._delete_local_debts(transaction.uuid);
         await this._add_local_debts(transaction.uuid, transaction.debtors);
         const new_tr_db = this._convert_transaction_transactionDB(group_uuid, transaction, STATUS.NOTHING);
         new_tr_db.modified_at = getUTC();

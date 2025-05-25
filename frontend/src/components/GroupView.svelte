@@ -312,7 +312,6 @@
                                 group.token,
                             );
                         } else {
-                            console.log(members_to_add);
                             await userProxy.synchronize_store(group.token);
                             await groupsProxy.modify_local_group(
                                 group_modified,

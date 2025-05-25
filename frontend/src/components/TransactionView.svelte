@@ -140,6 +140,26 @@
             JSON.stringify($state.snapshot(modified_transaction))
         );
     }
+    interface Error {
+        code: number;
+        message: string;
+    }
+    function validate(transaction: Transaction): Error |null {
+        const total_sum_to_reach = new Big(transaction.amount);
+        let current_sum = new Big("0");
+        for (const member of transaction.debtors) {
+            current_sum = current_sum.add(new Big(member.amount));
+        }
+        let isOK = current_sum.eq(total_sum_to_reach);
+        if (!isOK) {
+            return {
+                code: 1,
+                message: "Error: The transaction is not equal to the debts",
+            };
+        }
+        return null;
+    }
+    let error: Error | null = $state(null);
 </script>
 
 <main>
@@ -307,6 +327,24 @@
                     {/each}
                 </div>
             </div>
+            {#if error}
+                <div role="alert" class="alert alert-error">
+                    <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        class="h-6 w-6 shrink-0 stroke-current"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                    >
+                        <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            stroke-width="2"
+                            d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"
+                        />
+                    </svg>
+                    <span>{error.message}</span>
+                </div>
+            {/if}
             <div class="flex flex-row justify-between gap-x-2 m-2">
                 <!-- Left side: Delete and Reset -->
                 {#if is_creating}
@@ -345,11 +383,14 @@
                     <button
                         class="btn btn-sm btn-primary"
                         onclick={async () => {
-                            transaction = modified_transaction;
-                            if (await onSave(modified_transaction)) {
-                                is_saved = true;
-                                is_editing = false;
-                                is_open = false;
+                            error = validate(modified_transaction);
+                            if (error == null) {
+                                transaction = modified_transaction;
+                                if (await onSave(modified_transaction)) {
+                                    is_saved = true;
+                                    is_editing = false;
+                                    is_open = false;
+                                }
                             }
                         }}
                     >
