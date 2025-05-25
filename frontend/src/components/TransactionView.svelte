@@ -145,6 +145,11 @@
         message: string;
     }
     function validate(transaction: Transaction): Error |null {
+        if(transaction.description === "")
+            return {
+                code: 2,
+                message: "Error: The transaction must have a description",
+            };
         const total_sum_to_reach = new Big(transaction.amount);
         let current_sum = new Big("0");
         for (const member of transaction.debtors) {

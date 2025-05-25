@@ -59,7 +59,7 @@
                 created_at: new Date().toISOString().replace("Z", ""),
                 modified_at: new Date().toISOString().replace("Z", ""),
                 debtors: create_debtors(),
-                description: "",
+                description: "New transaction",
                 exchange_rate: "1",
                 paid_by: current_member ?? ({} as GroupMember),
             };
