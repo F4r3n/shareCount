@@ -45,10 +45,6 @@ export class UserProxy {
                 values[group_uuid] = { group_uuid: data.group_uuid, member_uuid: data.member_uuid };
                 return values;
             });
-            current_user.set(data)
-        }
-        else {
-            current_user.set(null);
         }
     }
 

@@ -13,7 +13,7 @@
     import { STATUS } from "../db/db";
     import Modal from "./Modal.svelte";
     import { type ModalButton } from "./ModalTypes";
-	import { base } from '$app/paths';
+    import { base } from "$app/paths";
 
     let {
         group,
@@ -30,6 +30,7 @@
     let error_members: SvelteMap<string, string> = new SvelteMap();
     let group_modified = $state(structuredClone($state.snapshot(group)));
     let modal: Modal | null = $state(null);
+    let current_user_uuid = $state("");
     onMount(async () => {
         if (!creating) {
             await userProxy.synchronize_store(group.token);
@@ -39,7 +40,11 @@
             );
             await transactionsProxy.synchronize(group.token);
             clean();
-            edit = !$current_user;
+            if ($users[group.token]) {
+                current_user_uuid = $users[group.token].member_uuid;
+            }
+            edit = !current_user_uuid;
+            
         } else {
             edit = true;
             members_to_add.push(create_unique_member());
@@ -127,9 +132,9 @@
     <div class="card bg-base-100 w-sm sm:w-md shadow-sm">
         <div class="card-body">
             <h1 class="card-title">{group_modified.name}</h1>
-            {#if $current_user}
+            {#if current_user_uuid}
                 <div class="card-body">
-                    {`${get_member_from_uuid($current_user.member_uuid)?.nickname} (me)`}
+                    {`${get_member_from_uuid(current_user_uuid)?.nickname} (me)`}
                 </div>
             {/if}
             <div class="card-actions justify-end">
@@ -181,12 +186,13 @@
 
                     <button
                         class="btn btn-primary"
-                        disabled={!$current_user}
+                        disabled={!current_user_uuid}
                         onclick={() => {
                             current_groupStore.set(group);
                             current_user.set($users[group.token]);
                             goto(
-                                base + `${menus[MENU.EXPENSES].path}?id=${group.token}`,
+                                base +
+                                    `${menus[MENU.EXPENSES].path}?id=${group.token}`,
                             );
                         }}
                         >Go
@@ -228,7 +234,7 @@
                         current_member={member}
                         {id}
                         error_message={error_members.get(member.uuid) ?? ""}
-                        member_me={$current_user?.member_uuid ?? ""}
+                        member_me={current_user_uuid}
                         onDelete={() => {
                             members_to_delete.push(member);
                             modified_members.splice(id, 1);
@@ -246,6 +252,7 @@
                         }}
                         onMESelect={() => {
                             userProxy.set_user_group(group.token, member.uuid);
+                            current_user_uuid = member.uuid;
                         }}
                     ></GroupViewMemberItem>
                 {/each}
@@ -255,7 +262,7 @@
                         current_member={member}
                         {id}
                         error_message={error_members.get(member.uuid) ?? ""}
-                        member_me={$current_user?.member_uuid ?? ""}
+                        member_me={current_user_uuid}
                         onDelete={() => {
                             members_to_add.splice(id, 1);
                         }}
@@ -327,7 +334,7 @@
                                     group.token,
                                 );
                             const member = original_members.find((value) => {
-                                value.uuid == $current_user?.member_uuid;
+                                value.uuid == current_user_uuid;
                             });
                             if (member) {
                                 userProxy.set_user_group(

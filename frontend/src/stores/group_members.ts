@@ -6,13 +6,8 @@ import { getUTC } from '$lib/UTCDate';
 import { v4 as uuidv4 } from 'uuid';
 import { getBackendURL } from '$lib/shareCountAPI';
 
-export const current_membersStore: Writable<GroupMember[]> = writable([]);
-
 
 export class GroupMemberProxy {
-    SetStoreGroupMembers(members: GroupMember[]) {
-        current_membersStore.set(members)
-    }
 
     private async _get_remote_GroupMembers(tokenID: string): Promise<GroupMember[]> {
         const res = await fetch(`${getBackendURL()}/groups/${tokenID}/group_members`, {
@@ -143,7 +138,6 @@ export class GroupMemberProxy {
 
     async local_synchronize(in_group_token: string): Promise<GroupMember[]> {
         const members = await this.get_group_members(in_group_token)
-        this.SetStoreGroupMembers(members);
         return members;
     }
 

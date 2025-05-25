@@ -2,16 +2,18 @@
     import { onMount } from "svelte";
 
     import Balance from "../../components/Balance.svelte";
-    import { current_membersStore, groupMembersProxy } from "../../stores/group_members";
+    import { groupMembersProxy } from "../../stores/group_members";
     import { current_user } from "../../stores/groupUsernames";
     import { transactionsProxy } from "../../stores/group_transactions";
+    import type { GroupMember } from "$lib/types";
 
     let loading = $state(true);
     let current_error: string = $state("");
-
+    let current_members : GroupMember[] = $state([])
     onMount(async () => {
         if ($current_user?.group_uuid) {
             await groupMembersProxy.local_synchronize($current_user.group_uuid);
+            current_members = await groupMembersProxy.get_group_members($current_user.group_uuid)
             await transactionsProxy.local_synchronize($current_user.group_uuid);
         }
 
@@ -38,7 +40,7 @@
     </div>
 {/if}
 {#if !loading}
-    <Balance members={$current_membersStore}></Balance>
+    <Balance members={current_members}></Balance>
 {/if}
 
 <style>

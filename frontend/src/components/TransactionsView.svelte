@@ -7,7 +7,7 @@
         transactionsProxy,
     } from "../stores/group_transactions";
     import { current_user } from "../stores/groupUsernames";
-    import { current_membersStore } from "../stores/group_members";
+    import { groupMembersProxy } from "../stores/group_members";
     import { current_groupStore } from "../stores/group";
     import { STATUS } from "../db/db";
     let {
@@ -46,10 +46,8 @@
 <div class="flex flex-col h-dvh">
     <button
         class="btn btn-accent w-2/3 md:w-1/3 mx-auto add-button mt-5"
-        onclick={() => {
-            const current_member = $current_membersStore.find((value) => {
-                value.uuid == $current_user?.member_uuid;
-            });
+        onclick={async () => {
+            const current_member = await groupMembersProxy.get_local_member($current_user?.member_uuid ?? "")
             creating = true;
             index_count -= 1;
             creating_transaction = {
