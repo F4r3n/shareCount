@@ -56,7 +56,7 @@
     <div class="m-2">
         <h2>Balances</h2>
         <div>
-            {#each balances as balance}
+            {#each balances as balance (balance.member)}
                 <div
                     class="bg-base-100 rounded-md flex flex-row justify-between m-1 p-2"
                 >
@@ -69,7 +69,7 @@
     <div class="m-2">
         <h2>Settlements</h2>
         <div>
-            {#each settlements as settlement}
+            {#each settlements as settlement (settlement.member_from)}
                 {#if settlement.amount !== "0"}
                     <div class="bg-base-100 rounded-md m-1 p-2 flex flex-col">
                         <div class="flex flex-row justify-between">

@@ -29,8 +29,8 @@ jobs:
       run: npm install
     - name: Build
       run: npm run build
-    - name: LS
-      run: ls -a
+    - name: Lint
+      run: npm run lint
     - name: Upload artifact
       if: ${{ inputs.upload }}
       uses: actions/upload-pages-artifact@v3

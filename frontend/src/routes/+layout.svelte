@@ -60,7 +60,7 @@
 				<ul
 					class="menu menu-horizontal lg:text-2xl md:text-xl sm:text-lg"
 				>
-					{#each menus as sub}
+					{#each menus as sub (sub.name)}
 						{#if sub.need_group && $current_groupStore}
 							<li>
 								<button
@@ -88,7 +88,7 @@
 		></label>
 		<ul class="menu bg-base-200 min-h-full w-80 p-4">
 			<!-- Sidebar content here -->
-			{#each menus as sub}
+			{#each menus as sub (sub.name)}
 				{#if !sub.need_group || (sub.need_group && $current_groupStore)}
 					<li>
 						<button

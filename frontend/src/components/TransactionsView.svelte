@@ -7,7 +7,6 @@
     import { current_user } from "../stores/groupUsernames";
     import { groupMembersProxy } from "../stores/group_members";
     import { current_groupStore } from "../stores/group";
-    import { STATUS } from "../db/db";
     let {
         main_currency,
         members,
@@ -15,7 +14,6 @@
         main_currency: string | undefined;
         members: GroupMember[];
     } = $props();
-    let index_count = -1;
     let creating_transaction: Transaction | null = $state(null);
     let creating: boolean = $state(false);
     let transactions: Transaction[] = $state([]);
@@ -51,7 +49,6 @@
                 $current_user?.member_uuid ?? "",
             );
             creating = true;
-            index_count -= 1;
             creating_transaction = {
                 uuid: uuidv4(),
                 amount: "0",
@@ -90,7 +87,6 @@
                         }
                         return true;
                     }}
-                    onDelete={async (newTransaction: Transaction) => {}}
                 ></TransactionView>
             {/if}
             {#each transactions as transaction, id (transaction.uuid)}
@@ -136,7 +132,7 @@
                                 );
                             }
                         }}
-                        onCancel={(transaction) => {
+                        onCancel={() => {
                             //updateTransactionLocal(id, transaction);
                         }}
                     ></TransactionView>

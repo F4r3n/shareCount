@@ -48,6 +48,7 @@
         modified_at: getUTC(),
         name: "New Group",
     });
+    let sortedGroup = $derived($groupsStore.toSorted((a : Group, b : Group)=>{return b.created_at.localeCompare(a.created_at)}))
 </script>
 
 {#if current_error}
@@ -89,8 +90,10 @@
         </div>
     {/if}
     <div class="mt-4">
-        {#each $groupsStore as group}
+        {#each sortedGroup as group (group.token)}
+        <div class="mb-5">
             <GroupView creating={false} {group} onDone={() => {}}></GroupView>
+        </div>
         {/each}
     </div>
 </main>

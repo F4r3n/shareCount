@@ -44,7 +44,7 @@
             if ($users[group.token]) {
                 current_user_uuid = $users[group.token].member_uuid;
             }
-            edit = !current_user_uuid;
+            //edit = !current_user_uuid;
         } else {
             edit = true;
             members_to_add.push(create_unique_member());
@@ -148,9 +148,8 @@
                     };
                     if (navigator.share) {
                         navigator.share(shareData);
-                    }
-                    else {
-                        navigator.clipboard.writeText(shareData.url)
+                    } else {
+                        navigator.clipboard.writeText(shareData.url);
                     }
                 }}
             >
@@ -259,7 +258,7 @@
 
                 <fieldset class="fieldset">
                     <legend class="fieldset-legend">Members</legend>
-                    {#each modified_members as member, id}
+                    {#each modified_members as member, id (member.uuid)}
                         <GroupViewMemberItem
                             current_member={member}
                             {id}
@@ -290,7 +289,7 @@
                         ></GroupViewMemberItem>
                     {/each}
 
-                    {#each members_to_add as member, id}
+                    {#each members_to_add as member, id (member.uuid)}
                         <GroupViewMemberItem
                             current_member={member}
                             {id}
@@ -370,7 +369,7 @@
                                     group.token,
                                 );
                             const member = original_members.find((value) => {
-                                value.uuid == current_user_uuid;
+                                return value.uuid == current_user_uuid;
                             });
                             if (member) {
                                 userProxy.set_user_group(
@@ -382,7 +381,12 @@
                                 await groupMembersProxy.synchro_group_members(
                                     group.token,
                                 );
-                            } catch (e) {}
+                            } catch (error) {
+                                console.error(
+                                    "Failed to synchronize group members:",
+                                    error,
+                                );
+                            }
                         }
 
                         clean();

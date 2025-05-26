@@ -20,7 +20,7 @@
         is_open: boolean;
         is_creating: boolean;
         onSave: (tx: Transaction) => Promise<boolean>;
-        onDelete: (tx: Transaction) => void;
+        onDelete?: (tx: Transaction) => void;
         onCancel: (tx: Transaction) => void;
     } = $props();
     let modified_transaction = $state(
@@ -45,7 +45,7 @@
         }
     }
 
-    let mapDebt: SvelteMap<string, DebtContainer> = $state(new SvelteMap());
+    let mapDebt: SvelteMap<string, DebtContainer> = new SvelteMap();
     let modal: HTMLDialogElement | null = null;
     let date_value = $derived(modified_transaction.created_at.split("T")[0]);
 
@@ -85,7 +85,7 @@
             }
         }
 
-        const set_current_debtors: Set<String> = new Set();
+        const set_current_debtors: Set<string> = new Set();
 
         for (let i = 0; i < modified_transaction.debtors.length; ++i) {
             const updatedDebt = mapDebt.get(
@@ -99,7 +99,7 @@
             );
         }
 
-        for (const [key, debtContainer] of mapDebt) {
+        for (const [, debtContainer] of mapDebt) {
             if (debtContainer.activated) {
                 if (
                     !set_current_debtors.has(debtContainer.debt.member.nickname)
@@ -129,10 +129,11 @@
     function handleDelete() {
         // Replace with your actual logic
         is_open = false;
-        onDelete($state.snapshot(modified_transaction));
+        if (onDelete) {
+            onDelete($state.snapshot(modified_transaction));
+        }
         modal?.close();
     }
-    let is_saved = $state(false);
 
     function hasChanged() {
         return (
@@ -144,8 +145,8 @@
         code: number;
         message: string;
     }
-    function validate(transaction: Transaction): Error |null {
-        if(transaction.description === "")
+    function validate(transaction: Transaction): Error | null {
+        if (transaction.description === "")
             return {
                 code: 2,
                 message: "Error: The transaction must have a description",
@@ -267,7 +268,7 @@
                                 >
                                     {modified_transaction.paid_by.nickname}
                                 </option>
-                                {#each members as member}
+                                {#each members as member (member.uuid)}
                                     <option value={member}>
                                         {member.nickname}
                                     </option>
@@ -291,7 +292,7 @@
                     </div>
                 </div>
                 <div class="flex flex-col justify-between w-full pl-4 pr-4">
-                    {#each mapDebt as [nickname, debtContainer]}
+                    {#each mapDebt as [nickname, debtContainer] (nickname)}
                         <div
                             class="flex flex-row mt-2 justify-between w-full items-center"
                         >
@@ -301,7 +302,7 @@
                                         type="checkbox"
                                         class="checkbox checkbox-accent checkbox-xs sm:checkbox-sm md:checkbox-md"
                                         bind:checked={debtContainer.activated}
-                                        onchange={(event) => {
+                                        onchange={() => {
                                             updateDebtors(
                                                 modified_transaction.amount,
                                             );
@@ -392,7 +393,6 @@
                             if (error == null) {
                                 transaction = modified_transaction;
                                 if (await onSave(modified_transaction)) {
-                                    is_saved = true;
                                     is_editing = false;
                                     is_open = false;
                                 }

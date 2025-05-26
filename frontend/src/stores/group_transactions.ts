@@ -58,10 +58,9 @@ export class TransactionsProxy {
     async delete_transaction(group_uuid: string, inTransaction: Transaction) {
         try {
             this._delete_remote_transaction(group_uuid, inTransaction);
-        } catch {
+        } finally {
+            this.delete_local_transaction(group_uuid, inTransaction.uuid)
         }
-        this.delete_local_transaction(group_uuid, inTransaction.uuid)
-
     }
 
     async add_local_transaction(group_uuid: string, inTransaction: Transaction, status: STATUS) {
