@@ -14,7 +14,8 @@
     import Modal from "./Modal.svelte";
     import { type ModalButton } from "./ModalTypes";
     import { base } from "$app/paths";
-
+    import { Share2Icon } from "lucide-svelte";
+    import { getBackendURL } from "$lib/shareCountAPI";
     let {
         group,
         creating,
@@ -44,7 +45,6 @@
                 current_user_uuid = $users[group.token].member_uuid;
             }
             edit = !current_user_uuid;
-            
         } else {
             edit = true;
             members_to_add.push(create_unique_member());
@@ -124,20 +124,49 @@
         if (member) return member;
         return null;
     }
+
+    function build_share_url() {
+        const newurl = `${window.location.origin}${base}/?url=${getBackendURL()}&id=${group.token}`;
+        return newurl;
+    }
 </script>
 
 <main
     class="flex flex-col w-full justify-center text-base md:text-md lg:text-lg"
 >
-    <div class="card bg-base-100 w-sm sm:w-md shadow-sm">
-        <div class="card-body">
-            <h1 class="card-title">{group_modified.name}</h1>
-            {#if current_user_uuid}
-                <div class="card-body">
-                    {`${get_member_from_uuid(current_user_uuid)?.nickname} (me)`}
-                </div>
-            {/if}
-            <div class="card-actions justify-end">
+    <div
+        class="grid grid-cols-5 grid-rows-4 bg-base-100 w-sm sm:w-md shadow-sm p-3 rounded-sm"
+    >
+        <div class="row-start-1 col-start-5 flex flex-row justify-end">
+            <button
+                class="btn btn-ghost rounded-4xl"
+                onclick={() => {
+                    const shareData = {
+                        title: `sharecount to ${group_modified.name}`,
+                        text: "Welcome to your new trip",
+                        url: build_share_url(),
+                    };
+                    if (navigator.share) {
+                        navigator.share(shareData);
+                    }
+                    else {
+                        navigator.clipboard.writeText(shareData.url)
+                    }
+                }}
+            >
+                <Share2Icon></Share2Icon>
+            </button>
+        </div>
+        <h1 class="row-start-1 col-start-1 col-end-3 font-semibold">
+            {group_modified.name}
+        </h1>
+        {#if current_user_uuid}
+            <div class="row-start-2 col-start-1 col-end-3 text-sm">
+                {`${get_member_from_uuid(current_user_uuid)?.nickname} (me)`}
+            </div>
+        {/if}
+        <div class="row-start-4 col-start-5">
+            <div class="flex flex-row gap-2 justify-end">
                 {#if creating}
                     <button
                         class="btn btn-error"
@@ -203,93 +232,101 @@
     </div>
     {#if edit}
         <div
-            class="flex flex-col bg-base-100 w-sm sm:w-md shadow-sm pl-2"
+            class="flex flex-col bg-base-100 w-sm sm:w-md shadow-sm"
             transition:slide
         >
-            <div class="flex flex-row">
+            <div class="pl-2">
+                <div class="flex flex-row">
+                    <fieldset class="fieldset">
+                        <legend class="fieldset-legend">Title</legend>
+                        <input
+                            class="input input-ghost"
+                            type="text"
+                            bind:value={group_modified.name}
+                            onchange={() => {}}
+                        />
+                    </fieldset>
+                    <fieldset class="fieldset">
+                        <legend class="fieldset-legend">Currency</legend>
+                        <input
+                            class="input input-ghost"
+                            type="text"
+                            bind:value={group_modified.currency_id}
+                            onchange={() => {}}
+                        />
+                    </fieldset>
+                </div>
+
                 <fieldset class="fieldset">
-                    <legend class="fieldset-legend">Title</legend>
-                    <input
-                        class="input input-ghost"
-                        type="text"
-                        bind:value={group_modified.name}
-                        onchange={() => {}}
-                    />
-                </fieldset>
-                <fieldset class="fieldset">
-                    <legend class="fieldset-legend">Currency</legend>
-                    <input
-                        class="input input-ghost"
-                        type="text"
-                        bind:value={group_modified.currency_id}
-                        onchange={() => {}}
-                    />
+                    <legend class="fieldset-legend">Members</legend>
+                    {#each modified_members as member, id}
+                        <GroupViewMemberItem
+                            current_member={member}
+                            {id}
+                            error_message={error_members.get(member.uuid) ?? ""}
+                            member_me={current_user_uuid}
+                            onDelete={() => {
+                                members_to_delete.push(member);
+                                modified_members.splice(id, 1);
+                            }}
+                            onChange={(member) => {
+                                modified_members[id] = member;
+                                if (!is_present_once(member.nickname)) {
+                                    error_members.set(
+                                        member.uuid,
+                                        "The name already exists",
+                                    );
+                                } else {
+                                    error_members.delete(member.uuid);
+                                }
+                            }}
+                            onMESelect={() => {
+                                userProxy.set_user_group(
+                                    group.token,
+                                    member.uuid,
+                                );
+                                current_user_uuid = member.uuid;
+                            }}
+                        ></GroupViewMemberItem>
+                    {/each}
+
+                    {#each members_to_add as member, id}
+                        <GroupViewMemberItem
+                            current_member={member}
+                            {id}
+                            error_message={error_members.get(member.uuid) ?? ""}
+                            member_me={current_user_uuid}
+                            onDelete={() => {
+                                members_to_add.splice(id, 1);
+                            }}
+                            onChange={(member) => {
+                                members_to_add[id] = member;
+                                if (!is_present_once(member.nickname)) {
+                                    error_members.set(
+                                        member.uuid,
+                                        "The name already exists",
+                                    );
+                                } else {
+                                    error_members.delete(member.uuid);
+                                }
+                            }}
+                            onMESelect={() => {
+                                userProxy.set_user_group(
+                                    group.token,
+                                    member.uuid,
+                                );
+                            }}
+                        ></GroupViewMemberItem>
+                    {/each}
+
+                    <button
+                        class="btn"
+                        onclick={() => {
+                            members_to_add.push(create_unique_member());
+                        }}>Add participant</button
+                    >
                 </fieldset>
             </div>
-
-            <fieldset class="fieldset">
-                <legend class="fieldset-legend">Members</legend>
-                {#each modified_members as member, id}
-                    <GroupViewMemberItem
-                        current_member={member}
-                        {id}
-                        error_message={error_members.get(member.uuid) ?? ""}
-                        member_me={current_user_uuid}
-                        onDelete={() => {
-                            members_to_delete.push(member);
-                            modified_members.splice(id, 1);
-                        }}
-                        onChange={(member) => {
-                            modified_members[id] = member;
-                            if (!is_present_once(member.nickname)) {
-                                error_members.set(
-                                    member.uuid,
-                                    "The name already exists",
-                                );
-                            } else {
-                                error_members.delete(member.uuid);
-                            }
-                        }}
-                        onMESelect={() => {
-                            userProxy.set_user_group(group.token, member.uuid);
-                            current_user_uuid = member.uuid;
-                        }}
-                    ></GroupViewMemberItem>
-                {/each}
-
-                {#each members_to_add as member, id}
-                    <GroupViewMemberItem
-                        current_member={member}
-                        {id}
-                        error_message={error_members.get(member.uuid) ?? ""}
-                        member_me={current_user_uuid}
-                        onDelete={() => {
-                            members_to_add.splice(id, 1);
-                        }}
-                        onChange={(member) => {
-                            members_to_add[id] = member;
-                            if (!is_present_once(member.nickname)) {
-                                error_members.set(
-                                    member.uuid,
-                                    "The name already exists",
-                                );
-                            } else {
-                                error_members.delete(member.uuid);
-                            }
-                        }}
-                        onMESelect={() => {
-                            userProxy.set_user_group(group.token, member.uuid);
-                        }}
-                    ></GroupViewMemberItem>
-                {/each}
-
-                <button
-                    class="btn"
-                    onclick={() => {
-                        members_to_add.push(create_unique_member());
-                    }}>Add participant</button
-                >
-            </fieldset>
 
             <button
                 class="btn btn-primary mt-5"

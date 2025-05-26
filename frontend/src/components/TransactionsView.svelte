@@ -83,13 +83,9 @@
                         newTransaction: Transaction,
                     ): Promise<boolean> => {
                         if ($current_groupStore) {
-                            await transactionsProxy.add_local_transaction(
+                            transactionsProxy.add_transaction(
                                 $current_groupStore.token,
                                 newTransaction,
-                                STATUS.TO_CREATE,
-                            );
-                            transactionsProxy.synchronize(
-                                $current_groupStore.token,
                             );
                         }
                         return true;
@@ -124,12 +120,9 @@
                             newTransaction: Transaction,
                         ): Promise<boolean> => {
                             if ($current_groupStore) {
-                                await transactionsProxy.modify_local_transaction(
+                                transactionsProxy.add_transaction(
                                     $current_groupStore.token,
                                     newTransaction,
-                                );
-                                transactionsProxy.synchronize(
-                                    $current_groupStore.token,
                                 );
                             }
 
@@ -137,12 +130,9 @@
                         }}
                         onDelete={async (transaction: Transaction) => {
                             if ($current_groupStore) {
-                                await transactionsProxy.delete_local_transaction(
+                                transactionsProxy.delete_transaction(
                                     $current_groupStore.token,
-                                    transaction.uuid,
-                                );
-                                transactionsProxy.synchronize(
-                                    $current_groupStore.token,
+                                    transaction,
                                 );
                             }
                         }}

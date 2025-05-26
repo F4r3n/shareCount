@@ -46,12 +46,30 @@ export class TransactionsProxy {
         await db.debts.where("transaction_uuid").equals(transaction_uuid).delete();
     }
 
+    async add_transaction(group_uuid: string, inTransaction: Transaction) {
+        try {
+            await this._update_remote_transaction(group_uuid, inTransaction);
+            this.add_local_transaction(group_uuid, inTransaction, STATUS.NOTHING)
+        } catch {
+            this.add_local_transaction(group_uuid, inTransaction, STATUS.TO_CREATE)
+        }
+    }
+
+    async delete_transaction(group_uuid: string, inTransaction: Transaction) {
+        try {
+            this._delete_remote_transaction(group_uuid, inTransaction);
+        } catch {
+        }
+        this.delete_local_transaction(group_uuid, inTransaction.uuid)
+
+    }
+
     async add_local_transaction(group_uuid: string, inTransaction: Transaction, status: STATUS) {
         const transaction_db = this._convert_transaction_transactionDB(group_uuid, inTransaction, status);
         this._add_local_debts(transaction_db.uuid, inTransaction.debtors);
         await db.transactions.add(transaction_db);
         group_transactions.update((values: Record<string, Transaction[]>) => {
-            if(!values[group_uuid]) {
+            if (!values[group_uuid]) {
                 values[group_uuid] = [];
             }
             values[group_uuid].push(inTransaction);
@@ -89,9 +107,8 @@ export class TransactionsProxy {
         return transactions;
     }
 
-    private async _delete_all_transactions(group : string) {
-        for(const tr of await db.transactions.where("group_uuid").equals(group).toArray())
-        {
+    private async _delete_all_transactions(group: string) {
+        for (const tr of await db.transactions.where("group_uuid").equals(group).toArray()) {
             await db.debts.where("transaction_uuid").equals(tr.uuid).delete();
         }
         await db.transactions.where("group_uuid").equals(group).delete();
