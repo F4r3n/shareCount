@@ -261,7 +261,6 @@
                     {#each modified_members as member, id (member.uuid)}
                         <GroupViewMemberItem
                             current_member={member}
-                            {id}
                             error_message={error_members.get(member.uuid) ?? ""}
                             member_me={current_user_uuid}
                             onDelete={() => {
@@ -292,7 +291,6 @@
                     {#each members_to_add as member, id (member.uuid)}
                         <GroupViewMemberItem
                             current_member={member}
-                            {id}
                             error_message={error_members.get(member.uuid) ?? ""}
                             member_me={current_user_uuid}
                             onDelete={() => {

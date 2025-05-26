@@ -11,7 +11,6 @@
         onMESelect,
     }: {
         current_member: GroupMember;
-        id: number;
         error_message: string;
         member_me: string;
         onDelete: () => void;
