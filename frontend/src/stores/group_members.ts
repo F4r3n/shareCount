@@ -70,9 +70,8 @@ export class GroupMemberProxy {
 
     }
 
-    private async _delete_local_members_from_group(group_uuid : string) {
+    async delete_local_members_from_group(group_uuid : string) {
         db.group_members.where("group_uuid").equals(group_uuid).delete();
-
     }
 
     async delete_local_members(group_members: GroupMember[]) {
@@ -160,7 +159,7 @@ export class GroupMemberProxy {
             await this._delete_remote_GroupMembers(in_group_token, to_delete_members);
 
             const remote_members = await this._get_remote_GroupMembers(in_group_token);
-            this._delete_local_members_from_group(in_group_token);
+            this.delete_local_members_from_group(in_group_token);
 
             for (const member of remote_members) {
                 this.add_local_members(in_group_token, [member], STATUS.NOTHING);

@@ -1,7 +1,6 @@
 <script lang="ts">
     import type { GroupMember } from "$lib/types";
     import { CheckIcon, XIcon } from "lucide-svelte";
-
     let {
         current_member,
         error_message,
@@ -17,6 +16,7 @@
         onChange: (member: GroupMember) => void;
         onMESelect: () => void;
     } = $props();
+    let member = $state(structuredClone($state.snapshot(current_member)));
 </script>
 
 <div class="join mt-2">
@@ -40,14 +40,14 @@
             class="input join-item {error_message != ""
                 ? 'input-error'
                 : 'input-ghost'}"
-            bind:value={current_member.nickname}
+            bind:value={member.nickname}
             onchange={() => {
-                onChange(current_member);
+                onChange(member);
             }}
         />
     </div>
     
-    {#if member_me == current_member.uuid}
+    {#if member_me == member.uuid}
         <div class="flex items-center align-middle">
             <CheckIcon></CheckIcon>
         </div>

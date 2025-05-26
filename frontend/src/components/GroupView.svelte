@@ -170,6 +170,7 @@
                     <button
                         class="btn btn-error"
                         onclick={() => {
+                            groupMembersProxy.delete_local_members_from_group(group.token);
                             onDone();
                             clean();
                         }}
@@ -312,6 +313,8 @@
                                     group.token,
                                     member.uuid,
                                 );
+                                current_user_uuid = member.uuid;
+
                             }}
                         ></GroupViewMemberItem>
                     {/each}
@@ -336,6 +339,7 @@
                             await groupsProxy.add_new_local_group(
                                 group_modified,
                             );
+
                             await groupMembersProxy.add_local_members(
                                 group.token,
                                 members_to_add,
@@ -358,6 +362,7 @@
                                 members_to_add,
                                 STATUS.TO_CREATE,
                             );
+                            console.log(modified_members)
                             await groupMembersProxy.rename_local_members(
                                 modified_members,
                             );

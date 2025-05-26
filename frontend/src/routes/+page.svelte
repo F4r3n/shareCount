@@ -38,17 +38,23 @@
                 groupsProxy.add_group_from_id(token_id);
             }
         }
-
     });
     let create = $state(false);
-    let new_group: Group = $state({
-        token: uuidv4(),
-        created_at: getUTC(),
-        currency_id: "EUR",
-        modified_at: getUTC(),
-        name: "New Group",
-    });
-    let sortedGroup = $derived($groupsStore.toSorted((a : Group, b : Group)=>{return b.created_at.localeCompare(a.created_at)}))
+    let new_group: Group = $state(create_new_group());
+    function create_new_group(): Group {
+        return {
+            token: uuidv4(),
+            created_at: getUTC(),
+            currency_id: "EUR",
+            modified_at: getUTC(),
+            name: "New group",
+        } as Group;
+    }
+    let sortedGroup = $derived(
+        $groupsStore.toSorted((a: Group, b: Group) => {
+            return b.created_at.localeCompare(a.created_at);
+        }),
+    );
 </script>
 
 {#if current_error}
@@ -75,6 +81,7 @@
         disabled={create}
         onclick={() => {
             create = true;
+            new_group = create_new_group();
         }}
         class="btn btn-accent mt-5">Add Group</button
     >
@@ -91,9 +98,10 @@
     {/if}
     <div class="mt-4">
         {#each sortedGroup as group (group.token)}
-        <div class="mb-5">
-            <GroupView creating={false} {group} onDone={() => {}}></GroupView>
-        </div>
+            <div class="mb-5">
+                <GroupView creating={false} {group} onDone={() => {}}
+                ></GroupView>
+            </div>
         {/each}
     </div>
 </main>
