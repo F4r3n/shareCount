@@ -6,7 +6,7 @@
     import { MENU, menus } from "$lib/menus";
     import { groupMembersProxy } from "@stores/group_members";
     import GroupViewMemberItem from "./GroupView_MemberItem.svelte";
-    import { current_groupStore, groupsProxy, groupsStore } from "@stores/group";
+    import { current_groupStore, groupsProxy } from "@stores/group";
     import { current_user, userProxy, users } from "@stores/groupUsernames";
     import { transactionsProxy } from "@stores/group_transactions";
     import { STATUS } from "../db/db";
