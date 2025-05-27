@@ -134,7 +134,7 @@ export class GroupMemberProxy {
         return list_local_members;
     }
 
-    async synchro_group_members(in_group_token: string) {
+    async synchronize(in_group_token: string) {
         const original_members = await this._fetch_local_members(in_group_token);
         const to_send_members = [];
         const to_delete_members = [];

@@ -4,6 +4,7 @@
     import { slide } from "svelte/transition";
     import { SvelteMap } from "svelte/reactivity";
     import Big from "big.js";
+    import { getUTC } from "$lib/UTCDate";
     let {
         transaction,
         members,
@@ -108,6 +109,7 @@
                 }
             }
         }
+        modified_transaction.modified_at = getUTC();
     }
 
     onMount(() => {
@@ -135,14 +137,14 @@
         modal?.close();
     }
 
-    function hasChanged() {
-        return (
-            JSON.stringify($state.snapshot(transaction)) !==
-            JSON.stringify($state.snapshot(modified_transaction))
-        );
+    function hasChanged(
+        transaction: Transaction,
+        modified_transaction: Transaction,
+    ) {
+        return modified_transaction.modified_at !== transaction.modified_at;
     }
     interface Error {
-        code: number;
+        code?: number;
         message: string;
     }
     function validate(transaction: Transaction): Error | null {
@@ -152,6 +154,12 @@
                 message: "Error: The transaction must have a description",
             };
         const total_sum_to_reach = new Big(transaction.amount);
+        if (total_sum_to_reach <= new Big("0")) {
+            return {
+                code: 3,
+                message: "Error: The transaction must must be positive",
+            };
+        }
         let current_sum = new Big("0");
         for (const member of transaction.debtors) {
             current_sum = current_sum.add(new Big(member.amount));
@@ -180,27 +188,24 @@
                     }
                 }}
             >
-                {#if hasChanged()}
+                {#if hasChanged(transaction, modified_transaction)}
                     <div class="status status-info animate-bounce"></div>
                 {/if}
                 <div
                     class="grid grid-cols-[1fr_auto] grid-rows-2 gap-x-4 items-center w-full"
                 >
-                    <!-- Title: Top-left -->
                     <div
                         class="col-start-1 row-start-1 truncate text-left text-base md:text-md lg:text-lg text-base-content"
                     >
                         {modified_transaction.description}
                     </div>
 
-                    <!-- Paid by: Second row, left column -->
                     <div
                         class="col-start-1 row-start-2 text-left text-sm text-base-content/80"
                     >
                         Paid by {modified_transaction.paid_by.nickname}
                     </div>
 
-                    <!-- Amount: Right, vertically centered across first two rows -->
                     <div
                         class="col-start-2 row-start-1 row-span-2 flex flex-col items-center justify-center text-base md:text-md lg:text-lg h-full"
                     >
@@ -228,6 +233,9 @@
                                 readonly={!is_editing}
                                 class="input input-ghost md:input-md lg:input-lg"
                                 bind:value={modified_transaction.description}
+                                onchange={() => {
+                                    modified_transaction.modified_at = getUTC();
+                                }}
                             />
                         </div>
                         <legend class="fieldset-legend">Amount</legend>
@@ -238,6 +246,9 @@
                                 placeholder="USD"
                                 class="input input-ghost md:input-md lg:input-lg"
                                 bind:value={modified_transaction.currency_id}
+                                onchange={() => {
+                                    modified_transaction.modified_at = getUTC();
+                                }}
                             />
                             <input
                                 readonly={!is_editing}

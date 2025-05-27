@@ -63,16 +63,31 @@ export class TransactionsProxy {
     }
 
     async add_local_transaction(group_uuid: string, inTransaction: Transaction, status: STATUS) {
-        const transaction_db = this._convert_transaction_transactionDB(group_uuid, inTransaction, status);
-        this._add_local_debts(transaction_db.uuid, inTransaction.debtors);
-        await db.transactions.add(transaction_db);
+        this._add_local_transaction(group_uuid, inTransaction, status);
         group_transactions.update((values: Record<string, Transaction[]>) => {
             if (!values[group_uuid]) {
                 values[group_uuid] = [];
             }
             values[group_uuid].push(inTransaction);
+            values[group_uuid] = this._sort_transactions(values[group_uuid]);
             return values;
         })
+    }
+
+    private async _add_local_transaction(group_uuid: string, inTransaction: Transaction, status: STATUS) {
+        const transaction_db = this._convert_transaction_transactionDB(group_uuid, inTransaction, status);
+        //If add multiple times
+        this._delete_local_debts(transaction_db.uuid);
+        this._add_local_debts(transaction_db.uuid, inTransaction.debtors);
+        await db.transactions.add(transaction_db);
+    }
+
+    _sort_transactions(inTransactions: Transaction[]): Transaction[] {
+        return inTransactions.toSorted(
+            (a, b) =>
+                new Date(b.created_at).getTime() -
+                new Date(a.created_at).getTime(),
+        );
     }
 
     async delete_local_transaction(group_uuid: string, transaction_uuid: string) {
@@ -100,6 +115,7 @@ export class TransactionsProxy {
         }
         group_transactions.update((values: Record<string, Transaction[]>) => {
             values[group_uuid] = transactions;
+            values[group_uuid] = this._sort_transactions(values[group_uuid]);
             return values;
         })
         return transactions;
@@ -138,7 +154,7 @@ export class TransactionsProxy {
             await this._delete_all_transactions(group_uuid);
             const remote_transactions = await this._get_remote_transactions(group_uuid);
             for (const transaction of remote_transactions) {
-                this.add_local_transaction(group_uuid, transaction, STATUS.NOTHING);
+                this._add_local_transaction(group_uuid, transaction, STATUS.NOTHING);
                 if (map.has(transaction.uuid)) {
                     map.delete(transaction.uuid)
                 }
@@ -150,6 +166,7 @@ export class TransactionsProxy {
 
         group_transactions.update((values: Record<string, Transaction[]>) => {
             values[group_uuid] = new_transactions;
+            values[group_uuid] = this._sort_transactions(values[group_uuid]);
             return values;
         })
     }
@@ -222,11 +239,6 @@ export class TransactionsProxy {
 
     }
 
-
-    _sort_transactions(inTransactions: Transaction[]): Transaction[] {
-        return inTransactions.toSorted((a, b) => new Date(b.created_at).getTime() -
-            new Date(a.created_at).getTime())
-    }
 
     private async _update_remote_transaction(tokenID: string, inTransaction: Transaction) {
         const url = `${getFullBackendURL()}/groups/${tokenID}/transactions`

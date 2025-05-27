@@ -3,10 +3,14 @@
     import TransactionView from "./TransactionView.svelte";
     import { onMount } from "svelte";
     import { v4 as uuidv4 } from "uuid";
-    import { transactionsProxy } from "@stores/group_transactions";
+    import {
+        group_transactions,
+        transactionsProxy,
+    } from "@stores/group_transactions";
     import { current_user } from "@stores/groupUsernames";
     import { groupMembersProxy } from "@stores/group_members";
     import { current_groupStore } from "@stores/group";
+    import { getUTC } from "$lib/UTCDate";
     let {
         main_currency,
         members,
@@ -16,7 +20,11 @@
     } = $props();
     let creating_transaction: Transaction | null = $state(null);
     let creating: boolean = $state(false);
-    let transactions: Transaction[] = $state([]);
+    let transactions: Transaction[] = $derived(
+        $current_groupStore
+            ? $group_transactions[$current_groupStore.token]
+            : [],
+    );
     function create_debtors(): Debt[] {
         let debts = [] as Debt[];
         for (const member of members) {
@@ -26,10 +34,10 @@
     }
 
     onMount(async () => {
-        if ($current_user?.group_uuid) {
-            transactions = await transactionsProxy.local_synchronize(
-                $current_user.group_uuid,
-            );
+        if ($current_groupStore) {
+            await groupMembersProxy.synchronize($current_groupStore.token);
+            await transactionsProxy.synchronize($current_groupStore.token);
+            transactions = $group_transactions[$current_groupStore.token];
         }
     });
 
@@ -48,18 +56,20 @@
             const current_member = await groupMembersProxy.get_local_member(
                 $current_user?.member_uuid ?? "",
             );
-            creating = true;
-            creating_transaction = {
-                uuid: uuidv4(),
-                amount: "0",
-                currency_id: main_currency ?? "USD",
-                created_at: new Date().toISOString().replace("Z", ""),
-                modified_at: new Date().toISOString().replace("Z", ""),
-                debtors: create_debtors(),
-                description: "New transaction",
-                exchange_rate: "1",
-                paid_by: current_member ?? ({} as GroupMember),
-            };
+            if (current_member) {
+                creating = true;
+                creating_transaction = {
+                    uuid: uuidv4(),
+                    amount: "0",
+                    currency_id: main_currency ?? "USD",
+                    created_at: getUTC(),
+                    modified_at: getUTC(),
+                    debtors: create_debtors(),
+                    description: "New transaction",
+                    exchange_rate: "1",
+                    paid_by: current_member,
+                };
+            }
         }}
     >
         Add transaction
@@ -85,6 +95,7 @@
                                 newTransaction,
                             );
                         }
+                        creating = false;
                         return true;
                     }}
                 ></TransactionView>

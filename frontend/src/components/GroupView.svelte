@@ -35,7 +35,7 @@
     onMount(async () => {
         if (!creating) {
             await userProxy.synchronize_store(group.token);
-            await groupMembersProxy.synchro_group_members(group.token);
+            await groupMembersProxy.synchronize(group.token);
             original_members = await groupMembersProxy.get_group_members(
                 group.token,
             );
@@ -332,7 +332,7 @@
                                 STATUS.TO_CREATE,
                             );
                             await groupsProxy.synchronize();
-                            await groupMembersProxy.synchro_group_members(
+                            await groupMembersProxy.synchronize(
                                 group.token,
                             );
                         } else {
@@ -365,7 +365,7 @@
                                 );
                             }
                             try {
-                                await groupMembersProxy.synchro_group_members(
+                                await groupMembersProxy.synchronize(
                                     group.token,
                                 );
                             } catch (error) {
