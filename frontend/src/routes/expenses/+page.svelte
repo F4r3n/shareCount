@@ -1,10 +1,10 @@
 <script lang="ts">
     import { onMount } from "svelte";
     import type { GroupMember } from "$lib/types";
-    import TransactionsView from "$lib/../components/TransactionsView.svelte";
-    import { current_groupStore } from "../../stores/group";
-    import { current_user } from "../../stores/groupUsernames";
-    import { groupMembersProxy } from "../../stores/group_members";
+    import TransactionsView from "@components/TransactionsView.svelte";
+    import { current_groupStore } from "@stores/group";
+    import { current_user } from "@stores/groupUsernames";
+    import { groupMembersProxy } from "@stores/group_members";
 
     let loading = $state(true);
     let current_error: string = $state("");

@@ -9,8 +9,8 @@
     } from "wasm-lib";
     import Modal from "./Modal.svelte";
     import { type ModalButton } from "./ModalTypes";
-    import { transactionsProxy } from "../stores/group_transactions";
-    import { current_user } from "../stores/groupUsernames";
+    import { transactionsProxy } from "@stores/group_transactions";
+    import { current_user } from "@stores/groupUsernames";
     import { base } from '$app/paths';
 
     let { members }: { members: GroupMember[] } = $props();

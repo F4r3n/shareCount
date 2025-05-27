@@ -1,11 +1,11 @@
 <script lang="ts">
     import { onMount } from "svelte";
-    import GroupView from "../components/GroupView.svelte";
+    import GroupView from "@components/GroupView.svelte";
     import {
         current_groupStore,
         groupsProxy,
         groupsStore,
-    } from "../stores/group";
+    } from "@stores/group";
     import type { Group } from "$lib/types";
     import { getUTC } from "$lib/UTCDate";
     import { v4 as uuidv4 } from "uuid";

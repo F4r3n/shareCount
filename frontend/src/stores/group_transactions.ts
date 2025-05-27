@@ -1,7 +1,7 @@
 // src/lib/stores/groupUsernames.ts
 import { writable, type Writable } from 'svelte/store';
 import type { Debt, Transaction } from '$lib/types';
-import { getBackendURL } from '$lib/shareCountAPI';
+import { getFullBackendURL } from '$lib/shareCountAPI';
 import { db, STATUS, type Debt_DB, type Transaction_DB } from '../db/db';
 import { groupMembersProxy } from './group_members';
 import { getUTC } from '$lib/UTCDate';
@@ -204,7 +204,7 @@ export class TransactionsProxy {
     }
 
     private async _get_remote_transactions(tokenID: string): Promise<Transaction[]> {
-        const res = await fetch(`${getBackendURL()}/groups/${tokenID}/transactions`, {
+        const res = await fetch(`${getFullBackendURL()}/groups/${tokenID}/transactions`, {
             method: "GET",
             credentials: "include",
             headers: {
@@ -230,7 +230,7 @@ export class TransactionsProxy {
     }
 
     private async _update_remote_transaction(tokenID: string, inTransaction: Transaction) {
-        const url = `${getBackendURL()}/groups/${tokenID}/transactions`
+        const url = `${getFullBackendURL()}/groups/${tokenID}/transactions`
 
         const res = await fetch(url, {
             method: "POST",
@@ -247,7 +247,7 @@ export class TransactionsProxy {
     }
 
     private async _delete_remote_transaction(tokenID: string, inTransaction: Transaction) {
-        const res = await fetch(`${getBackendURL()}/groups/${tokenID}/transactions}`, {
+        const res = await fetch(`${getFullBackendURL()}/groups/${tokenID}/transactions}`, {
             method: "DELETE",
             credentials: "include",
             headers: {

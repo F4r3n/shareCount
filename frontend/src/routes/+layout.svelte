@@ -3,7 +3,7 @@
 	import { goto } from "$app/navigation";
 	import { onMount } from "svelte";
 	import { menus } from "$lib/menus";
-    import { current_groupStore } from "../stores/group";
+    import { current_groupStore } from "@stores/group";
 	import { base } from '$app/paths';
 	let { children } = $props();
 

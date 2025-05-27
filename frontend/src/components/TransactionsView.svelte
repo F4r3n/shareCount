@@ -3,10 +3,10 @@
     import TransactionView from "./TransactionView.svelte";
     import { onMount } from "svelte";
     import { v4 as uuidv4 } from "uuid";
-    import { transactionsProxy } from "../stores/group_transactions";
-    import { current_user } from "../stores/groupUsernames";
-    import { groupMembersProxy } from "../stores/group_members";
-    import { current_groupStore } from "../stores/group";
+    import { transactionsProxy } from "@stores/group_transactions";
+    import { current_user } from "@stores/groupUsernames";
+    import { groupMembersProxy } from "@stores/group_members";
+    import { current_groupStore } from "@stores/group";
     let {
         main_currency,
         members,

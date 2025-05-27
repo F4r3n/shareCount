@@ -1,6 +1,6 @@
 import adapter from '@sveltejs/adapter-static';
 import { vitePreprocess } from '@sveltejs/vite-plugin-svelte';
-import path from 'path';
+
 const config = {
 	preprocess: vitePreprocess(),
 	kit: {
@@ -10,10 +10,11 @@ const config = {
 			fallback: 'offline.html',
 			precompress: false,
 			strict: true,
-			alias: {
-				components: path.resolve('./src/components')
-			},
 		}),
+		alias: {
+			"@components": "src/components",
+			"@stores": "src/stores"
+		},
 		prerender: {
 			entries: ['*']
 		},

@@ -3,13 +3,13 @@ import { db, STATUS, type GroupMember_DB } from '../db/db';
 import type { GroupMember } from '$lib/types';
 import { getUTC } from '$lib/UTCDate';
 import { v4 as uuidv4 } from 'uuid';
-import { getBackendURL } from '$lib/shareCountAPI';
+import { getFullBackendURL } from '$lib/shareCountAPI';
 
 
 export class GroupMemberProxy {
 
     private async _get_remote_GroupMembers(tokenID: string): Promise<GroupMember[]> {
-        const res = await fetch(`${getBackendURL()}/groups/${tokenID}/group_members`, {
+        const res = await fetch(`${getFullBackendURL()}/groups/${tokenID}/group_members`, {
             method: "GET",
             credentials: "include",
             headers: {
@@ -30,7 +30,7 @@ export class GroupMemberProxy {
     private async _delete_remote_GroupMembers(tokenID: string, members: GroupMember[]) {
         if (members.length <= 0)
             return;
-        const res = await fetch(`${getBackendURL()}/groups/${tokenID}/group_members`, {
+        const res = await fetch(`${getFullBackendURL()}/groups/${tokenID}/group_members`, {
             method: "DELETE",
             credentials: "include",
             headers: {
@@ -47,7 +47,7 @@ export class GroupMemberProxy {
     private async _add_remote_GroupMembers(tokenID: string, members: GroupMember[]): Promise<GroupMember[]> {
         if (members.length <= 0)
             return [];
-        const res = await fetch(`${getBackendURL()}/groups/${tokenID}/group_members`, {
+        const res = await fetch(`${getFullBackendURL()}/groups/${tokenID}/group_members`, {
             method: "POST",
             credentials: "include",
             headers: {

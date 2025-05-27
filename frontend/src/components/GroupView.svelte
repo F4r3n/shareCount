@@ -5,17 +5,17 @@
     import { slide } from "svelte/transition";
     import { MENU, menus } from "$lib/menus";
     import { SvelteMap } from "svelte/reactivity";
-    import { groupMembersProxy } from "../stores/group_members";
+    import { groupMembersProxy } from "@stores/group_members";
     import GroupViewMemberItem from "./GroupView_MemberItem.svelte";
-    import { current_groupStore, groupsProxy } from "../stores/group";
-    import { current_user, userProxy, users } from "../stores/groupUsernames";
-    import { transactionsProxy } from "../stores/group_transactions";
+    import { current_groupStore, groupsProxy } from "@stores/group";
+    import { current_user, userProxy, users } from "@stores/groupUsernames";
+    import { transactionsProxy } from "@stores/group_transactions";
     import { STATUS } from "../db/db";
     import Modal from "./Modal.svelte";
     import { type ModalButton } from "./ModalTypes";
     import { base } from "$app/paths";
-    import { Share2Icon } from "lucide-svelte";
     import { getBackendURL } from "$lib/shareCountAPI";
+    import Share from "./Share.svelte";
     let {
         group,
         creating,
@@ -129,6 +129,8 @@
         const newurl = `${window.location.origin}${base}/?url=${getBackendURL()}&id=${group.token}`;
         return newurl;
     }
+
+
 </script>
 
 <main
@@ -138,23 +140,11 @@
         class="grid grid-cols-5 grid-rows-4 bg-base-100 w-sm sm:w-md shadow-sm p-3 rounded-sm"
     >
         <div class="row-start-1 col-start-5 flex flex-row justify-end">
-            <button
-                class="btn btn-ghost rounded-4xl"
-                onclick={() => {
-                    const shareData = {
-                        title: `sharecount to ${group_modified.name}`,
-                        text: "Welcome to your new trip",
-                        url: build_share_url(),
-                    };
-                    if (navigator.share) {
-                        navigator.share(shareData);
-                    } else {
-                        navigator.clipboard.writeText(shareData.url);
-                    }
-                }}
-            >
-                <Share2Icon></Share2Icon>
-            </button>
+            <Share
+                text="Welcome to your new trip"
+                title={`sharecount to ${group_modified.name}`}
+                url={build_share_url()}
+            ></Share>
         </div>
         <h1 class="row-start-1 col-start-1 col-end-3 font-semibold">
             {group_modified.name}
@@ -170,7 +160,9 @@
                     <button
                         class="btn btn-error"
                         onclick={() => {
-                            groupMembersProxy.delete_local_members_from_group(group.token);
+                            groupMembersProxy.delete_local_members_from_group(
+                                group.token,
+                            );
                             onDone();
                             clean();
                         }}
@@ -314,7 +306,6 @@
                                     member.uuid,
                                 );
                                 current_user_uuid = member.uuid;
-
                             }}
                         ></GroupViewMemberItem>
                     {/each}
@@ -362,7 +353,6 @@
                                 members_to_add,
                                 STATUS.TO_CREATE,
                             );
-                            console.log(modified_members)
                             await groupMembersProxy.rename_local_members(
                                 modified_members,
                             );

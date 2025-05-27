@@ -1,10 +1,10 @@
 <script lang="ts">
     import { onMount } from "svelte";
 
-    import Balance from "../../components/Balance.svelte";
-    import { groupMembersProxy } from "../../stores/group_members";
-    import { current_user } from "../../stores/groupUsernames";
-    import { transactionsProxy } from "../../stores/group_transactions";
+    import Balance from "@components/Balance.svelte";
+    import { groupMembersProxy } from "@stores/group_members";
+    import { current_user } from "@stores/groupUsernames";
+    import { transactionsProxy } from "@stores/group_transactions";
     import type { GroupMember } from "$lib/types";
 
     let loading = $state(true);

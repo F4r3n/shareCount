@@ -3,7 +3,7 @@ import { writable, type Writable } from 'svelte/store';
 import { db, STATUS, type Group_DB } from '../db/db';
 import { getUTC } from '$lib/UTCDate';
 import type { Group } from "$lib/types";
-import { getBackendURL } from '$lib/shareCountAPI';
+import { getFullBackendURL } from '$lib/shareCountAPI';
 import { browser } from '$app/environment';
 
 export const groupsStore: Writable<Group[]> = writable([]);
@@ -82,7 +82,7 @@ export class GroupsProxy {
     }
 
     private async _getGroup(tokenID: string): Promise<Group> {
-        const res = await fetch(`${getBackendURL()}/groups/${tokenID}`, {
+        const res = await fetch(`${getFullBackendURL()}/groups/${tokenID}`, {
             method: "GET",
             credentials: "include",
             headers: {
@@ -99,7 +99,7 @@ export class GroupsProxy {
     }
 
     private async _addGroup(group: Group) {
-        const res = await fetch(`${getBackendURL()}/groups`, {
+        const res = await fetch(`${getFullBackendURL()}/groups`, {
             method: "POST",
             credentials: "include",
             headers: {
@@ -114,7 +114,7 @@ export class GroupsProxy {
     }
 
     private async _deleteGroup(group: Group) {
-        const res = await fetch(`${getBackendURL()}/groups`, {
+        const res = await fetch(`${getFullBackendURL()}/groups`, {
             method: "DELETE",
             credentials: "include",
             headers: {
