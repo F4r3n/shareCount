@@ -195,11 +195,6 @@
                         class="btn btn-primary"
                         onclick={() => {
                             edit = !edit;
-                            if (edit) {
-                                groupMembersProxy.local_synchronize(
-                                    group.token,
-                                );
-                            }
                             clean();
                         }}
                         >Edit
@@ -356,9 +351,8 @@
                             await groupMembersProxy.rename_local_members(
                                 modified_members,
                             );
-
                             original_members =
-                                await groupMembersProxy.local_synchronize(
+                                await groupMembersProxy.get_group_members(
                                     group.token,
                                 );
                             const member = original_members.find((value) => {

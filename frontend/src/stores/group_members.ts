@@ -82,7 +82,7 @@ export class GroupMemberProxy {
 
     async rename_local_members(group_members: GroupMember[]) {
         for (const member of group_members) {
-            db.group_members.where("uuid").equals(member.uuid).modify({ nickname: member.nickname, modified_at: getUTC() });
+            await db.group_members.where("uuid").equals(member.uuid).modify({ nickname: member.nickname, modified_at: getUTC() });
         }
     }
 
@@ -134,11 +134,6 @@ export class GroupMemberProxy {
         return list_local_members;
     }
 
-    async local_synchronize(in_group_token: string): Promise<GroupMember[]> {
-        const members = await this.get_group_members(in_group_token)
-        return members;
-    }
-
     async synchro_group_members(in_group_token: string) {
         const original_members = await this._fetch_local_members(in_group_token);
         const to_send_members = [];
@@ -146,10 +141,10 @@ export class GroupMemberProxy {
 
         const map: Map<string, GroupMember_DB> = new Map();
         for (const member of original_members) {
-            if (member.status == STATUS.TO_CREATE) {
+            if (member.status != STATUS.TO_DELETE) {
                 to_send_members.push(this._convert_memberDB_member(member));
             }
-            else if (member.status === STATUS.TO_DELETE) {
+            else {
                 to_delete_members.push(this._convert_memberDB_member(member));
             }
             map.set(member.uuid, member);
@@ -169,8 +164,6 @@ export class GroupMemberProxy {
                 }
             }
         } catch { /* empty */ }
-
-        this.local_synchronize(in_group_token)
     }
 
     async get_group_members(in_group_token: string): Promise<GroupMember[]> {
