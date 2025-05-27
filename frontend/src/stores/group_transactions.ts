@@ -128,6 +128,21 @@ export class TransactionsProxy {
         await db.transactions.where("group_uuid").equals(group).delete();
     }
 
+    async has_spent(group : string, user : string) : Promise<boolean> {
+        const transactions = await this.get_local_transactions(group);
+        for(const transaction of transactions) {
+            if(transaction.paid_by.uuid === user && transaction.amount != "0") {
+                return true;
+            }
+            for(const debt of transaction.debtors) {
+                if(debt.member.uuid === user && debt.amount != "0") {
+                    return true;
+                }
+            }
+        }
+        return false
+    }
+
     async synchronize(group_uuid: string) : Promise<Transaction[]>{
 
         const original_transactions = await this._get_local_transactionsDB(group_uuid);

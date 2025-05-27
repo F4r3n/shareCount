@@ -4,7 +4,6 @@
     import type { Group, GroupMember } from "$lib/types";
     import { slide } from "svelte/transition";
     import { MENU, menus } from "$lib/menus";
-    import { SvelteMap } from "svelte/reactivity";
     import { groupMembersProxy } from "@stores/group_members";
     import GroupViewMemberItem from "./GroupView_MemberItem.svelte";
     import { current_groupStore, groupsProxy } from "@stores/group";
@@ -28,7 +27,6 @@
     let edit = $state(false);
     let modified_members: GroupMember[] = $state([]);
     let original_members: GroupMember[];
-    let error_members: SvelteMap<string, string> = new SvelteMap();
     let group_modified = $state(structuredClone($state.snapshot(group)));
     let modal: Modal | null = $state(null);
     let current_user_uuid = $state("");
@@ -129,8 +127,6 @@
         const newurl = `${window.location.origin}${base}/?url=${getBackendURL()}&id=${group.token}`;
         return newurl;
     }
-
-
 </script>
 
 <main
@@ -249,22 +245,27 @@
                     {#each modified_members as member, id (member.uuid)}
                         <GroupViewMemberItem
                             current_member={member}
-                            error_message={error_members.get(member.uuid) ?? ""}
                             member_me={current_user_uuid}
-                            onDelete={() => {
-                                members_to_delete.push(member);
-                                modified_members.splice(id, 1);
+                            onDelete={async () => {
+                                if (
+                                    await transactionsProxy.has_spent(
+                                        group.token,
+                                        member.uuid,
+                                    )
+                                ) {
+                                    return false;
+                                } else {
+                                    members_to_delete.push(member);
+                                    modified_members.splice(id, 1);
+                                }
+                                return true;
                             }}
                             onChange={(member) => {
                                 modified_members[id] = member;
                                 if (!is_present_once(member.nickname)) {
-                                    error_members.set(
-                                        member.uuid,
-                                        "The name already exists",
-                                    );
-                                } else {
-                                    error_members.delete(member.uuid);
+                                    return false;
                                 }
+                                return true;
                             }}
                             onMESelect={() => {
                                 userProxy.set_user_group(
@@ -279,21 +280,17 @@
                     {#each members_to_add as member, id (member.uuid)}
                         <GroupViewMemberItem
                             current_member={member}
-                            error_message={error_members.get(member.uuid) ?? ""}
                             member_me={current_user_uuid}
-                            onDelete={() => {
+                            onDelete={async () => {
                                 members_to_add.splice(id, 1);
+                                return true;
                             }}
                             onChange={(member) => {
                                 members_to_add[id] = member;
                                 if (!is_present_once(member.nickname)) {
-                                    error_members.set(
-                                        member.uuid,
-                                        "The name already exists",
-                                    );
-                                } else {
-                                    error_members.delete(member.uuid);
+                                    return false;
                                 }
+                                return true;
                             }}
                             onMESelect={() => {
                                 userProxy.set_user_group(
@@ -332,9 +329,7 @@
                                 STATUS.TO_CREATE,
                             );
                             await groupsProxy.synchronize();
-                            await groupMembersProxy.synchronize(
-                                group.token,
-                            );
+                            await groupMembersProxy.synchronize(group.token);
                         } else {
                             await userProxy.synchronize_store(group.token);
                             await groupsProxy.modify_local_group(
