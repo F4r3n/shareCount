@@ -12,7 +12,6 @@
     let current_members : GroupMember[] = $state([])
     onMount(async () => {
         if ($current_user?.group_uuid) {
-            await groupMembersProxy.local_synchronize($current_user.group_uuid);
             current_members = await groupMembersProxy.get_group_members($current_user.group_uuid)
             await transactionsProxy.local_synchronize($current_user.group_uuid);
         }

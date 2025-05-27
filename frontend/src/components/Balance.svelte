@@ -22,13 +22,7 @@
     let balances: Amount[] = $state([]);
     let settlements: Settlement[] = $state([]);
 
-    async function compute(amounts: Amount[]) {
-        await init(base + "/assets/wasm_lib_bg.wasm");
-        balances = compute_balance(amounts);
-        settlements = compute_settlements(balances);
-    }
-
-    onMount(async () => {
+    async function get_amounts(): Promise<Amount[]> {
         let amounts = [];
 
         for (const member of members) {
@@ -52,7 +46,17 @@
                 } as Amount);
             }
         }
-        await compute(amounts);
+        return amounts;
+    }
+
+    onMount(async () => {
+        await init(base + "/assets/wasm_lib_bg.wasm");
+        balances = compute_balance(await get_amounts());
+        settlements = compute_settlements(balances).filter(
+            (settlement: Settlement) => {
+                return settlement.amount != "0";
+            },
+        );
     });
 
     async function refund(
@@ -79,14 +83,20 @@
                 paid_by: await groupMembersProxy.get_local_member(to),
                 uuid: uuidv4(),
             } as Transaction;
-            transactionsProxy.add_transaction(group_uuid, transaction);
+            await transactionsProxy.add_transaction(group_uuid, transaction);
+            balances = compute_balance(await get_amounts());
+            settlements = compute_settlements(balances).filter(
+                (settlement: Settlement) => {
+                    return settlement.amount != "0";
+                },
+            );
         }
     }
 </script>
 
 <main class="w-full sm:w-2/3 mx-auto">
     <div class="m-2">
-        <h2>Balances</h2>
+        <h1 class="text-2xl">Balances</h1>
         <div>
             {#each balances as balance (balance.member)}
                 <div
@@ -98,11 +108,13 @@
             {/each}
         </div>
     </div>
-    <div class="m-2">
-        <h2>Settlements</h2>
+    <div class="m-2 mt-5">
+        <h1 class="text-2xl">Settlements</h1>
         <div>
-            {#each settlements as settlement (settlement.member_from)}
-                {#if settlement.amount !== "0"}
+            {#if settlements.length == 0}
+                <div class="text-center text-2xl">Everyting is paid!</div>
+            {:else}
+                {#each settlements as settlement (settlement.member_from)}
                     <div class="bg-base-100 rounded-md m-1 p-2 flex flex-col">
                         <div class="flex flex-row justify-between">
                             <div class="flex flex-row">
@@ -146,8 +158,8 @@
                             }}>Mark as paid</button
                         >
                     </div>
-                {/if}
-            {/each}
+                {/each}
+            {/if}
         </div>
     </div>
 </main>

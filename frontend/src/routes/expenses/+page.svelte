@@ -12,7 +12,7 @@
 
     onMount(async () => {
         if ($current_user?.group_uuid) {
-            group_members = await groupMembersProxy.local_synchronize($current_user.group_uuid);
+            group_members = await groupMembersProxy.get_group_members($current_user.group_uuid);
         }
 
         loading = false;
