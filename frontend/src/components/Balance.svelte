@@ -112,7 +112,7 @@
         <h1 class="text-2xl">Settlements</h1>
         <div>
             {#if settlements.length == 0}
-                <div class="text-center text-2xl">Everyting is paid!</div>
+                <div class="text-center text-2xl">Everything is paid!</div>
             {:else}
                 {#each settlements as settlement (settlement.member_from)}
                     <div class="bg-base-100 rounded-md m-1 p-2 flex flex-col">
