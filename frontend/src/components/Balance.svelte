@@ -10,14 +10,13 @@
     import Modal from "./Modal.svelte";
     import { type ModalButton } from "./ModalTypes";
     import { transactionsProxy } from "@stores/group_transactions";
-    import { current_user } from "@stores/groupUsernames";
     import { base } from "$app/paths";
     import { getUTC } from "$lib/UTCDate";
     import { current_groupStore } from "@stores/group";
     import { v4 as uuidv4 } from "uuid";
     import { groupMembersProxy } from "@stores/group_members";
 
-    let { members }: { members: GroupMember[] } = $props();
+    let { members, transactions }: { members: GroupMember[], transactions : Transaction[] } = $props();
     let modal: Modal | null = $state(null);
     let balances: Amount[] = $state([]);
     let settlements: Settlement[] = $state([]);
@@ -28,12 +27,7 @@
         for (const member of members) {
             amounts.push({ member: member, amount: "0" } as Amount);
         }
-        let transactions = [] as Transaction[];
-        if ($current_user?.group_uuid) {
-            transactions = await transactionsProxy.local_synchronize(
-                $current_user.group_uuid,
-            );
-        }
+
         for (const transaction of transactions) {
             amounts.push({
                 member: transaction.paid_by,

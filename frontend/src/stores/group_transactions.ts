@@ -128,7 +128,7 @@ export class TransactionsProxy {
         await db.transactions.where("group_uuid").equals(group).delete();
     }
 
-    async synchronize(group_uuid: string) {
+    async synchronize(group_uuid: string) : Promise<Transaction[]>{
 
         const original_transactions = await this._get_local_transactionsDB(group_uuid);
         const to_send_transactions: Transaction[] = [];
@@ -169,6 +169,7 @@ export class TransactionsProxy {
             values[group_uuid] = this._sort_transactions(values[group_uuid]);
             return values;
         })
+        return new_transactions;
     }
 
 

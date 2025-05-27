@@ -5,15 +5,20 @@
     import { groupMembersProxy } from "@stores/group_members";
     import { current_user } from "@stores/groupUsernames";
     import { transactionsProxy } from "@stores/group_transactions";
-    import type { GroupMember } from "$lib/types";
+    import type { GroupMember, Transaction } from "$lib/types";
 
     let loading = $state(true);
     let current_error: string = $state("");
-    let current_members : GroupMember[] = $state([])
+    let current_members: GroupMember[] = $state([]);
+    let transactions: Transaction[] = $state([]);
     onMount(async () => {
         if ($current_user?.group_uuid) {
-            current_members = await groupMembersProxy.get_group_members($current_user.group_uuid)
-            await transactionsProxy.local_synchronize($current_user.group_uuid);
+            current_members = await groupMembersProxy.get_group_members(
+                $current_user.group_uuid,
+            );
+            transactions = await transactionsProxy.synchronize(
+                $current_user.group_uuid,
+            );
         }
 
         loading = false;
@@ -39,7 +44,16 @@
     </div>
 {/if}
 {#if !loading}
-    <Balance members={current_members}></Balance>
+    <Balance members={current_members} {transactions}></Balance>
+{:else}
+    <div class="flex justify-center items-center h-full">
+        <div class="flex w-full flex-col gap-4">
+            <div class="skeleton h-32 w-full"></div>
+            <div class="skeleton h-4 w-28"></div>
+            <div class="skeleton h-64 w-full"></div>
+            <div class="skeleton h-32 w-full"></div>
+        </div>
+    </div>
 {/if}
 
 <style>

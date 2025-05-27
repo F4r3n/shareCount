@@ -5,6 +5,7 @@
     import { current_groupStore } from "@stores/group";
     import { current_user } from "@stores/groupUsernames";
     import { groupMembersProxy } from "@stores/group_members";
+    import { transactionsProxy } from "@stores/group_transactions";
 
     let loading = $state(true);
     let current_error: string = $state("");
@@ -13,6 +14,7 @@
     onMount(async () => {
         if ($current_user?.group_uuid) {
             group_members = await groupMembersProxy.get_group_members($current_user.group_uuid);
+            await transactionsProxy.synchronize($current_user.group_uuid);
         }
 
         loading = false;

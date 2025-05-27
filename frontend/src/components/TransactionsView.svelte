@@ -35,8 +35,6 @@
 
     onMount(async () => {
         if ($current_groupStore) {
-            await groupMembersProxy.synchronize($current_groupStore.token);
-            await transactionsProxy.synchronize($current_groupStore.token);
             transactions = $group_transactions[$current_groupStore.token];
         }
     });
