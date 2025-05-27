@@ -49,8 +49,7 @@ export class TransactionsProxy {
     async add_transaction(group_uuid: string, inTransaction: Transaction) {
         try {
             await this._update_remote_transaction(group_uuid, inTransaction);
-            this.add_local_transaction(group_uuid, inTransaction, STATUS.NOTHING)
-        } catch {
+        } finally {
             this.add_local_transaction(group_uuid, inTransaction, STATUS.TO_CREATE)
         }
     }

@@ -1,5 +1,5 @@
 <script lang="ts">
-    import type { GroupMember, Transaction } from "$lib/types";
+    import type { Debt, GroupMember, Transaction } from "$lib/types";
     import { onMount } from "svelte";
     import init, {
         compute_balance,
@@ -11,7 +11,11 @@
     import { type ModalButton } from "./ModalTypes";
     import { transactionsProxy } from "@stores/group_transactions";
     import { current_user } from "@stores/groupUsernames";
-    import { base } from '$app/paths';
+    import { base } from "$app/paths";
+    import { getUTC } from "$lib/UTCDate";
+    import { current_groupStore } from "@stores/group";
+    import { v4 as uuidv4 } from "uuid";
+    import { groupMembersProxy } from "@stores/group_members";
 
     let { members }: { members: GroupMember[] } = $props();
     let modal: Modal | null = $state(null);
@@ -50,6 +54,34 @@
         }
         await compute(amounts);
     });
+
+    async function refund(
+        group_uuid: string,
+        amount: string,
+        currency_id: string,
+        to: string,
+        from: string,
+    ) {
+        if ($current_groupStore) {
+            let transaction = {
+                amount: amount,
+                created_at: getUTC(),
+                currency_id: currency_id,
+                debtors: [
+                    {
+                        amount: amount,
+                        member: await groupMembersProxy.get_local_member(from),
+                    },
+                ] as Debt[],
+                description: "Refund",
+                exchange_rate: "1",
+                modified_at: getUTC(),
+                paid_by: await groupMembersProxy.get_local_member(to),
+                uuid: uuidv4(),
+            } as Transaction;
+            transactionsProxy.add_transaction(group_uuid, transaction);
+        }
+    }
 </script>
 
 <main class="w-full sm:w-2/3 mx-auto">
@@ -93,7 +125,18 @@
                                     "Should I create a transaction",
                                     {
                                         text: "Yes create",
-                                        callback: () => {},
+                                        callback: () => {
+                                            if ($current_groupStore) {
+                                                refund(
+                                                    $current_groupStore.token,
+                                                    settlement.amount,
+                                                    $current_groupStore.currency_id,
+                                                    settlement.member_from.uuid,
+                                                    settlement.member_to.uuid,
+                                                );
+                                            }
+                                            modal?.close();
+                                        },
                                     } as ModalButton,
                                     {
                                         text: "No forget",
