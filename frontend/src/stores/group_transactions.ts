@@ -54,6 +54,14 @@ export class TransactionsProxy {
         }
     }
 
+    async modify_transaction(group_uuid: string, inTransaction: Transaction) {
+        try {
+            await this._update_remote_transaction(group_uuid, inTransaction);
+        } finally {
+            this.modify_local_transaction(group_uuid, inTransaction)
+        }
+    }
+
     async delete_transaction(group_uuid: string, inTransaction: Transaction) {
         try {
             this._delete_remote_transaction(group_uuid, inTransaction);
@@ -95,6 +103,7 @@ export class TransactionsProxy {
         group_transactions.update((values: Record<string, Transaction[]>) => {
             const id = values[group_uuid].findIndex((value) => { return value.uuid === transaction_uuid })
             values[group_uuid].splice(id, 1);
+            values[group_uuid] = this._sort_transactions(values[group_uuid]);
             return values;
         })
     }
@@ -105,6 +114,13 @@ export class TransactionsProxy {
         const new_tr_db = this._convert_transaction_transactionDB(group_uuid, transaction, STATUS.NOTHING);
         new_tr_db.modified_at = getUTC();
         await db.transactions.where("uuid").equals(transaction.uuid).modify(new_tr_db);
+        group_transactions.update((values: Record<string, Transaction[]>) => {
+            const id = values[group_uuid].findIndex((value) => { return value.uuid === transaction.uuid })
+            values[group_uuid][id] = transaction;
+            values[group_uuid] = this._sort_transactions(values[group_uuid]);
+
+            return values;
+        })
     }
 
     async local_synchronize(group_uuid: string) {
@@ -128,14 +144,14 @@ export class TransactionsProxy {
         await db.transactions.where("group_uuid").equals(group).delete();
     }
 
-    async has_spent(group : string, user : string) : Promise<boolean> {
+    async has_spent(group: string, user: string): Promise<boolean> {
         const transactions = await this.get_local_transactions(group);
-        for(const transaction of transactions) {
-            if(transaction.paid_by.uuid === user && transaction.amount != "0") {
+        for (const transaction of transactions) {
+            if (transaction.paid_by.uuid === user && transaction.amount != "0") {
                 return true;
             }
-            for(const debt of transaction.debtors) {
-                if(debt.member.uuid === user && debt.amount != "0") {
+            for (const debt of transaction.debtors) {
+                if (debt.member.uuid === user && debt.amount != "0") {
                     return true;
                 }
             }
@@ -143,7 +159,7 @@ export class TransactionsProxy {
         return false
     }
 
-    async synchronize(group_uuid: string) : Promise<Transaction[]>{
+    async synchronize(group_uuid: string): Promise<Transaction[]> {
 
         const original_transactions = await this._get_local_transactionsDB(group_uuid);
         const to_send_transactions: Transaction[] = [];
@@ -274,7 +290,7 @@ export class TransactionsProxy {
     }
 
     private async _delete_remote_transaction(tokenID: string, inTransaction: Transaction) {
-        const res = await fetch(`${getFullBackendURL()}/groups/${tokenID}/transactions}`, {
+        const res = await fetch(`${getFullBackendURL()}/groups/${tokenID}/transactions`, {
             method: "DELETE",
             credentials: "include",
             headers: {

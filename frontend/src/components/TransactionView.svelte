@@ -395,7 +395,6 @@
                     </div>
                 {/if}
 
-                <!-- Right side: Save -->
                 <div>
                     <button
                         class="btn btn-sm btn-primary"

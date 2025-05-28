@@ -98,6 +98,7 @@
                     }}
                 ></TransactionView>
             {/if}
+            
             {#each transactions as transaction, id (transaction.uuid)}
                 <div class="font-semibold text-base md:text-md lg:text-lg">
                     {#if id > 0}
@@ -125,7 +126,7 @@
                             newTransaction: Transaction,
                         ): Promise<boolean> => {
                             if ($current_groupStore) {
-                                transactionsProxy.add_transaction(
+                                transactionsProxy.modify_transaction(
                                     $current_groupStore.token,
                                     newTransaction,
                                 );
