@@ -324,13 +324,11 @@
                                 group_modified,
                             );
 
-                            await groupMembersProxy.add_local_members(
+                            await groupMembersProxy.add_members(
                                 group.token,
                                 members_to_add,
-                                STATUS.TO_CREATE,
                             );
                             await groupsProxy.synchronize();
-                            await groupMembersProxy.synchronize(group.token);
                         } else {
                             await userProxy.synchronize_store(group.token);
                             await groupsProxy.modify_local_group(
@@ -339,12 +337,12 @@
                             await groupMembersProxy.delete_local_members(
                                 members_to_delete,
                             );
-                            await groupMembersProxy.add_local_members(
+                            await groupMembersProxy.add_members(
                                 group.token,
-                                members_to_add,
-                                STATUS.TO_CREATE,
+                                members_to_add
                             );
-                            await groupMembersProxy.rename_local_members(
+                            await groupMembersProxy.rename_members(
+                                group.token,
                                 modified_members,
                             );
                             original_members =

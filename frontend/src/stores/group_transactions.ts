@@ -180,8 +180,6 @@ export class TransactionsProxy {
 
         try {
             remote_transactions = await this._get_remote_transactions(group_uuid);
-            console.log(remote_transactions);
-            console.log(map)
             for (const remote_transaction of remote_transactions) {
                 const local_transaction = map.get(remote_transaction.uuid);
                 if (local_transaction) {
