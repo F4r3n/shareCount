@@ -47,36 +47,50 @@ export class TransactionsProxy {
     }
 
     async add_transaction(group_uuid: string, inTransaction: Transaction) {
+        inTransaction.modified_at = getUTC();
         try {
             await this._update_remote_transaction(group_uuid, inTransaction);
         } finally {
-            this.add_local_transaction(group_uuid, inTransaction, STATUS.TO_CREATE)
+            this._add_local_transaction(group_uuid, inTransaction, STATUS.TO_CREATE)
         }
-    }
 
-    async modify_transaction(group_uuid: string, inTransaction: Transaction) {
-        try {
-            await this._update_remote_transaction(group_uuid, inTransaction);
-        } finally {
-            this.modify_local_transaction(group_uuid, inTransaction)
-        }
-    }
-
-    async delete_transaction(group_uuid: string, inTransaction: Transaction) {
-        try {
-            this._delete_remote_transaction(group_uuid, inTransaction);
-        } finally {
-            this.delete_local_transaction(group_uuid, inTransaction.uuid)
-        }
-    }
-
-    async add_local_transaction(group_uuid: string, inTransaction: Transaction, status: STATUS) {
-        this._add_local_transaction(group_uuid, inTransaction, status);
         group_transactions.update((values: Record<string, Transaction[]>) => {
             if (!values[group_uuid]) {
                 values[group_uuid] = [];
             }
             values[group_uuid].push(inTransaction);
+            values[group_uuid] = this._sort_transactions(values[group_uuid]);
+            return values;
+        })
+    }
+
+    async modify_transaction(group_uuid: string, inTransaction: Transaction) {
+        inTransaction.modified_at = getUTC();
+        try {
+            await this._update_remote_transaction(group_uuid, inTransaction);
+        } finally {
+            this._modify_local_transaction(group_uuid, inTransaction)
+        }
+
+        group_transactions.update((values: Record<string, Transaction[]>) => {
+            const id = values[group_uuid].findIndex((value) => { return value.uuid === inTransaction.uuid })
+            values[group_uuid][id] = inTransaction;
+            values[group_uuid] = this._sort_transactions(values[group_uuid]);
+
+            return values;
+        })
+    }
+
+    async delete_transaction(group_uuid: string, inTransaction: Transaction) {
+        inTransaction.modified_at = getUTC();
+        try {
+            this._delete_remote_transaction(group_uuid, inTransaction);
+        } finally {
+            this._delete_local_transaction(inTransaction.uuid, true)
+        }
+        group_transactions.update((values: Record<string, Transaction[]>) => {
+            const id = values[group_uuid].findIndex((value) => { return value.uuid === inTransaction.uuid })
+            values[group_uuid].splice(id, 1);
             values[group_uuid] = this._sort_transactions(values[group_uuid]);
             return values;
         })
@@ -98,29 +112,22 @@ export class TransactionsProxy {
         );
     }
 
-    async delete_local_transaction(group_uuid: string, transaction_uuid: string) {
-        await db.transactions.where("uuid").equals(transaction_uuid).modify({ status: STATUS.TO_DELETE, modified_at: getUTC() });
-        group_transactions.update((values: Record<string, Transaction[]>) => {
-            const id = values[group_uuid].findIndex((value) => { return value.uuid === transaction_uuid })
-            values[group_uuid].splice(id, 1);
-            values[group_uuid] = this._sort_transactions(values[group_uuid]);
-            return values;
-        })
+    private async _delete_local_transaction(transaction_uuid: string, inModify: boolean) {
+        if (inModify) {
+            await db.transactions.where("uuid").equals(transaction_uuid).modify({ status: STATUS.TO_DELETE, modified_at: getUTC() });
+        }
+        else {
+            await db.transactions.where("uuid").equals(transaction_uuid).delete();
+        }
+
     }
 
-    async modify_local_transaction(group_uuid: string, transaction: Transaction) {
+    private async _modify_local_transaction(group_uuid: string, transaction: Transaction) {
         await this._delete_local_debts(transaction.uuid);
         await this._add_local_debts(transaction.uuid, transaction.debtors);
         const new_tr_db = this._convert_transaction_transactionDB(group_uuid, transaction, STATUS.NOTHING);
         new_tr_db.modified_at = getUTC();
         await db.transactions.where("uuid").equals(transaction.uuid).modify(new_tr_db);
-        group_transactions.update((values: Record<string, Transaction[]>) => {
-            const id = values[group_uuid].findIndex((value) => { return value.uuid === transaction.uuid })
-            values[group_uuid][id] = transaction;
-            values[group_uuid] = this._sort_transactions(values[group_uuid]);
-
-            return values;
-        })
     }
 
     async local_synchronize(group_uuid: string) {
@@ -164,31 +171,45 @@ export class TransactionsProxy {
         const original_transactions = await this._get_local_transactionsDB(group_uuid);
         const to_send_transactions: Transaction[] = [];
         const to_delete_transactions: Transaction[] = [];
-
         const map: Map<string, Transaction_DB> = new Map();
         for (const transaction of original_transactions) {
             map.set(transaction.uuid, transaction);
-            if (transaction.status == STATUS.TO_CREATE || transaction.status == STATUS.NOTHING) {
-                to_send_transactions.push(await this._convert_transactionDB_transaction(transaction))
-            }
-            else if (transaction.status === STATUS.TO_DELETE) {
-                to_delete_transactions.push(await this._convert_transactionDB_transaction(transaction))
-            }
         }
+
+        let remote_transactions: Transaction[] = [];
+
         try {
-            for (const transaction of to_delete_transactions) {
-                await this._delete_remote_transaction(group_uuid, transaction);
-            }
-            for (const transaction of to_send_transactions) {
-                await this._update_remote_transaction(group_uuid, transaction);
-            }
-            await this._delete_all_transactions(group_uuid);
-            const remote_transactions = await this._get_remote_transactions(group_uuid);
-            for (const transaction of remote_transactions) {
-                this._add_local_transaction(group_uuid, transaction, STATUS.NOTHING);
-                if (map.has(transaction.uuid)) {
-                    map.delete(transaction.uuid)
+            remote_transactions = await this._get_remote_transactions(group_uuid);
+            console.log(remote_transactions);
+            console.log(map)
+            for (const remote_transaction of remote_transactions) {
+                const local_transaction = map.get(remote_transaction.uuid);
+                if (local_transaction) {
+                    if (local_transaction.status === STATUS.NOTHING) {
+                        //If local is newer we send it
+                        if (new Date(remote_transaction.modified_at) < new Date(local_transaction?.modified_at)) {
+                            to_send_transactions.push(await this._convert_transactionDB_transaction(local_transaction));
+                        }
+                        else {
+                            this._modify_local_transaction(group_uuid, remote_transaction);
+                        }
+                    }
+                    else if (local_transaction.status === STATUS.TO_DELETE) {
+                        to_delete_transactions.push(await this._convert_transactionDB_transaction(local_transaction));
+                    }
+                    else if (local_transaction.status === STATUS.TO_CREATE) {
+                        to_send_transactions.push(await this._convert_transactionDB_transaction(local_transaction));
+                    }
+                    map.delete(local_transaction.uuid);
+                }// If transaction is not present we add it
+                else {
+                    this._add_local_transaction(group_uuid, remote_transaction, STATUS.NOTHING)
                 }
+            }
+
+            //The ones not mentioned are deleted
+            for (const [uuid,] of map) {
+                this._delete_local_transaction(uuid, false);
             }
 
         } catch { /* empty */ }
