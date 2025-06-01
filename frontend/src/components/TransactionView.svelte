@@ -209,9 +209,9 @@
                     <div
                         class="col-start-2 row-start-1 row-span-2 flex flex-col items-center justify-center text-base md:text-md lg:text-lg h-full"
                     >
-                        <div>
-                            {modified_transaction.amount}
-                            {modified_transaction.currency_id}
+                        <div class="flex flex-row">
+                            <div class="max-w-30 truncate">{modified_transaction.amount}</div>
+                            <div>{modified_transaction.currency_id}</div>
                         </div>
                     </div>
                 </div>
@@ -252,7 +252,8 @@
                             />
                             <input
                                 readonly={!is_editing}
-                                type="number"
+                                type="text"
+                                inputmode="numeric"
                                 placeholder="0"
                                 class="input input-ghost md:input-md lg:input-lg"
                                 bind:value={modified_transaction.amount}

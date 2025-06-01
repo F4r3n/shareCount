@@ -90,7 +90,7 @@
 			<!-- Sidebar content here -->
 			{#each menus as sub (sub.name)}
 				{#if !sub.need_group || (sub.need_group && $current_groupStore)}
-					<li>
+					<li class="">
 						<button
 							class="text-xl cursor-pointer pl-{sub.depth*10}"
 							onclick={() => {

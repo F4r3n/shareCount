@@ -347,7 +347,6 @@ fn check_transaction_validity(transaction: &TransactionQuery) -> Result<(), Stri
     if transaction.amount.le(&BigDecimal::zero()) {
         return Err("An amount should be strictly positive".to_string());
     }
-
     for debt in &transaction.debtors {
         if debt.amount.lt(&BigDecimal::zero()) {
             return Err("An amount cannot be negative".to_string());
@@ -357,7 +356,7 @@ fn check_transaction_validity(transaction: &TransactionQuery) -> Result<(), Stri
         .debtors
         .iter()
         .fold(BigDecimal::zero(), |acc, x| acc + &x.amount);
-    if debt_amount == transaction.amount {
+    if debt_amount.eq(&transaction.amount) {
         Ok(())
     } else {
         Err(format!(
