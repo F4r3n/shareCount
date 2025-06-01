@@ -34,7 +34,7 @@ export class GroupsProxy {
     }
 
     async get_local_groups(): Promise<Group[]> {
-        const list_local_groups: Group_DB[] = await db.groups.toArray();
+        const list_local_groups: Group_DB[] = await db.groups.where("status").notEqual(STATUS.TO_DELETE).toArray();
         const groups: Group[] = list_local_groups.map((group) => {
             return this._convert_DB_to_Group(group)
         });
@@ -152,7 +152,6 @@ export class GroupsProxy {
         await db.groups.where("uuid").equals(uuid).and((gr) => { return gr.status == STATUS.TO_CREATE }).delete();
         await db.groups.where("uuid").equals(uuid).modify({ status: STATUS.TO_DELETE, modified_at: getUTC() });
         this.SetStoreGroups(await this.get_local_groups());
-
     }
 
 

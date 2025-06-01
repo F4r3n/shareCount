@@ -97,7 +97,7 @@
                     class="bg-base-100 rounded-md flex flex-row justify-between m-1 p-2"
                 >
                     <div class="pl-2">{balance.member.nickname}</div>
-                    <div>{balance.amount}</div>
+                    <div class="max-w-1/2 truncate">{balance.amount}</div>
                 </div>
             {/each}
         </div>
@@ -121,7 +121,7 @@
                                 <div>{settlement.member_to.nickname}</div>
                             </div>
 
-                            <div>{settlement.amount}</div>
+                            <div class="max-w-1/2 truncate">{settlement.amount}</div>
                         </div>
 
                         <button

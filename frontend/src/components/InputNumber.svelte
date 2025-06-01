@@ -16,7 +16,7 @@
     } = $props();
     const decimal = "\\" + getDecimalSeparator()
     const regex =
-        number_decimal == 0
+        number_decimal === 0
             ? "[0-9]+"
             : `[0-9]+(${decimal}[0-9]{1,${number_decimal}})?`;
 </script>
