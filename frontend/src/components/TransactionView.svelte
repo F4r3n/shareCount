@@ -6,6 +6,7 @@
     import Big from "big.js";
     import { getUTC } from "$lib/UTCDate";
     import InputNumber from "./InputNumber.svelte";
+    import { getCurrencySymbol, getLengthOfFraction } from "$lib/currencyFormat";
     let {
         transaction,
         members,
@@ -77,13 +78,13 @@
                 activatedCount++;
 
                 if (activatedCount < number_people) {
-                    debtContainer.debt.amount = baseAmount.toFixed(2);
+                    debtContainer.debt.amount = baseAmount.toFixed(currency_fixed);
                 } else {
                     // Last person gets the remainder
-                    debtContainer.debt.amount = lastAmount.toFixed(2);
+                    debtContainer.debt.amount = lastAmount.toFixed(currency_fixed);
                 }
             } else {
-                debtContainer.debt.amount = "0.00";
+                debtContainer.debt.amount = "0";
             }
         }
 
@@ -175,6 +176,8 @@
         return null;
     }
     let error: Error | null = $state(null);
+    const currency_symbol = getCurrencySymbol(transaction.currency_id);
+    const currency_fixed = getLengthOfFraction(transaction.currency_id);
 </script>
 
 <main>
@@ -214,7 +217,9 @@
                             <div class="max-w-30 truncate">
                                 {modified_transaction.amount}
                             </div>
-                            <div>{modified_transaction.currency_id}</div>
+                            <div>
+                                {currency_symbol}
+                            </div>
                         </div>
                     </div>
                 </div>
