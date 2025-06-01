@@ -92,7 +92,7 @@
 				{#if !sub.need_group || (sub.need_group && $current_groupStore)}
 					<li>
 						<button
-							class="cursor-pointer"
+							class="text-xl cursor-pointer pl-{sub.depth*10}"
 							onclick={() => {
 								goto(base + `${sub.path}?id=${token_id}`);
 								drawerState = false;

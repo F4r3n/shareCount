@@ -295,8 +295,10 @@
                                 aria-label="Transaction date"
                                 bind:value={date_value}
                                 onchange={() => {
+                                    const date = new Date();
                                     modified_transaction.created_at =
-                                        date_value + "T00:00:00.000000";
+                                        date_value +
+                                        `T${date.getUTCHours()}:${date.getUTCMinutes()}:${date.getSeconds()}.000000`;
                                 }}
                             />
                         </fieldset>

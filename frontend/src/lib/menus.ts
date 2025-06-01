@@ -1,18 +1,20 @@
 export enum MENU {
-    EXPENSES = 0,
-    BALANCES = 1,
-    GROUPS = 2
+    GROUPS = 0,
+    EXPENSES = 1,
+    BALANCES = 2,
 }
 
 interface MenuNavigation {
     type: MENU,
     name: string,
     need_group: boolean,
-    path: string
+    path: string,
+    depth: number,
 }
 
 export const menus: MenuNavigation[] = [
-    { type: MENU.EXPENSES, name: "Expenses", need_group: true, path:"/expenses" },
-    { type: MENU.BALANCES, name: "Balances", need_group: true , path:"/balances"},
-    { type: MENU.GROUPS, name: "Groups", need_group: false , path:"/"}]
+    { type: MENU.GROUPS,   depth: 0, name: "Groups", need_group: false, path: "/" },
+    { type: MENU.EXPENSES, depth: 1, name: "Expenses", need_group: true, path: "/expenses" },
+    { type: MENU.BALANCES, depth: 1, name: "Balances", need_group: true, path: "/balances" },
+]
 
