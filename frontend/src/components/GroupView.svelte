@@ -42,7 +42,6 @@
             if ($users[group.token]) {
                 current_user_uuid = $users[group.token].member_uuid;
             }
-            //edit = !current_user_uuid;
         } else {
             edit = true;
             members_to_add.push(create_unique_member());
@@ -148,6 +147,10 @@
         {#if current_user_uuid}
             <div class="row-start-2 col-start-1 col-end-3 text-sm">
                 {`${get_member_from_uuid(current_user_uuid)?.nickname} (me)`}
+            </div>
+            {:else}
+            <div class="row-start-2 col-start-1 col-end-3 text-sm text-error">
+                No user selected.
             </div>
         {/if}
         <div class="row-start-4 col-start-5">

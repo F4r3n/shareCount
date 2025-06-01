@@ -5,6 +5,7 @@
     import { SvelteMap } from "svelte/reactivity";
     import Big from "big.js";
     import { getUTC } from "$lib/UTCDate";
+    import InputNumber from "./InputNumber.svelte";
     let {
         transaction,
         members,
@@ -210,7 +211,9 @@
                         class="col-start-2 row-start-1 row-span-2 flex flex-col items-center justify-center text-base md:text-md lg:text-lg h-full"
                     >
                         <div class="flex flex-row">
-                            <div class="max-w-30 truncate">{modified_transaction.amount}</div>
+                            <div class="max-w-30 truncate">
+                                {modified_transaction.amount}
+                            </div>
                             <div>{modified_transaction.currency_id}</div>
                         </div>
                     </div>
@@ -250,17 +253,14 @@
                                     modified_transaction.modified_at = getUTC();
                                 }}
                             />
-                            <input
-                                readonly={!is_editing}
-                                type="text"
-                                inputmode="numeric"
-                                placeholder="0"
-                                class="input input-ghost md:input-md lg:input-lg"
+                            <InputNumber
+                                title="Transaction amount"
+                                {is_editing}
                                 bind:value={modified_transaction.amount}
-                                onchange={() => {
-                                    updateDebtors(modified_transaction.amount);
+                                onChange={(value: string) => {
+                                    updateDebtors(value);
                                 }}
-                            />
+                            ></InputNumber>
                         </div>
                     </fieldset>
                 </div>
@@ -324,21 +324,13 @@
                                     />
                                     {nickname}
                                 </label>
-                                <input
-                                    type="number"
-                                    class="input validator max-w-1/3"
-                                    required
-                                    placeholder={String(
-                                        debtContainer.debt.amount,
-                                    )}
-                                    min="0"
-                                    max={modified_transaction.amount}
-                                    title="Must be between be 0 to {String(
-                                        modified_transaction.amount,
-                                    )}"
-                                    bind:value={debtContainer.debt.amount}
-                                    onchange={() => {}}
-                                />
+                                <div class="max-w-1/3">
+                                    <InputNumber
+                                        title="Debtor amount"
+                                        {is_editing}
+                                        bind:value={debtContainer.debt.amount}
+                                    ></InputNumber>
+                                </div>
                             {:else}
                                 <div>{debtContainer.debt.member.nickname}</div>
                                 <div>{debtContainer.debt.amount}</div>
