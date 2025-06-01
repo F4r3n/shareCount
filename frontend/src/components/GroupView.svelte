@@ -9,7 +9,6 @@
     import { current_groupStore, groupsProxy } from "@stores/group";
     import { current_user, userProxy, users } from "@stores/groupUsernames";
     import { transactionsProxy } from "@stores/group_transactions";
-    import { STATUS } from "../db/db";
     import Modal from "./Modal.svelte";
     import { type ModalButton } from "./ModalTypes";
     import { base } from "$app/paths";
