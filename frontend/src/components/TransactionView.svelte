@@ -6,9 +6,14 @@
     import Big from "big.js";
     import { getUTC } from "$lib/UTCDate";
     import InputNumber from "./InputNumber.svelte";
-    import { getCurrencySymbol, getLengthOfFraction } from "$lib/currencyFormat";
+    import {
+        getCurrencySymbol,
+        getLengthOfFraction,
+    } from "$lib/currencyFormat";
+    import CurrencySelector from "./CurrencySelector.svelte";
     let {
         transaction,
+        group_currency = transaction.currency_id,
         members,
         is_editing,
         is_open,
@@ -18,6 +23,7 @@
         onCancel,
     }: {
         transaction: Transaction;
+        group_currency?: string;
         members: GroupMember[];
         is_editing: boolean;
         is_open: boolean;
@@ -78,10 +84,12 @@
                 activatedCount++;
 
                 if (activatedCount < number_people) {
-                    debtContainer.debt.amount = baseAmount.toFixed(currency_fixed);
+                    debtContainer.debt.amount =
+                        baseAmount.toFixed(currency_fixed);
                 } else {
                     // Last person gets the remainder
-                    debtContainer.debt.amount = lastAmount.toFixed(currency_fixed);
+                    debtContainer.debt.amount =
+                        lastAmount.toFixed(currency_fixed);
                 }
             } else {
                 debtContainer.debt.amount = "0";
@@ -175,9 +183,30 @@
         }
         return null;
     }
+    //2024-03-06
+    async function getExchangeRate(
+        from: string,
+        to: string,
+        date: Date,
+    ): Promise<number> {
+        const dateString = date.toISOString().split("T")[0];
+        try {
+            const result = await fetch(
+                `https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@${dateString}/v1/currencies/${from.toLocaleLowerCase()}.json`,
+            );
+            const data = await result.json();
+            const exchange_rate = data[from.toLowerCase()][to.toLowerCase()];
+            return exchange_rate;
+        } catch {}
+        return 1;
+    }
     let error: Error | null = $state(null);
-    const currency_symbol = getCurrencySymbol(transaction.currency_id);
-    const currency_fixed = getLengthOfFraction(transaction.currency_id);
+    const currency_symbol = $derived(
+        getCurrencySymbol(modified_transaction.currency_id),
+    );
+    const currency_fixed = $derived(
+        getLengthOfFraction(modified_transaction.currency_id),
+    );
 </script>
 
 <main>
@@ -248,16 +277,29 @@
                         </div>
                         <legend class="fieldset-legend">Amount</legend>
                         <div class="join">
-                            <input
-                                readonly={!is_editing}
-                                type="text"
-                                placeholder="USD"
-                                class="input input-ghost md:input-md lg:input-lg"
-                                bind:value={modified_transaction.currency_id}
-                                onchange={() => {
-                                    modified_transaction.modified_at = getUTC();
+                            <CurrencySelector
+                                bind:current_currency={
+                                    modified_transaction.currency_id
+                                }
+                                onChange={(newCurrency) => {
+                                    if (newCurrency != group_currency) {
+                                        getExchangeRate(
+                                            newCurrency,
+                                            group_currency,
+                                            new Date(
+                                                modified_transaction.created_at,
+                                            ),
+                                        ).then((value: number) => {
+                                            modified_transaction.exchange_rate =
+                                                value.toString();
+                                        });
+                                    }
+                                    else
+                                    {
+                                        modified_transaction.exchange_rate = "1";
+                                    }
                                 }}
-                            />
+                            ></CurrencySelector>
                             <InputNumber
                                 title="Transaction amount"
                                 {is_editing}
@@ -267,6 +309,16 @@
                                 }}
                             ></InputNumber>
                         </div>
+                        {#if modified_transaction.currency_id != group_currency}
+                            <legend class="fieldset-legend"
+                                >Exchange rate</legend
+                            >
+                            <InputNumber
+                                {is_editing}
+                                bind:value={modified_transaction.exchange_rate}
+                                title="Exchange rate"
+                            ></InputNumber>
+                        {/if}
                     </fieldset>
                 </div>
                 <div class="flex flex-col sm:flex-row sm:items-center sm:gap-4">

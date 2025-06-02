@@ -41,7 +41,7 @@ export class GroupsProxy {
         return groups;
     }
 
-    private async add_local_group(inGroup: Group, status: STATUS) {
+    private async _add_local_group(inGroup: Group, status: STATUS) {
         await db.groups.add({
             created_at: inGroup.created_at,
             currency_id: inGroup.currency_id,
@@ -65,7 +65,16 @@ export class GroupsProxy {
         this.SetStoreGroups(await this.get_local_groups());
     }
 
-    async modify_local_group(inGroup: Group) {
+    async modify_group(inGroup: Group) {
+        try {
+            this._add_remote_group(inGroup);
+        }
+        finally {
+            this._modify_local_group(inGroup)
+        }
+    }
+
+    private async _modify_local_group(inGroup: Group) {
         db.groups.where("uuid").equals(inGroup.token).modify(
             {
                 currency_id: inGroup.currency_id,
@@ -98,7 +107,7 @@ export class GroupsProxy {
         return data;
     }
 
-    private async _addGroup(group: Group) {
+    private async _add_remote_group(group: Group) {
         const res = await fetch(`${getFullBackendURL()}/groups`, {
             method: "POST",
             credentials: "include",
@@ -159,7 +168,7 @@ export class GroupsProxy {
         if (uuid != "") {
             const new_group = await this._getGroup(uuid);
             await this.delete_local_group(uuid);
-            this.add_local_group(new_group, STATUS.NOTHING)
+            this._add_local_group(new_group, STATUS.NOTHING)
         }
     }
 
@@ -172,7 +181,7 @@ export class GroupsProxy {
                     db.groups.delete(group.uuid);
                 }
                 else {
-                    await this._addGroup(this._convert_DB_to_Group(group));
+                    await this._add_remote_group(this._convert_DB_to_Group(group));
                 }
             }
         } catch {/** */

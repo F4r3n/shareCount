@@ -1,15 +1,6 @@
 // @generated automatically by Diesel CLI.
 
 diesel::table! {
-    currency(code) {
-        code -> Text,
-        name -> Text,
-        symbol -> Text,
-        minor_units -> Integer
-    }
-}
-
-diesel::table! {
     users (id) {
         id -> Integer,
         name -> Text,
@@ -72,8 +63,6 @@ diesel::joinable!(transactions -> groups (group_id));
 diesel::joinable!(transactions -> group_members (paid_by));
 diesel::joinable!(transaction_debts -> transactions (transaction_id));
 diesel::joinable!(transaction_debts -> group_members (group_member_id));
-diesel::joinable!(groups -> currency (currency_id));
-diesel::joinable!(transactions -> currency (currency_id));
 
 // Enable Diesel’s ability to perform multi-table queries
 diesel::allow_tables_to_appear_in_same_query!(

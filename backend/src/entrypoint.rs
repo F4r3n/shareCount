@@ -1,4 +1,3 @@
-pub mod currency;
 pub mod group_members;
 pub mod groups;
 pub mod transactions;

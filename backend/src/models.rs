@@ -25,17 +25,6 @@ pub struct Group {
     pub modified_at: NaiveDateTime,
 }
 
-#[derive(Queryable, PartialEq, Debug, Selectable, Identifiable, Serialize)]
-#[diesel(table_name = crate::schema::currency)]
-#[diesel(check_for_backend(diesel::pg::Pg))]
-#[diesel(primary_key(code))]
-pub struct Currency {
-    pub code: String,
-    pub name: String,
-    pub symbol: String,
-    pub minor_units: i32,
-}
-
 #[derive(Queryable, Identifiable, Selectable, Associations, Debug, Serialize, Insertable)]
 #[diesel(belongs_to(Group))]
 #[diesel(belongs_to(User))]

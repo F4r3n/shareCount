@@ -15,8 +15,18 @@
     import { current_groupStore } from "@stores/group";
     import { v4 as uuidv4 } from "uuid";
     import { groupMembersProxy } from "@stores/group_members";
+    import Big from "big.js";
+    import { getCurrencySymbol, getLengthOfFraction } from "$lib/currencyFormat";
 
-    let { members, transactions }: { members: GroupMember[], transactions : Transaction[] } = $props();
+    let {
+        members,
+        transactions,
+        currency_id,
+    }: {
+        members: GroupMember[];
+        transactions: Transaction[];
+        currency_id: string;
+    } = $props();
     let modal: Modal | null = $state(null);
     let balances: Amount[] = $state([]);
     let settlements: Settlement[] = $state([]);
@@ -31,12 +41,18 @@
         for (const transaction of transactions) {
             amounts.push({
                 member: transaction.paid_by,
-                amount: transaction.amount,
+                amount: new Big(transaction.amount)
+                    .mul(new Big(transaction.exchange_rate))
+                    .toString(),
             } as Amount);
             for (let debt of transaction.debtors) {
                 amounts.push({
                     member: debt.member,
-                    amount: "-" + debt.amount,
+                    amount:
+                        "-" +
+                        new Big(debt.amount)
+                            .mul(new Big(transaction.exchange_rate))
+                            .toString(),
                 } as Amount);
             }
         }
@@ -86,6 +102,9 @@
             );
         }
     }
+
+    const currency_symbol = getCurrencySymbol(currency_id);
+    const currency_fixed = getLengthOfFraction(currency_id);
 </script>
 
 <main class="w-full sm:w-2/3 mx-auto">
@@ -97,7 +116,7 @@
                     class="bg-base-100 rounded-md flex flex-row justify-between m-1 p-2"
                 >
                     <div class="pl-2">{balance.member.nickname}</div>
-                    <div class="max-w-1/2 truncate">{balance.amount}</div>
+                    <div class="max-w-1/2 truncate">{new Big(balance.amount).toFixed(currency_fixed)}</div>
                 </div>
             {/each}
         </div>
@@ -121,7 +140,9 @@
                                 <div>{settlement.member_to.nickname}</div>
                             </div>
 
-                            <div class="max-w-1/2 truncate">{settlement.amount}</div>
+                            <div class="max-w-1/2 truncate">
+                                {new Big(settlement.amount).toFixed(currency_fixed)}
+                            </div>
                         </div>
 
                         <button

@@ -3,7 +3,7 @@
 
     let {
         is_editing,
-        number_decimal = 2,
+        number_decimal = undefined,
         title,
         onChange,
         value = $bindable(),
@@ -15,10 +15,18 @@
         value: string;
     } = $props();
     const decimal = "\\" + getDecimalSeparator()
-    const regex =
-        number_decimal === 0
-            ? "[0-9]+"
-            : `[0-9]+(${decimal}[0-9]{1,${number_decimal}})?`;
+    function create_regex(number_decimal : number | undefined) {
+        if(number_decimal === undefined) {
+            return `[0-9]+(${decimal}[0-9]+)?`
+        }
+        else if(number_decimal === 0) {
+            return "[0-9]+"
+        }
+        else {
+            return `[0-9]+(${decimal}[0-9]{1,${number_decimal}})?`;
+        }
+    }
+    const regex = create_regex(number_decimal)
 </script>
 
 <input

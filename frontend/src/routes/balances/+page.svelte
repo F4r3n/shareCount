@@ -6,6 +6,7 @@
     import { current_user } from "@stores/groupUsernames";
     import { transactionsProxy } from "@stores/group_transactions";
     import type { GroupMember, Transaction } from "$lib/types";
+    import { current_groupStore } from "@stores/group";
 
     let loading = $state(true);
     let current_error: string = $state("");
@@ -43,8 +44,8 @@
         <span>{current_error}</span>
     </div>
 {/if}
-{#if !loading}
-    <Balance members={current_members} {transactions}></Balance>
+{#if !loading && $current_groupStore}
+    <Balance currency_id={$current_groupStore.currency_id} members={current_members} {transactions}></Balance>
 {:else}
     <div class="flex justify-center items-center h-full">
         <div class="flex w-full flex-col gap-4">

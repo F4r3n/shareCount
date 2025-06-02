@@ -14,6 +14,7 @@
     import { base } from "$app/paths";
     import { getBackendURL } from "$lib/shareCountAPI";
     import Share from "./Share.svelte";
+    import CurrencySelector from "./CurrencySelector.svelte";
     let {
         group,
         creating,
@@ -234,12 +235,7 @@
                     </fieldset>
                     <fieldset class="fieldset">
                         <legend class="fieldset-legend">Currency</legend>
-                        <input
-                            class="input input-ghost"
-                            type="text"
-                            bind:value={group_modified.currency_id}
-                            onchange={() => {}}
-                        />
+                        <CurrencySelector bind:current_currency={group_modified.currency_id}></CurrencySelector>
                     </fieldset>
                 </div>
 
@@ -333,7 +329,7 @@
                             await groupsProxy.synchronize();
                         } else {
                             await userProxy.synchronize_store(group.token);
-                            await groupsProxy.modify_local_group(
+                            await groupsProxy.modify_group(
                                 group_modified,
                             );
                             await groupMembersProxy.delete_local_members(

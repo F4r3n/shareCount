@@ -77,6 +77,7 @@
             {#if creating && creating_transaction}
                 <TransactionView
                     transaction={creating_transaction}
+                    group_currency={$current_groupStore?.currency_id}
                     {members}
                     is_editing={true}
                     is_open={true}
@@ -98,7 +99,7 @@
                     }}
                 ></TransactionView>
             {/if}
-            
+
             {#each transactions as transaction, id (transaction.uuid)}
                 <div class="font-semibold text-base md:text-md lg:text-lg">
                     {#if id > 0}
@@ -117,6 +118,7 @@
                 </div>
                 <div>
                     <TransactionView
+                        group_currency={$current_groupStore?.currency_id}
                         {transaction}
                         {members}
                         is_editing={true}

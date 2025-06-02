@@ -3,14 +3,6 @@ drop TABLE IF EXISTS transactions;
 drop TABLE IF EXISTS group_members;
 drop TABLE IF EXISTS groups;
 drop TABLE IF EXISTS users;
-drop TABLE IF EXISTS currency;
-
-CREATE TABLE currency (
-  code CHAR(3) PRIMARY KEY CHECK (code ~ '^[A-Z]{3}$'),  -- ISO 4217 codes (USD, EUR, etc.)
-  name TEXT NOT NULL UNIQUE,
-  symbol TEXT,
-  minor_units SMALLINT NOT NULL  -- Number of decimal places (e.g., 2 for USD, 0 for JPY)
-);
 
 -- USERS
 CREATE TABLE users (
@@ -25,7 +17,7 @@ CREATE TABLE users (
 CREATE TABLE groups (
   id SERIAL PRIMARY KEY,
   name TEXT NOT NULL,
-  currency_id TEXT NOT NULL REFERENCES currency(code),
+  currency_id TEXT NOT NULL,
   token TEXT NOT NULL UNIQUE,
   modified_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -49,7 +41,7 @@ CREATE TABLE transactions (
   description TEXT NOT NULL,
   amount NUMERIC NOT NULL,
   paid_by INTEGER NOT NULL REFERENCES group_members(id),
-  currency_id TEXT NOT NULL REFERENCES currency(code),
+  currency_id TEXT NOT NULL,
   exchange_rate NUMERIC NOT NULL DEFAULT 1,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   modified_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -64,28 +56,6 @@ CREATE TABLE transaction_debts (
   amount NUMERIC NOT NULL,
   UNIQUE (transaction_id, group_member_id)
 );
-
-INSERT INTO currency (code, name, symbol, minor_units) VALUES
-  ('USD', 'US Dollar', '$', 2),
-  ('EUR', 'Euro', '€', 2),
-  ('JPY', 'Japanese Yen', '¥', 0),
-  ('GBP', 'Pound Sterling', '£', 2),
-  ('AUD', 'Australian Dollar', '$', 2),
-  ('CAD', 'Canadian Dollar', '$', 2),
-  ('CHF', 'Swiss Franc', 'CHF', 2),
-  ('CNY', 'Yuan Renminbi', '¥', 2),
-  ('SEK', 'Swedish Krona', 'kr', 2),
-  ('NZD', 'New Zealand Dollar', '$', 2),
-  ('MXN', 'Mexican Peso', '$', 2),
-  ('SGD', 'Singapore Dollar', '$', 2),
-  ('HKD', 'Hong Kong Dollar', '$', 2),
-  ('NOK', 'Norwegian Krone', 'kr', 2),
-  ('KRW', 'South Korean Won', '₩', 0),
-  ('TRY', 'Turkish Lira', '₺', 2),
-  ('RUB', 'Russian Ruble', '₽', 2),
-  ('INR', 'Indian Rupee', '₹', 2),
-  ('BRL', 'Brazilian Real', 'R$', 2),
-  ('ZAR', 'South African Rand', 'R', 2);
 
 -- SEED DATA
 INSERT INTO users (name, email, password_hash, created_at)
