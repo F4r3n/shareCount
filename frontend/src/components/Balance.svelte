@@ -116,7 +116,7 @@
                     class="bg-base-100 rounded-md flex flex-row justify-between m-1 p-2"
                 >
                     <div class="pl-2">{balance.member.nickname}</div>
-                    <div class="max-w-1/2 truncate">{new Big(balance.amount).toFixed(currency_fixed)}</div>
+                    <div class="max-w-1/2 truncate">{new Big(balance.amount).toFixed(currency_fixed)}  {currency_symbol}</div>
                 </div>
             {/each}
         </div>
@@ -141,7 +141,7 @@
                             </div>
 
                             <div class="max-w-1/2 truncate">
-                                {new Big(settlement.amount).toFixed(currency_fixed)}
+                                {new Big(settlement.amount).toFixed(currency_fixed)} {currency_symbol}
                             </div>
                         </div>
 

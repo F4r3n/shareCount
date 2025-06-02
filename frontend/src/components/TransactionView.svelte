@@ -183,7 +183,7 @@
         }
         return null;
     }
-    //2024-03-06
+
     async function getExchangeRate(
         from: string,
         to: string,
@@ -197,8 +197,9 @@
             const data = await result.json();
             const exchange_rate = data[from.toLowerCase()][to.toLowerCase()];
             return exchange_rate;
-        } catch {}
-        return 1;
+        } catch {
+            return 1;
+        }
     }
     let error: Error | null = $state(null);
     const currency_symbol = $derived(

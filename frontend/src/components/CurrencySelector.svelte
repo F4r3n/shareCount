@@ -21,7 +21,7 @@
     <option selected
         >{current_currency} {getCurrencySymbol(current_currency)}</option
     >
-    {#each list_currencies as currency}
+    {#each list_currencies as currency (currency)}
         {@const symbol = getCurrencySymbol(currency)}
         {#if symbol !== currency}
             <option value={currency}>{currency} {symbol}</option>
