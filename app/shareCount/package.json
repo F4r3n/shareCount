@@ -1,0 +1,20 @@
+{
+  "name": "sharecount",
+  "version": "0.1.0",
+  "description": "",
+  "type": "module",
+  "scripts": {
+    "dev": "npm --prefix ../../frontend run dev",
+    "build": "npm --prefix ../../frontend run build",
+    "tauri": "tauri"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "@tauri-apps/api": "^2",
+    "@tauri-apps/plugin-opener": "^2"
+  },
+  "devDependencies": {
+
+    "@tauri-apps/cli": "^2"
+  }
+}

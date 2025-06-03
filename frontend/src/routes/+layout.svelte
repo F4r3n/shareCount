@@ -90,9 +90,9 @@
 			<!-- Sidebar content here -->
 			{#each menus as sub (sub.name)}
 				{#if !sub.need_group || (sub.need_group && $current_groupStore)}
-					<li class="">
+					<li class={{'pl-10': sub.depth >0}}>
 						<button
-							class="text-xl cursor-pointer pl-{sub.depth*10}"
+							class="text-xl cursor-pointer "
 							onclick={() => {
 								goto(base + `${sub.path}?id=${token_id}`);
 								drawerState = false;
