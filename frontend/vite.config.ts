@@ -45,10 +45,10 @@ export default defineConfig({
 	server: {
 		port: 5173,
 		strictPort: true,
-		host: '127.0.0.1',
 		fs: {
 			allow: ['./wasm-lib/pkg'],
 		},
+		host: host || '127.0.0.1',
 		hmr: host
 			? {
 				protocol: "ws",
