@@ -6,10 +6,15 @@ import topLevelAwait from "vite-plugin-top-level-await";
 import { SvelteKitPWA } from '@vite-pwa/sveltekit'
 import { generateSW } from './generateSW.mjs';
 
-export default defineConfig({
-	plugins: [tailwindcss(),
-	sveltekit(),
-	SvelteKitPWA({
+const host = process.env.TAURI_DEV_HOST;
+const IS_MOBILE = process.env.TAURI_DEV_HOST != undefined;
+const plugins = [tailwindcss(),
+sveltekit(),
+wasm(),
+topLevelAwait()];
+
+if (!IS_MOBILE) {
+	plugins.push(SvelteKitPWA({
 		srcDir: './src',
 		registerType: 'autoUpdate',
 		strategies: generateSW ? "generateSW" : "injectManifest",
@@ -32,21 +37,32 @@ export default defineConfig({
 		injectManifest: {
 			globPatterns: ['client/**/*.{js,css,ico,png,svg,webp,woff,woff2,wasm,html}'],
 		},
-	}),
-	wasm(),
-	topLevelAwait()],
+	}))
+}
+
+export default defineConfig({
+	plugins: plugins,
 	server: {
-		host: '127.0.0.1',
 		port: 5173,
+		strictPort: true,
+		host: '127.0.0.1',
 		fs: {
 			allow: ['./wasm-lib/pkg'],
 		},
+		hmr: host
+			? {
+				protocol: "ws",
+				host,
+				port: 1421,
+			}
+			: undefined,
 	},
 	preview: {
 		host: '127.0.0.1',
 		port: 5173
 	},
 	define: {
+		'import.meta.env.IS_MOBILE': JSON.stringify(IS_MOBILE),
 		'process.env.NODE_ENV': process.env.NODE_ENV === 'production' ? '"production"' : '"development"',
 	},
 	resolve: process.env.VITEST
@@ -58,7 +74,7 @@ export default defineConfig({
 		coverage: {
 			provider: 'istanbul', // or 'v8',
 			include: ["src/**/*.ts"],
-			exclude:["src/sw.ts", "src/lib/menus.ts"]
+			exclude: ["src/sw.ts", "src/lib/menus.ts"]
 		},
 	},
 });

@@ -19,16 +19,18 @@
   let webManifestLink = $derived(
     pwaInfo
       ? pwaInfo.webManifest
-      : { href: "", linkTag: "", useCredentials: false },
+      : { href: "", linkTag: "", useCredentials: false }
   );
 </script>
 
 <svelte:head>
-  <link
-    rel="manifest"
-    href={webManifestLink.href}
-    crossorigin="use-credentials"
-  />
+  {#if !import.meta.env.IS_MOBILE}
+    <link
+      rel="manifest"
+      href={webManifestLink.href}
+      crossorigin="use-credentials"
+    />
+  {/if}
 </svelte:head>
 
 <div class="top">
@@ -66,7 +68,7 @@
 {#if $current_groupStore}
   <div role="tablist" class="tabs tabs-border justify-center">
     {#each menus as sub (sub.name)}
-      {#if (sub.need_group && $current_groupStore)}
+      {#if sub.need_group && $current_groupStore}
         <button
           role="tab"
           class="tab text-base md:text-lg lg:text-lg"
