@@ -63,6 +63,7 @@ jobs:
         run: npm install
 
       - name: Build apk
+        working-directory: ./app/shareCount/
         run: cargo install tauri-cli --version "^2.0" && cargo tauri android build
         env:
           SIGNING_STORE_PASSWORD: ${{secrets.SIGNING_STORE_PASSWORD}}
@@ -72,6 +73,7 @@ jobs:
           NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
 
       - name: Get Tauri App Version
+        working-directory: ./app/shareCount/
         id: app-version
         run: |
           CARGO_TOML_PATH="src-tauri/Cargo.toml"
@@ -103,6 +105,7 @@ jobs:
         shell: bash
 
       - name: Rename APK file
+        working-directory: ./app/shareCount/
         run: |
           mv ./src-tauri/gen/android/app/build/outputs/apk/universal/release/app-universal-release.apk ./src-tauri/gen/android/app/build/outputs/apk/universal/release/${{env.APP_NAME}}-${{ steps.app-version.outputs.version_string }}.apk
 
@@ -115,4 +118,4 @@ jobs:
           draft: false
           prerelease: false
           files: |
-            ./src-tauri/gen/android/app/build/outputs/apk/universal/release/${{env.APP_NAME}}-${{ steps.app-version.outputs.version_string }}.apk
+            ./app/shareCount/src-tauri/gen/android/app/build/outputs/apk/universal/release/${{env.APP_NAME}}-${{ steps.app-version.outputs.version_string }}.apk
