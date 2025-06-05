@@ -15,8 +15,11 @@ const config = {
 			"@components": "src/components",
 			"@stores": "src/stores"
 		},
-		prerender: {
-			entries: ['*']
+		serviceWorker: {
+			register: false,
+		},
+		files: {
+			serviceWorker: 'src/sw.ts',
 		},
 	}
 };

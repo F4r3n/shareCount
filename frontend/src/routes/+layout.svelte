@@ -6,12 +6,14 @@
 	import { current_groupStore } from "@stores/group";
 	import { base } from "$app/paths";
 	import { pwaInfo } from "virtual:pwa-info";
+	import { useRegisterSW } from 'virtual:pwa-register/svelte'
 	let { children } = $props();
 
 	let token_id = $state("");
 	onMount(() => {
 		const params = new URLSearchParams(window.location.search);
 		token_id = params.get("id") ?? "";
+		useRegisterSW();
 	});
 	let drawerState = $state(false);
 	let webManifestLink = $derived(pwaInfo ? pwaInfo.webManifest : {href:"", linkTag:"", useCredentials:false});
