@@ -15,6 +15,7 @@
     import { getBackendURL } from "$lib/shareCountAPI";
     import Share from "./Share.svelte";
     import CurrencySelector from "./CurrencySelector.svelte";
+    import { db } from "../db/db";
     let {
         group,
         creating,
@@ -33,15 +34,19 @@
     onMount(async () => {
         if (!creating) {
             clean();
-            groupMembersProxy.synchronize(group.token).then((members) => {
-                original_members = members;
+            //The members are not there yet, but there were added before
+            setTimeout(async () => {
+                original_members = await groupMembersProxy.synchronize(
+                    group.token,
+                );
                 modified_members = structuredClone(original_members);
-            });
-            userProxy.synchronize_store(group.token).then(() => {
-                if ($users[group.token]) {
-                    current_user_uuid = $users[group.token].member_uuid;
-                }
-            });
+
+                userProxy.synchronize_store(group.token).then(() => {
+                    if ($users[group.token]) {
+                        current_user_uuid = $users[group.token].member_uuid;
+                    }
+                });
+            }, 100);
         } else {
             edit = true;
             members_to_add.push(create_unique_member());
@@ -328,7 +333,7 @@
                 onclick={async () => {
                     if (check_validity) {
                         edit = false;
-                        onDone();
+
                         if (creating) {
                             await groupsProxy.add_new_local_group(
                                 group_modified,
@@ -376,7 +381,7 @@
                                 );
                             }
                         }
-
+                        onDone();
                         clean();
                     }
                 }}

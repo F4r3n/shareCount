@@ -88,7 +88,7 @@
             <GroupView
                 creating={true}
                 group={new_group}
-                onDone={() => {
+                onDone={async () => {
                     create = false;
                 }}
             ></GroupView>

@@ -4,6 +4,7 @@ import type { GroupMember } from '$lib/types';
 import { getUTC } from '$lib/UTCDate';
 import { v4 as uuidv4 } from 'uuid';
 import { getFullBackendURL } from '$lib/shareCountAPI';
+import { Synchro } from './SynchroHelper';
 
 
 export class GroupMemberProxy {
@@ -86,19 +87,24 @@ export class GroupMemberProxy {
     }
 
     async rename_members(uuid: string, group_members: GroupMember[]) {
+        let has_error = false;
         try {
             this._add_remote_GroupMembers(uuid, group_members);
+        } catch {
+            has_error = true;
         } finally {
-            this._rename_local_members(group_members);
+            this._rename_local_members(group_members, Synchro.compute_next_status(has_error, STATUS.TO_CREATE));
         }
     }
 
     async add_members(uuid: string, group_members: GroupMember[]) {
-
+        let has_error = false;
         try {
-            this._add_remote_GroupMembers(uuid, group_members);
+            await this._add_remote_GroupMembers(uuid, group_members);
+        } catch {
+            has_error = true;
         } finally {
-            this._add_local_members(uuid, group_members, STATUS.TO_CREATE);
+            await this._add_local_members(uuid, group_members, Synchro.compute_next_status(has_error, STATUS.TO_CREATE));
         }
     }
 
@@ -112,9 +118,11 @@ export class GroupMemberProxy {
         }
     }
 
-    private async _rename_local_members(group_members: GroupMember[]) {
+    private async _rename_local_members(group_members: GroupMember[], status : STATUS) {
         for (const member of group_members) {
-            await db.group_members.where("uuid").equals(member.uuid).modify({ nickname: member.nickname, modified_at: getUTC() });
+            await db.group_members.where("uuid").equals(member.uuid).modify({ nickname: member.nickname, 
+                modified_at: getUTC(), 
+                status: status });
         }
     }
 
@@ -167,8 +175,8 @@ export class GroupMemberProxy {
     }
 
     async synchronize(group_uuid: string): Promise<GroupMember[]> {
-
         const original = await this._fetch_local_members(group_uuid);
+
         const to_send = [];
         const to_delete = [];
         const map: Map<string, GroupMember_DB> = new Map();
@@ -184,13 +192,13 @@ export class GroupMemberProxy {
             for (const remote of remotes) {
                 const local = map.get(remote.uuid);
                 if (local) {
-                    if (local.status === STATUS.NOTHING) {
+                    if (local.status === STATUS.TO_UPDATE) {
                         //If local is newer we send it
                         if (new Date(remote.modified_at) < new Date(local.modified_at)) {
                             to_send.push(await this._convert_memberDB_member(local));
                         }
                         else {
-                            await this._rename_local_members([remote]);
+                            await this._rename_local_members([remote], STATUS.NOTHING);
                         }
                     }
                     else if (local.status === STATUS.TO_DELETE) {
@@ -208,20 +216,22 @@ export class GroupMemberProxy {
 
             //The ones not mentioned are deleted
             for (const [, m] of map) {
-                this._delete_local_member(m, false);
+                if(m.status != STATUS.TO_CREATE)
+                    this._delete_local_member(m, false);
             }
 
         } catch { /* empty */ }
 
         try {
             this._add_remote_GroupMembers(group_uuid, to_send);
-            this.delete_members(group_uuid, to_delete);
+            this._delete_remote_GroupMembers(group_uuid, to_delete);
 
-            for(const member of to_send) {
-                db.group_members.where("uuid").equals(member.uuid).modify({status: STATUS.NOTHING})
+            for (const member of to_send) {
+                db.group_members.where("uuid").equals(member.uuid).modify({ status: STATUS.NOTHING })
             }
         } catch { /* empty */ }
-        return await this.get_group_members(group_uuid)
+        const members = await this.get_group_members(group_uuid);
+        return members;
     }
 
     async get_group_members(in_group_token: string): Promise<GroupMember[]> {
