@@ -15,7 +15,6 @@
     import { getBackendURL } from "$lib/shareCountAPI";
     import Share from "./Share.svelte";
     import CurrencySelector from "./CurrencySelector.svelte";
-    import { db } from "../db/db";
     let {
         group,
         creating,
