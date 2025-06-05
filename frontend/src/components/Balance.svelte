@@ -16,7 +16,10 @@
     import { v4 as uuidv4 } from "uuid";
     import { groupMembersProxy } from "@stores/group_members";
     import Big from "big.js";
-    import { getCurrencySymbol, getLengthOfFraction } from "$lib/currencyFormat";
+    import {
+        getCurrencySymbol,
+        getLengthOfFraction,
+    } from "$lib/currencyFormat";
 
     let {
         members,
@@ -30,6 +33,7 @@
     let modal: Modal | null = $state(null);
     let balances: Amount[] = $state([]);
     let settlements: Settlement[] = $state([]);
+    let is_loaded = $state(false);
 
     async function get_amounts(): Promise<Amount[]> {
         let amounts = [];
@@ -67,6 +71,7 @@
                 return settlement.amount != "0";
             },
         );
+        is_loaded = true;
     });
 
     async function refund(
@@ -116,7 +121,10 @@
                     class="bg-base-100 rounded-md flex flex-row justify-between m-1 p-2"
                 >
                     <div class="pl-2">{balance.member.nickname}</div>
-                    <div class="max-w-1/2 truncate">{new Big(balance.amount).toFixed(currency_fixed)}  {currency_symbol}</div>
+                    <div class="max-w-1/2 truncate">
+                        {new Big(balance.amount).toFixed(currency_fixed)}
+                        {currency_symbol}
+                    </div>
                 </div>
             {/each}
         </div>
@@ -124,7 +132,7 @@
     <div class="m-2 mt-5">
         <h1 class="text-2xl">Settlements</h1>
         <div>
-            {#if settlements.length == 0}
+            {#if settlements.length == 0 && is_loaded}
                 <div class="text-center text-2xl">Everything is paid!</div>
             {:else}
                 {#each settlements as settlement (settlement.member_from)}
@@ -141,7 +149,10 @@
                             </div>
 
                             <div class="max-w-1/2 truncate">
-                                {new Big(settlement.amount).toFixed(currency_fixed)} {currency_symbol}
+                                {new Big(settlement.amount).toFixed(
+                                    currency_fixed,
+                                )}
+                                {currency_symbol}
                             </div>
                         </div>
 

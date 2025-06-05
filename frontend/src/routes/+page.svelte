@@ -10,9 +10,7 @@
     import { getUTC } from "$lib/UTCDate";
     import { v4 as uuidv4 } from "uuid";
     import { store_url } from "$lib/shareCountAPI";
-
     let current_error: string = $state("");
-
     onMount(async () => {
         current_groupStore.set(null);
         const params = new URLSearchParams(window.location.search);

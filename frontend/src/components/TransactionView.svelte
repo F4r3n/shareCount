@@ -294,10 +294,9 @@
                                             modified_transaction.exchange_rate =
                                                 value.toString();
                                         });
-                                    }
-                                    else
-                                    {
-                                        modified_transaction.exchange_rate = "1";
+                                    } else {
+                                        modified_transaction.exchange_rate =
+                                            "1";
                                     }
                                 }}
                             ></CurrencySelector>
