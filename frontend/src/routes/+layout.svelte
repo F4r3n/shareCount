@@ -14,11 +14,11 @@
 		token_id = params.get("id") ?? "";
 	});
 	let drawerState = $state(false);
-	let webManifestLink = $derived(pwaInfo ? pwaInfo.webManifest.linkTag : "");
+	let webManifestLink = $derived(pwaInfo ? pwaInfo.webManifest : {href:"", linkTag:"", useCredentials:false});
 </script>
 
 <svelte:head>
-	{@html webManifestLink}
+	<link rel="manifest" href="{webManifestLink.href}" crossorigin="use-credentials" />
 </svelte:head>
 
 <div class="drawer">
