@@ -12,13 +12,14 @@ export default defineConfig({
 	SvelteKitPWA({
 		srcDir: './src',
 		registerType: 'autoUpdate',
+		strategies: "generateSW",
 		manifest: {
 			short_name: 'Share count',
 			name: 'Share count',
 			display: 'standalone',
 		},
 		workbox: {
-			globPatterns: ['client/**/*.{js,css,ico,png,svg,webp,woff,woff2}'],
+			globPatterns: ['client/**/*.{js,css,ico,png,svg,webp,woff,woff2,wasm,html}'],
 		},
 	}),
 	wasm(),
