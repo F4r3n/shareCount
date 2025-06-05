@@ -3,8 +3,9 @@
 	import { goto } from "$app/navigation";
 	import { onMount } from "svelte";
 	import { menus } from "$lib/menus";
-    import { current_groupStore } from "@stores/group";
-	import { base } from '$app/paths';
+	import { current_groupStore } from "@stores/group";
+	import { base } from "$app/paths";
+	import { pwaInfo } from "virtual:pwa-info";
 	let { children } = $props();
 
 	let token_id = $state("");
@@ -13,7 +14,12 @@
 		token_id = params.get("id") ?? "";
 	});
 	let drawerState = $state(false);
+	let webManifestLink = $derived(pwaInfo ? pwaInfo.webManifest.linkTag : "");
 </script>
+
+<svelte:head>
+	{@html webManifestLink}
+</svelte:head>
 
 <div class="drawer">
 	<input
@@ -50,7 +56,7 @@
 				<button
 					class="hover:cursor-pointer"
 					onclick={() => {
-						goto(base + '/');
+						goto(base + "/");
 					}}
 				>
 					{`ShareCount${$current_groupStore !== null ? ": " + $current_groupStore.name : ""}`}
@@ -66,7 +72,9 @@
 								<button
 									class="cursor-pointer"
 									onclick={() => {
-										goto(base + `${sub.path}?id=${token_id}`);
+										goto(
+											base + `${sub.path}?id=${token_id}`,
+										);
 										drawerState = false;
 									}}
 								>
@@ -92,7 +100,7 @@
 				{#if !sub.need_group || (sub.need_group && $current_groupStore)}
 					<li class="">
 						<button
-							class="text-xl cursor-pointer pl-{sub.depth*10}"
+							class="text-xl cursor-pointer pl-{sub.depth * 10}"
 							onclick={() => {
 								goto(base + `${sub.path}?id=${token_id}`);
 								drawerState = false;

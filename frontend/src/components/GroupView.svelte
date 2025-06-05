@@ -34,12 +34,9 @@
         if (!creating) {
             await groupsProxy.synchronize();
             await userProxy.synchronize_store(group.token);
-            await groupMembersProxy.synchronize(group.token);
-            original_members = await groupMembersProxy.get_group_members(
-                group.token,
-            );
-            await transactionsProxy.synchronize(group.token);
+
             clean();
+            synchronize();
             if ($users[group.token]) {
                 current_user_uuid = $users[group.token].member_uuid;
             }
@@ -52,7 +49,6 @@
     let members_to_add: GroupMember[] = $state([]);
     let check_validity = $derived(validate(modified_members, members_to_add));
     function clean() {
-        modified_members = structuredClone(original_members);
         members_to_add = [];
         members_to_delete = [];
     }
@@ -127,6 +123,15 @@
         const newurl = `${window.location.origin}${base}/?url=${getBackendURL()}&id=${group.token}`;
         return newurl;
     }
+
+    function synchronize() {
+        groupMembersProxy.synchronize(group.token);
+        groupMembersProxy.get_group_members(group.token).then((members) => {
+            original_members = members;
+            modified_members = structuredClone(original_members);
+        });
+        transactionsProxy.synchronize(group.token);
+    }
 </script>
 
 <main
@@ -149,7 +154,7 @@
             <div class="row-start-2 col-start-1 col-end-3 text-sm">
                 {`${get_member_from_uuid(current_user_uuid)?.nickname} (me)`}
             </div>
-            {:else}
+        {:else}
             <div class="row-start-2 col-start-1 col-end-3 text-sm text-error">
                 No user selected.
             </div>
@@ -235,7 +240,9 @@
                     </fieldset>
                     <fieldset class="fieldset">
                         <legend class="fieldset-legend">Currency</legend>
-                        <CurrencySelector bind:current_currency={group_modified.currency_id}></CurrencySelector>
+                        <CurrencySelector
+                            bind:current_currency={group_modified.currency_id}
+                        ></CurrencySelector>
                     </fieldset>
                 </div>
 
@@ -329,15 +336,13 @@
                             await groupsProxy.synchronize();
                         } else {
                             await userProxy.synchronize_store(group.token);
-                            await groupsProxy.modify_group(
-                                group_modified,
-                            );
+                            await groupsProxy.modify_group(group_modified);
                             await groupMembersProxy.delete_local_members(
                                 members_to_delete,
                             );
                             await groupMembersProxy.add_members(
                                 group.token,
-                                members_to_add
+                                members_to_add,
                             );
                             await groupMembersProxy.rename_members(
                                 group.token,
