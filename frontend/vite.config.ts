@@ -15,7 +15,7 @@ export default defineConfig({
 		strategies: "injectManifest",
 		filename:"sw.ts",
 		devOptions: {
-			enabled: false,
+			enabled: true,
 			type: 'module',
 			navigateFallback: '/',
 		},
@@ -25,6 +25,7 @@ export default defineConfig({
 			display: 'standalone',
 		},
 		workbox: {
+			navigateFallback:"/",
 			globPatterns: ['client/**/*.{js,css,ico,png,svg,webp,woff,woff2,wasm,html}'],
 		},
 		injectManifest: {

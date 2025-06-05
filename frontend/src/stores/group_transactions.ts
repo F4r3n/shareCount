@@ -49,17 +49,14 @@ export class TransactionsProxy {
 
     async add_transaction(group_uuid: string, inTransaction: Transaction) {
         inTransaction.modified_at = getUTC();
-        let has_error = false;
         try {
             await this._update_remote_transaction(group_uuid, inTransaction);
         }
         catch {
-            has_error = true;
+            /*empty*/
         }
         finally {
-            const status = Synchro.compute_next_status(has_error, await this.get_status_transation(inTransaction.uuid));
-
-            this._add_local_transaction(group_uuid, inTransaction, status);
+            this._add_local_transaction(group_uuid, inTransaction, STATUS.TO_CREATE);
             group_transactions.update((values: Record<string, Transaction[]>) => {
                 if (!values[group_uuid]) {
                     values[group_uuid] = [];
