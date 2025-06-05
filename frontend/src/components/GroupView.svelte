@@ -32,14 +32,14 @@
     let current_user_uuid = $state("");
     onMount(async () => {
         if (!creating) {
-            await groupsProxy.synchronize();
-            await userProxy.synchronize_store(group.token);
-
             clean();
-            synchronize();
-            if ($users[group.token]) {
-                current_user_uuid = $users[group.token].member_uuid;
-            }
+
+            userProxy.synchronize_store(group.token).then(() => {
+                synchronize();
+                if ($users[group.token]) {
+                    current_user_uuid = $users[group.token].member_uuid;
+                }
+            });
         } else {
             edit = true;
             members_to_add.push(create_unique_member());
