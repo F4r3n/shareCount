@@ -5,6 +5,7 @@ import { getFullBackendURL } from '$lib/shareCountAPI';
 import { db, STATUS, type Debt_DB, type Transaction_DB } from '../db/db';
 import { groupMembersProxy } from './group_members';
 import { getUTC } from '$lib/UTCDate';
+import { Synchro } from './SynchroHelper';
 
 
 export const group_transactions: Writable<Record<string, Transaction[]>> = writable({});
@@ -48,52 +49,65 @@ export class TransactionsProxy {
 
     async add_transaction(group_uuid: string, inTransaction: Transaction) {
         inTransaction.modified_at = getUTC();
+        let has_error = false;
         try {
             await this._update_remote_transaction(group_uuid, inTransaction);
-        } finally {
-            this._add_local_transaction(group_uuid, inTransaction, STATUS.TO_CREATE)
         }
+        catch {
+            has_error = true;
+        }
+        finally {
+            const status = Synchro.compute_next_status(has_error, await this.get_status_transation(inTransaction.uuid));
 
-        group_transactions.update((values: Record<string, Transaction[]>) => {
-            if (!values[group_uuid]) {
-                values[group_uuid] = [];
-            }
-            values[group_uuid].push(inTransaction);
-            values[group_uuid] = this._sort_transactions(values[group_uuid]);
-            return values;
-        })
+            this._add_local_transaction(group_uuid, inTransaction, status);
+            group_transactions.update((values: Record<string, Transaction[]>) => {
+                if (!values[group_uuid]) {
+                    values[group_uuid] = [];
+                }
+                values[group_uuid].push(inTransaction);
+                values[group_uuid] = this._sort_transactions(values[group_uuid]);
+                return values;
+            })
+        }
     }
 
     async modify_transaction(group_uuid: string, inTransaction: Transaction) {
         inTransaction.modified_at = getUTC();
+        let has_error = false;
         try {
             await this._update_remote_transaction(group_uuid, inTransaction);
-        } finally {
-            this._modify_local_transaction(group_uuid, inTransaction)
+        } catch {
+            has_error = true;
         }
+        finally {
+            const status = Synchro.compute_next_status(has_error, await this.get_status_transation(inTransaction.uuid));
+            this._modify_local_transaction(group_uuid, inTransaction, status);
+            group_transactions.update((values: Record<string, Transaction[]>) => {
+                const id = values[group_uuid].findIndex((value) => { return value.uuid === inTransaction.uuid })
+                values[group_uuid][id] = inTransaction;
+                values[group_uuid] = this._sort_transactions(values[group_uuid]);
 
-        group_transactions.update((values: Record<string, Transaction[]>) => {
-            const id = values[group_uuid].findIndex((value) => { return value.uuid === inTransaction.uuid })
-            values[group_uuid][id] = inTransaction;
-            values[group_uuid] = this._sort_transactions(values[group_uuid]);
-
-            return values;
-        })
+                return values;
+            })
+        }
     }
 
     async delete_transaction(group_uuid: string, inTransaction: Transaction) {
         inTransaction.modified_at = getUTC();
         try {
             this._delete_remote_transaction(group_uuid, inTransaction);
-        } finally {
-            this._delete_local_transaction(inTransaction.uuid, true)
+        } catch {
+            /*empty*/
+        }finally {
+            this._delete_local_transaction(inTransaction.uuid, true);
+            group_transactions.update((values: Record<string, Transaction[]>) => {
+                const id = values[group_uuid].findIndex((value) => { return value.uuid === inTransaction.uuid })
+                values[group_uuid].splice(id, 1);
+                values[group_uuid] = this._sort_transactions(values[group_uuid]);
+                return values;
+            });
         }
-        group_transactions.update((values: Record<string, Transaction[]>) => {
-            const id = values[group_uuid].findIndex((value) => { return value.uuid === inTransaction.uuid })
-            values[group_uuid].splice(id, 1);
-            values[group_uuid] = this._sort_transactions(values[group_uuid]);
-            return values;
-        })
+
     }
 
     private async _add_local_transaction(group_uuid: string, inTransaction: Transaction, status: STATUS) {
@@ -122,10 +136,10 @@ export class TransactionsProxy {
 
     }
 
-    private async _modify_local_transaction(group_uuid: string, transaction: Transaction) {
+    private async _modify_local_transaction(group_uuid: string, transaction: Transaction, inStatus: STATUS) {
         await this._delete_local_debts(transaction.uuid);
         await this._add_local_debts(transaction.uuid, transaction.debtors);
-        const new_tr_db = this._convert_transaction_transactionDB(group_uuid, transaction, STATUS.NOTHING);
+        const new_tr_db = this._convert_transaction_transactionDB(group_uuid, transaction, inStatus);
         new_tr_db.modified_at = getUTC();
         await db.transactions.where("uuid").equals(transaction.uuid).modify(new_tr_db);
     }
@@ -142,13 +156,6 @@ export class TransactionsProxy {
             return values;
         })
         return transactions;
-    }
-
-    private async _delete_all_transactions(group: string) {
-        for (const tr of await db.transactions.where("group_uuid").equals(group).toArray()) {
-            await db.debts.where("transaction_uuid").equals(tr.uuid).delete();
-        }
-        await db.transactions.where("group_uuid").equals(group).delete();
     }
 
     async has_spent(group: string, user: string): Promise<boolean> {
@@ -183,13 +190,13 @@ export class TransactionsProxy {
             for (const remote_transaction of remote_transactions) {
                 const local_transaction = map.get(remote_transaction.uuid);
                 if (local_transaction) {
-                    if (local_transaction.status === STATUS.NOTHING) {
+                    if (local_transaction.status === STATUS.TO_UPDATE) {
                         //If local is newer we send it
                         if (new Date(remote_transaction.modified_at) < new Date(local_transaction?.modified_at)) {
                             to_send_transactions.push(await this._convert_transactionDB_transaction(local_transaction));
                         }
                         else {
-                            this._modify_local_transaction(group_uuid, remote_transaction);
+                            this._modify_local_transaction(group_uuid, remote_transaction, STATUS.NOTHING);
                         }
                     }
                     else if (local_transaction.status === STATUS.TO_DELETE) {
@@ -206,10 +213,26 @@ export class TransactionsProxy {
             }
 
             //The ones not mentioned are deleted
-            for (const [uuid,] of map) {
-                this._delete_local_transaction(uuid, false);
+            for (const [uuid, tr] of map) {
+                if (tr.status != STATUS.TO_CREATE) {
+                    this._delete_local_transaction(uuid, false);
+                }
+                else if (tr.status === STATUS.TO_CREATE) {
+                    to_send_transactions.push(await this._convert_transactionDB_transaction(tr));
+                }
             }
 
+        } catch { /* empty */ }
+
+        try {
+            for (const tr of to_send_transactions) {
+                this._update_remote_transaction(group_uuid, tr);
+                db.transactions.where("uuid").equals(tr.uuid).modify({ status: STATUS.NOTHING });
+            }
+
+            for (const tr of to_delete_transactions) {
+                this._delete_remote_transaction(group_uuid, tr);
+            }
         } catch { /* empty */ }
 
         const new_transactions = await this.get_local_transactions(group_uuid)
@@ -221,7 +244,13 @@ export class TransactionsProxy {
         })
         return new_transactions;
     }
-
+    async get_status_transation(uuid: string): Promise<STATUS> {
+        const tr = await db.transactions.where("uuid").equals(uuid).first();
+        if (tr) {
+            return tr.status;
+        }
+        return STATUS.NOTHING;
+    }
 
     private async _convert_debtDB_debt(debt: Debt_DB): Promise<Debt> {
         const member = await groupMembersProxy.get_local_member(debt.member_uuid);
@@ -293,18 +322,17 @@ export class TransactionsProxy {
 
     private async _update_remote_transaction(tokenID: string, inTransaction: Transaction) {
         const url = `${getFullBackendURL()}/groups/${tokenID}/transactions`
-
-        const res = await fetch(url, {
-            method: "POST",
-            credentials: "include",
-            headers: {
-                "Content-Type": "application/json",
-            },
-            body: JSON.stringify(inTransaction)
-        });
-
-        if (!res.ok) {
-            throw new Error(`Request failed ${res.status}`);
+        try {
+            await fetch(url, {
+                method: "POST",
+                credentials: "include",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify(inTransaction)
+            });
+        } catch (error) {
+            throw new Error(`Request failed ${error}`);
         }
     }
 

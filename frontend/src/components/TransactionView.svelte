@@ -11,6 +11,8 @@
         getLengthOfFraction,
     } from "$lib/currencyFormat";
     import CurrencySelector from "./CurrencySelector.svelte";
+    import { transactionsProxy } from "@stores/group_transactions";
+    import { STATUS } from "../db/db";
     let {
         transaction,
         group_currency = transaction.currency_id,
@@ -146,13 +148,16 @@
         }
         modal?.close();
     }
-
-    function hasChanged(
-        transaction: Transaction,
+    let changed = $derived(hasChanged(modified_transaction));
+    async function hasChanged(
         modified_transaction: Transaction,
-    ) {
-        return modified_transaction.modified_at !== transaction.modified_at;
+    ): Promise<boolean> {
+        const status = await transactionsProxy.get_status_transation(
+            modified_transaction.uuid,
+        );
+        return STATUS.NOTHING != status;
     }
+
     interface Error {
         code?: number;
         message: string;
@@ -222,9 +227,11 @@
                     }
                 }}
             >
-                {#if hasChanged(transaction, modified_transaction)}
-                    <div class="status status-info animate-bounce"></div>
-                {/if}
+                {#await changed then value}
+                    {#if value}
+                        <div class="status status-info animate-bounce"></div>
+                    {/if}
+                {/await}
                 <div
                     class="grid grid-cols-[1fr_auto] grid-rows-2 gap-x-4 items-center w-full"
                 >
@@ -458,6 +465,7 @@
                                     is_editing = false;
                                     is_open = false;
                                 }
+                                changed = hasChanged(modified_transaction);
                             }
                         }}
                     >

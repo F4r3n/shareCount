@@ -33,9 +33,11 @@
     onMount(async () => {
         if (!creating) {
             clean();
-
+            groupMembersProxy.synchronize(group.token).then((members) => {
+                original_members = members;
+                modified_members = structuredClone(original_members);
+            });
             userProxy.synchronize_store(group.token).then(() => {
-                synchronize();
                 if ($users[group.token]) {
                     current_user_uuid = $users[group.token].member_uuid;
                 }
@@ -124,12 +126,12 @@
         return newurl;
     }
 
-    function synchronize() {
-        groupMembersProxy.synchronize(group.token);
-        groupMembersProxy.get_group_members(group.token).then((members) => {
+    async function synchronize() {
+        await groupMembersProxy.synchronize(group.token).then((members) => {
             original_members = members;
             modified_members = structuredClone(original_members);
         });
+
         transactionsProxy.synchronize(group.token);
     }
 </script>
@@ -200,6 +202,9 @@
                         class="btn btn-primary"
                         onclick={() => {
                             edit = !edit;
+                            if (edit) {
+                                synchronize();
+                            }
                             clean();
                         }}
                         >Edit
@@ -328,12 +333,11 @@
                             await groupsProxy.add_new_local_group(
                                 group_modified,
                             );
-
+                            await groupsProxy.synchronize();
                             await groupMembersProxy.add_members(
                                 group.token,
-                                members_to_add,
+                                $state.snapshot(members_to_add),
                             );
-                            await groupsProxy.synchronize();
                         } else {
                             await userProxy.synchronize_store(group.token);
                             await groupsProxy.modify_group(group_modified);

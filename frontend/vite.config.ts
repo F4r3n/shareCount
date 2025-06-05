@@ -15,7 +15,7 @@ export default defineConfig({
 		strategies: "injectManifest",
 		filename:"sw.ts",
 		devOptions: {
-			enabled: true,
+			enabled: false,
 			type: 'module',
 			navigateFallback: '/',
 		},

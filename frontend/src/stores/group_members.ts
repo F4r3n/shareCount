@@ -94,6 +94,7 @@ export class GroupMemberProxy {
     }
 
     async add_members(uuid: string, group_members: GroupMember[]) {
+
         try {
             this._add_remote_GroupMembers(uuid, group_members);
         } finally {
@@ -165,7 +166,7 @@ export class GroupMemberProxy {
         return list_local_members;
     }
 
-    async synchronize(group_uuid: string) {
+    async synchronize(group_uuid: string): Promise<GroupMember[]> {
 
         const original = await this._fetch_local_members(group_uuid);
         const to_send = [];
@@ -211,6 +212,16 @@ export class GroupMemberProxy {
             }
 
         } catch { /* empty */ }
+
+        try {
+            this._add_remote_GroupMembers(group_uuid, to_send);
+            this.delete_members(group_uuid, to_delete);
+
+            for(const member of to_send) {
+                db.group_members.where("uuid").equals(member.uuid).modify({status: STATUS.NOTHING})
+            }
+        } catch { /* empty */ }
+        return await this.get_group_members(group_uuid)
     }
 
     async get_group_members(in_group_token: string): Promise<GroupMember[]> {

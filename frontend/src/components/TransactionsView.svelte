@@ -128,7 +128,7 @@
                             newTransaction: Transaction,
                         ): Promise<boolean> => {
                             if ($current_groupStore) {
-                                transactionsProxy.modify_transaction(
+                                await transactionsProxy.modify_transaction(
                                     $current_groupStore.token,
                                     newTransaction,
                                 );

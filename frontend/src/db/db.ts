@@ -5,6 +5,7 @@ export enum STATUS {
     NOTHING = 0,
     TO_DELETE = 1,
     TO_CREATE = 2,
+    TO_UPDATE = 3,
 }
 
 interface GroupMember_DB {
