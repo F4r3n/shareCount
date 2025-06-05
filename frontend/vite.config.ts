@@ -5,16 +5,26 @@ import wasmPack from 'vite-plugin-wasm-pack';
 import wasm from 'vite-plugin-wasm';
 import topLevelAwait from "vite-plugin-top-level-await";
 import { SvelteKitPWA } from '@vite-pwa/sveltekit'
+
+const dev = process.env.NODE_ENV === 'development';
 export default defineConfig({
 	plugins: [tailwindcss(),
 	sveltekit(),
 	SvelteKitPWA({
-		workbox: {
-			globPatterns: ["**/*"],
+		srcDir: './src',
+		registerType: 'autoUpdate',
+		strategies: dev ? 'generateSW' : 'injectManifest',
+		manifest: {
+			short_name: 'Share count',
+			name: 'Share count',
+			display: 'standalone',
 		},
-		includeAssets: [
-			"**/*",
-		],
+		injectManifest: {
+			globPatterns: ['client/**/*.{js,css,ico,png,svg,webp,woff,woff2}'],
+		},
+		workbox: {
+			globPatterns: ['client/**/*.{js,css,ico,png,svg,webp,woff,woff2}'],
+		},
 	}),
 	wasm(),
 	wasmPack(['./wasm-lib']),
