@@ -90,8 +90,8 @@ pub fn get_uuid(
 ) -> Result<String, anyhow::Error> {
     group_members::table
         .select(group_members::uuid)
-        .filter(group_members::nickname.eq(nickname))
         .filter(group_members::group_id.eq(in_group_id))
+        .filter(group_members::nickname.eq(nickname))
         .get_result::<String>(conn)
         .map_err(|v| anyhow!(v))
 }
@@ -119,6 +119,11 @@ pub fn add_group_members(
             user_id: None,
             uuid: member.uuid,
         };
+
+        //check unicity
+        if let Ok(_uuid) = get_uuid(group_id, &new_member.nickname, conn) {
+            continue;
+        }
 
         use diesel::query_dsl::methods::FilterDsl;
         use diesel::upsert::excluded;
