@@ -61,8 +61,8 @@ export class GroupsProxy {
         const new_group = this._convert_Group_to_DB(inGroup);
         new_group.status = STATUS.TO_CREATE;
         await db.groups.add(new_group)
-
-        this.SetStoreGroups(await this.get_local_groups());
+        const groups = await this.get_local_groups();
+        this.SetStoreGroups(groups);
     }
 
     async modify_group(inGroup: Group) {

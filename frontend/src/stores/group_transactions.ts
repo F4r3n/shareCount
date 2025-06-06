@@ -79,7 +79,7 @@ export class TransactionsProxy {
         }
         finally {
             const status = Synchro.compute_next_status(has_error, await this.get_status_transation(inTransaction.uuid));
-            this._modify_local_transaction(group_uuid, inTransaction, status);
+            await this._modify_local_transaction(group_uuid, inTransaction, status);
             group_transactions.update((values: Record<string, Transaction[]>) => {
                 const id = values[group_uuid].findIndex((value) => { return value.uuid === inTransaction.uuid })
                 values[group_uuid][id] = inTransaction;
@@ -196,6 +196,9 @@ export class TransactionsProxy {
                         else {
                             this._modify_local_transaction(group_uuid, remote_transaction, STATUS.NOTHING);
                         }
+                    }
+                    else if (local_transaction.status === STATUS.NOTHING) {
+                        this._modify_local_transaction(group_uuid, remote_transaction, STATUS.NOTHING);
                     }
                     else if (local_transaction.status === STATUS.TO_DELETE) {
                         to_delete_transactions.push(await this._convert_transactionDB_transaction(local_transaction));

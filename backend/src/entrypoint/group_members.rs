@@ -101,7 +101,7 @@ pub fn add_group_members(
     members: Vec<GroupMember>,
     conn: &mut PooledConnection<ConnectionManager<PgConnection>>,
 ) -> Result<(), anyhow::Error> {
-    #[derive(Insertable, AsChangeset)]
+    #[derive(Insertable, AsChangeset, Debug)]
     #[diesel(table_name = group_members)]
     pub struct NewGroupMember {
         uuid: String,
@@ -120,11 +120,6 @@ pub fn add_group_members(
             uuid: member.uuid,
         };
 
-        if let Ok(uuid) = get_uuid(group_id, &new_member.nickname, conn) {
-            if !uuid.eq(&new_member.uuid) {
-                continue;
-            }
-        }
         use diesel::query_dsl::methods::FilterDsl;
         use diesel::upsert::excluded;
         diesel::insert_into(group_members::table)
@@ -149,6 +144,7 @@ pub async fn handler_add_group_members(
     Path(token): Path<String>,
     Json(members): Json<Vec<GroupMember>>,
 ) -> Result<Json<Vec<GroupMember>>, AppError> {
+    dbg!(&members);
     let mut conn = state_server.pool.get()?;
     let result = conn
         .transaction::<Vec<GroupMember>, anyhow::Error, _>(|conn| {

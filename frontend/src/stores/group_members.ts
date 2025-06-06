@@ -195,17 +195,20 @@ export class GroupMemberProxy {
                     if (local.status === STATUS.TO_UPDATE) {
                         //If local is newer we send it
                         if (new Date(remote.modified_at) < new Date(local.modified_at)) {
-                            to_send.push(await this._convert_memberDB_member(local));
+                            to_send.push(this._convert_memberDB_member(local));
                         }
                         else {
                             await this._rename_local_members([remote], STATUS.NOTHING);
                         }
                     }
+                    else if(local.status === STATUS.NOTHING) {
+                        await this._rename_local_members([remote], STATUS.NOTHING);
+                    }
                     else if (local.status === STATUS.TO_DELETE) {
-                        to_delete.push(await this._convert_memberDB_member(local));
+                        to_delete.push(this._convert_memberDB_member(local));
                     }
                     else if (local.status === STATUS.TO_CREATE) {
-                        to_send.push(await this._convert_memberDB_member(local));
+                        to_send.push(this._convert_memberDB_member(local));
                     }
                     map.delete(local.uuid);
                 }// If transaction is not present we add it
@@ -218,6 +221,8 @@ export class GroupMemberProxy {
             for (const [, m] of map) {
                 if(m.status != STATUS.TO_CREATE)
                     this._delete_local_member(m, false);
+                else if(m.status == STATUS.TO_CREATE)
+                    to_send.push(m);
             }
 
         } catch { /* empty */ }
@@ -235,7 +240,7 @@ export class GroupMemberProxy {
     }
 
     async get_group_members(in_group_token: string): Promise<GroupMember[]> {
-        const new_members = await (await this._fetch_local_members(in_group_token))
+        const new_members = (await this._fetch_local_members(in_group_token))
             .filter((member) => { return member.status != STATUS.TO_DELETE })
             .map((value) => { return this._convert_memberDB_member(value) })
         return new_members;

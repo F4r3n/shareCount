@@ -31,6 +31,8 @@ jobs:
       run: npm run build
     - name: Lint
       run: npm run lint
+    - name: Run tests
+      run: npm run test
     - name: Upload artifact
       if: ${{ inputs.upload }}
       uses: actions/upload-pages-artifact@v3
