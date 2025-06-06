@@ -1,6 +1,6 @@
 import adapter from '@sveltejs/adapter-static';
 import { vitePreprocess } from '@sveltejs/vite-plugin-svelte';
-
+import { generateSW } from './generateSW.mjs';
 const config = {
 	preprocess: vitePreprocess(),
 	kit: {
@@ -19,7 +19,7 @@ const config = {
 			register: false,
 		},
 		files: {
-			serviceWorker: 'src/sw.ts',
+			serviceWorker: generateSW ? undefined : 'src/sw.ts',
 		},
 	}
 };

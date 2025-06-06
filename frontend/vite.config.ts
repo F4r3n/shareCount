@@ -5,6 +5,7 @@ import wasmPack from 'vite-plugin-wasm-pack';
 import wasm from 'vite-plugin-wasm';
 import topLevelAwait from "vite-plugin-top-level-await";
 import { SvelteKitPWA } from '@vite-pwa/sveltekit'
+import { generateSW } from './generateSW.mjs';
 
 export default defineConfig({
 	plugins: [tailwindcss(),
@@ -12,8 +13,8 @@ export default defineConfig({
 	SvelteKitPWA({
 		srcDir: './src',
 		registerType: 'autoUpdate',
-		strategies: "injectManifest",
-		filename:"sw.ts",
+		strategies: generateSW ? "generateSW" : "injectManifest",
+		filename: "sw.ts",
 		devOptions: {
 			enabled: true,
 			type: 'module',
@@ -25,7 +26,7 @@ export default defineConfig({
 			display: 'standalone',
 		},
 		workbox: {
-			navigateFallback:"/",
+			navigateFallback: "/",
 			globPatterns: ['client/**/*.{js,css,ico,png,svg,webp,woff,woff2,wasm,html}'],
 		},
 		injectManifest: {
@@ -46,4 +47,9 @@ export default defineConfig({
 	define: {
 		'process.env.NODE_ENV': process.env.NODE_ENV === 'production' ? '"production"' : '"development"',
 	},
+	resolve: process.env.VITEST
+		? {
+			conditions: ['browser']
+		}
+		: undefined
 });
