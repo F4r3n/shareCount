@@ -19,6 +19,7 @@ export default defineConfig({
 			enabled: true,
 			type: 'module',
 			navigateFallback: '/',
+			suppressWarnings:true
 		},
 		manifest: {
 			short_name: 'Share count',
@@ -26,7 +27,7 @@ export default defineConfig({
 			display: 'standalone',
 		},
 		workbox: {
-			navigateFallback: "/",
+			navigateFallback: "/shareCount",
 			globPatterns: ['client/**/*.{js,css,ico,png,svg,webp,woff,woff2,wasm,html}'],
 		},
 		injectManifest: {

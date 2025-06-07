@@ -13,13 +13,14 @@
 
     onMount(async () => {
         if ($current_user?.group_uuid) {
-            group_members = await groupMembersProxy.get_group_members($current_user.group_uuid);
+            group_members = await groupMembersProxy.synchronize(
+                $current_user.group_uuid,
+            );
             await transactionsProxy.synchronize($current_user.group_uuid);
         }
 
         loading = false;
     });
-
 </script>
 
 {#if current_error}
