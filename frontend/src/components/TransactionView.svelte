@@ -264,7 +264,7 @@
                     </div>
 
                     <div
-                        class="col-start-2 row-start-1 row-span-2 flex flex-col items-center justify-center text-base md:text-md lg:text-lg h-full"
+                        class="col-start-2 row-start-1 row-span-2 flex flex-col items-center justify-center h-full"
                     >
                         <div class="flex flex-row">
                             <div class="max-w-30 truncate">
@@ -407,7 +407,7 @@
                                     <label class="label mr-2">
                                         <input
                                             type="checkbox"
-                                            class="checkbox checkbox-accent checkbox-xs sm:checkbox-sm md:checkbox-md"
+                                            class="checkbox checkbox-accent"
                                             bind:checked={
                                                 debtContainer.activated
                                             }
@@ -471,7 +471,7 @@
                         <div class="flex flex-row gap-x-2">
                             <button
                                 type="button"
-                                class="btn btn-sm btn-error"
+                                class="btn btn-error"
                                 onclick={() => {
                                     modal?.showModal();
                                 }}
@@ -480,7 +480,7 @@
                             </button>
                             <button
                                 type="button"
-                                class="btn btn-sm btn-error"
+                                class="btn btn-error"
                                 onclick={reset}
                             >
                                 Reset
@@ -489,7 +489,7 @@
                     {/if}
 
                     <div>
-                        <button type="submit" class="btn btn-sm btn-primary">
+                        <button type="submit" class="btn btn-primary">
                             Save
                         </button>
                     </div>

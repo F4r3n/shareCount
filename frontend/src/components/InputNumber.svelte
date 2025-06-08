@@ -44,4 +44,3 @@
         }
     }}
 />
-<p class="m-2 validator-hint">Must be a number</p>

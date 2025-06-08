@@ -68,10 +68,10 @@ export class GroupMemberProxy {
 
     private async _delete_local_member(member: GroupMember, inModify: boolean) {
         if (inModify) {
-            db.group_members.where("uuid").equals(member.uuid).modify({ status: STATUS.TO_DELETE, modified_at: getUTC() });
+            await db.group_members.where("uuid").equals(member.uuid).modify({ status: STATUS.TO_DELETE, modified_at: getUTC() });
         }
         else {
-            db.group_members.where("uuid").equals(member.uuid).delete();
+            await db.group_members.where("uuid").equals(member.uuid).delete();
         }
 
     }
@@ -93,7 +93,7 @@ export class GroupMemberProxy {
         } catch {
             has_error = true;
         } finally {
-            this._rename_local_members(group_members, Synchro.compute_next_status(has_error, STATUS.TO_CREATE));
+            await this._rename_local_members(group_members, Synchro.compute_next_status(has_error, STATUS.TO_CREATE));
         }
     }
 

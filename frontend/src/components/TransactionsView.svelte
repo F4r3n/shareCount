@@ -49,7 +49,7 @@
 
 <div class="flex flex-col h-dvh">
     <button
-        class="btn btn-accent w-2/3 md:w-1/3 mx-auto add-button mt-5"
+        class="btn btn-accent w-2/3 md:w-1/3 mx-auto add-button m-5"
         onclick={async () => {
             const current_member = await groupMembersProxy.get_local_member(
                 $current_user?.member_uuid ?? "",
@@ -58,12 +58,12 @@
                 creating = true;
                 creating_transaction = {
                     uuid: uuidv4(),
-                    amount: "0",
-                    currency_id: main_currency ?? "USD",
+                    amount: "",
+                    currency_id: main_currency ?? "EUR",
                     created_at: getUTC(),
                     modified_at: getUTC(),
                     debtors: create_debtors(),
-                    description: "New transaction",
+                    description: "",
                     exchange_rate: "1",
                     paid_by: current_member,
                 };
