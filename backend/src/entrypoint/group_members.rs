@@ -14,6 +14,7 @@ use chrono::NaiveDateTime;
 use diesel::prelude::*;
 use serde::Deserialize;
 use serde::Serialize;
+const MAX_MEMBER_NAME_SIZE : usize = 250;
 
 #[derive(Queryable, Selectable, Debug, Serialize, Insertable, Deserialize, AsChangeset, Clone)]
 #[diesel(table_name = crate::schema::group_members)]
@@ -110,12 +111,13 @@ pub fn add_group_members(
         user_id: Option<i32>,
         modified_at: NaiveDateTime,
     }
+    use unicode_truncate::UnicodeTruncateStr;
 
     for member in members {
         let new_member = NewGroupMember {
             group_id,
             modified_at: member.modified_at,
-            nickname: member.nickname,
+            nickname: member.nickname.as_str().unicode_truncate(MAX_MEMBER_NAME_SIZE).0.to_string(),
             user_id: None,
             uuid: member.uuid,
         };

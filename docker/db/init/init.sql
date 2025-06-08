@@ -39,7 +39,7 @@ CREATE TABLE transactions (
   id SERIAL PRIMARY KEY,
   group_id INTEGER NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
   description TEXT NOT NULL,
-  amount NUMERIC NOT NULL,
+  amount NUMERIC NOT NULL CONSTRAINT positive_price CHECK (amount > 0),
   paid_by INTEGER NOT NULL REFERENCES group_members(id),
   currency_id TEXT NOT NULL,
   exchange_rate NUMERIC NOT NULL DEFAULT 1,

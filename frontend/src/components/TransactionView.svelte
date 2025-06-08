@@ -293,6 +293,7 @@
                                     type="text"
                                     placeholder="Hotel"
                                     readonly={!is_editing}
+                                    maxlength="250"
                                     class="input input-ghost md:input-md lg:input-lg"
                                     bind:value={
                                         modified_transaction.description

@@ -20,6 +20,8 @@ use diesel::prelude::*;
 use diesel::upsert::excluded;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+const MAX_DESCRIPTION_SIZE : usize = 250;
+
 
 #[derive(Deserialize, Serialize, Queryable, Debug)]
 pub struct TransactionDebtQuery {
@@ -370,11 +372,12 @@ pub fn modify_create_transaction(
     transaction: TransactionQuery,
     conn: &mut PooledConnection<ConnectionManager<PgConnection>>,
 ) -> Result<(), anyhow::Error> {
+    use unicode_truncate::UnicodeTruncateStr;
     let group_id = get_group_id(&token_id, conn)?;
     let member_id = get_member_id(group_id, transaction.paid_by.uuid, conn)?;
     let changeset = TransactionChangeset {
         uuid: transaction.uuid,
-        description: transaction.description,
+        description: transaction.description.as_str().unicode_truncate(MAX_DESCRIPTION_SIZE).0.to_string(),
         amount: transaction.amount,
         paid_by: member_id,
         currency_id: transaction.currency_id,
