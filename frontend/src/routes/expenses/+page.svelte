@@ -6,6 +6,9 @@
     import { current_user } from "@stores/groupUsernames";
     import { groupMembersProxy } from "@stores/group_members";
     import { transactionsProxy } from "@stores/group_transactions";
+    import { goto } from "$app/navigation";
+    import { base } from "$app/paths";
+    import { MENU, menus } from "$lib/menus";
 
     let loading = $state(true);
     let current_error: string = $state("");
@@ -17,6 +20,8 @@
                 $current_user.group_uuid,
             );
             await transactionsProxy.synchronize($current_user.group_uuid);
+        } else {
+            goto(base + menus[MENU.GROUPS]);
         }
 
         loading = false;

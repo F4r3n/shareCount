@@ -7,6 +7,9 @@
     import { transactionsProxy } from "@stores/group_transactions";
     import type { GroupMember, Transaction } from "$lib/types";
     import { current_groupStore } from "@stores/group";
+    import { MENU, menus } from "$lib/menus";
+    import { base } from "$app/paths";
+    import { goto } from "$app/navigation";
 
     let loading = $state(true);
     let current_error: string = $state("");
@@ -20,6 +23,8 @@
             transactions = await transactionsProxy.synchronize(
                 $current_user.group_uuid,
             );
+        } else {
+            goto(base + menus[MENU.GROUPS]);
         }
 
         loading = false;
@@ -45,7 +50,11 @@
     </div>
 {/if}
 {#if !loading && $current_groupStore}
-    <Balance currency_id={$current_groupStore.currency_id} members={current_members} {transactions}></Balance>
+    <Balance
+        currency_id={$current_groupStore.currency_id}
+        members={current_members}
+        {transactions}
+    ></Balance>
 {:else}
     <div class="flex justify-center items-center h-full">
         <div class="flex w-full flex-col gap-4">
