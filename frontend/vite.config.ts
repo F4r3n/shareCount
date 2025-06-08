@@ -19,7 +19,7 @@ export default defineConfig({
 			enabled: true,
 			type: 'module',
 			navigateFallback: '/',
-			suppressWarnings:true
+			suppressWarnings: true
 		},
 		manifest: {
 			short_name: 'Share count',
@@ -52,5 +52,11 @@ export default defineConfig({
 		? {
 			conditions: ['browser']
 		}
-		: undefined
+		: undefined,
+	test: {
+		coverage: {
+			provider: 'istanbul', // or 'v8',
+			include:["**/*.ts"]
+		},
+	},
 });
