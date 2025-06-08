@@ -29,6 +29,7 @@ export class TransactionsProxy {
         for (const t of tr) {
             result.push(await this._convert_transactionDB_transaction(t));
         }
+
         return result;
     }
 
@@ -96,7 +97,7 @@ export class TransactionsProxy {
             this._delete_remote_transaction(group_uuid, inTransaction);
         } catch {
             /*empty*/
-        }finally {
+        } finally {
             this._delete_local_transaction(inTransaction.uuid, true);
             group_transactions.update((values: Record<string, Transaction[]>) => {
                 const id = values[group_uuid].findIndex((value) => { return value.uuid === inTransaction.uuid })
@@ -194,11 +195,11 @@ export class TransactionsProxy {
                             to_send_transactions.push(await this._convert_transactionDB_transaction(local_transaction));
                         }
                         else {
-                            this._modify_local_transaction(group_uuid, remote_transaction, STATUS.NOTHING);
+                            await this._modify_local_transaction(group_uuid, remote_transaction, STATUS.NOTHING);
                         }
                     }
                     else if (local_transaction.status === STATUS.NOTHING) {
-                        this._modify_local_transaction(group_uuid, remote_transaction, STATUS.NOTHING);
+                        await this._modify_local_transaction(group_uuid, remote_transaction, STATUS.NOTHING);
                     }
                     else if (local_transaction.status === STATUS.TO_DELETE) {
                         to_delete_transactions.push(await this._convert_transactionDB_transaction(local_transaction));
@@ -209,14 +210,14 @@ export class TransactionsProxy {
                     map.delete(local_transaction.uuid);
                 }// If transaction is not present we add it
                 else {
-                    this._add_local_transaction(group_uuid, remote_transaction, STATUS.NOTHING)
+                    await this._add_local_transaction(group_uuid, remote_transaction, STATUS.NOTHING)
                 }
             }
 
             //The ones not mentioned are deleted
             for (const [uuid, tr] of map) {
                 if (tr.status != STATUS.TO_CREATE) {
-                    this._delete_local_transaction(uuid, false);
+                    await this._delete_local_transaction(uuid, false);
                 }
                 else if (tr.status === STATUS.TO_CREATE) {
                     to_send_transactions.push(await this._convert_transactionDB_transaction(tr));
@@ -239,6 +240,7 @@ export class TransactionsProxy {
         const new_transactions = await this.get_local_transactions(group_uuid)
 
         group_transactions.update((values: Record<string, Transaction[]>) => {
+
             values[group_uuid] = new_transactions;
             values[group_uuid] = this._sort_transactions(values[group_uuid]);
             return values;
@@ -287,6 +289,7 @@ export class TransactionsProxy {
     private async _convert_transactionDB_transaction(tr: Transaction_DB): Promise<Transaction> {
         const member = await groupMembersProxy.get_local_member(tr.paid_by);
         const debts: Debt[] = await this._get_local_debts(tr.uuid);
+
         return {
             uuid: tr.uuid,
             amount: tr.amount,

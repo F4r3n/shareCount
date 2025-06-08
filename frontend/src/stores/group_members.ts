@@ -220,7 +220,7 @@ export class GroupMemberProxy {
             //The ones not mentioned are deleted
             for (const [, m] of map) {
                 if(m.status != STATUS.TO_CREATE)
-                    this._delete_local_member(m, false);
+                    await this._delete_local_member(m, false);
                 else if(m.status == STATUS.TO_CREATE)
                     to_send.push(m);
             }
@@ -232,7 +232,7 @@ export class GroupMemberProxy {
             this._delete_remote_GroupMembers(group_uuid, to_delete);
 
             for (const member of to_send) {
-                db.group_members.where("uuid").equals(member.uuid).modify({ status: STATUS.NOTHING })
+                await db.group_members.where("uuid").equals(member.uuid).modify({ status: STATUS.NOTHING })
             }
         } catch { /* empty */ }
         const members = await this.get_group_members(group_uuid);

@@ -16,7 +16,6 @@
     } = $props();
     const decimal = "\\" + getDecimalSeparator();
     function create_regex(number_decimal: number | undefined) {
-        console.log(number_decimal);
         if (number_decimal === undefined) {
             return `[0-9]+(${decimal}[0-9]+)?`;
         } else if (number_decimal === 0) {
