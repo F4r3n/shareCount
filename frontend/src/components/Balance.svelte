@@ -19,6 +19,7 @@
         getCurrencySymbol,
         getLengthOfFraction,
     } from "$lib/currencyFormat";
+    import { fade } from "svelte/transition";
 
     let {
         members,
@@ -114,7 +115,7 @@
 <main class="w-full sm:w-2/3 mx-auto">
     <div class="m-2">
         <h1 class="text-2xl">Balances</h1>
-        <div>
+        <div in:fade>
             {#each balances as balance (balance.member)}
                 <div
                     class="bg-base-100 rounded-md flex flex-row justify-between m-1 p-2"
@@ -130,7 +131,7 @@
     </div>
     <div class="m-2 mt-5">
         <h1 class="text-2xl">Settlements</h1>
-        <div>
+        <div in:fade>
             {#if settlements.length == 0 && is_loaded}
                 <div class="text-center text-2xl">Everything is paid!</div>
             {:else}

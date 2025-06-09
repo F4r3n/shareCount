@@ -15,6 +15,8 @@
     import { getBackendURL } from "$lib/shareCountAPI";
     import Share from "./Share.svelte";
     import CurrencySelector from "./CurrencySelector.svelte";
+    import { fade } from "svelte/transition";
+
     let {
         group,
         creating,
@@ -141,6 +143,7 @@
 </script>
 
 <main
+    in:fade
     class="flex flex-col w-full justify-center text-base md:text-md lg:text-lg"
 >
     <div

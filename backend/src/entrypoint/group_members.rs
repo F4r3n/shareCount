@@ -151,7 +151,7 @@ pub async fn handler_add_group_members(
     Path(token): Path<String>,
     Json(members): Json<Vec<GroupMember>>,
 ) -> Result<Json<Vec<GroupMember>>, AppError> {
-    dbg!(&members);
+
     let mut conn = state_server.pool.get()?;
     let result = conn
         .transaction::<Vec<GroupMember>, anyhow::Error, _>(|conn| {

@@ -57,7 +57,8 @@ export default defineConfig({
 	test: {
 		coverage: {
 			provider: 'istanbul', // or 'v8',
-			include: ["**/*.ts"]
+			include: ["src/**/*.ts"],
+			exclude:["src/sw.ts", "src/lib/menus.ts"]
 		},
 	},
 });

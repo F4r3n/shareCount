@@ -11,6 +11,7 @@
     import { groupMembersProxy } from "@stores/group_members";
     import { current_groupStore } from "@stores/group";
     import { getUTC } from "$lib/UTCDate";
+    import { fade } from "svelte/transition";
     let {
         main_currency,
         members,
@@ -47,7 +48,8 @@
     } as Intl.DateTimeFormatOptions;
 </script>
 
-<div class="flex flex-col h-dvh">
+<!-- Offset with menu-->
+<div class="flex flex-col h-[calc(100dvh-70px)]">
     <button
         class="btn btn-accent w-2/3 md:w-1/3 mx-auto add-button m-5"
         onclick={async () => {
@@ -72,7 +74,7 @@
     >
         Add transaction
     </button>
-    <div class="transactions">
+    <div transition:fade class="transactions">
         <div class="flex flex-col w-full md:w-8/12 mx-1">
             {#if creating && creating_transaction}
                 <TransactionView
@@ -164,7 +166,6 @@
 
     .add-button {
         position: sticky;
-        bottom: 2%;
         z-index: 1;
     }
 </style>
