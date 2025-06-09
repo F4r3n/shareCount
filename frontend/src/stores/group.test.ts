@@ -38,6 +38,17 @@ test('Create groups', async () => {
     }
 });
 
+test('Add group from ID', async () => {
+    const new_id = uuidv4();
+    const new_Group = { created_at: getUTC(), modified_at: getUTC(), currency_id: "EUR", name: "TEST", token: new_id } as Group;
+    vi.spyOn(groupsProxy as never, "_getGroup").mockResolvedValue(new_Group);
+    await groupsProxy.add_group_from_id(new_id);
+    const groups: Group[] = await groupsProxy.get_local_groups();
+    const find = groups.find((value: Group) => { return value.token === new_id });
+    expect(find?.name).toBe(new_Group.name);
+});
+
+
 test('Modify group', async () => {
     const new_Group = { created_at: getUTC(), modified_at: getUTC(), currency_id: "EUR", name: "TEST", token: uuidv4() } as Group;
     await groupsProxy.add_new_local_group(new_Group);

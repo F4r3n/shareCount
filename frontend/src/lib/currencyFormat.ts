@@ -1,21 +1,21 @@
 
-export function getDecimalSeparator(locale?: Intl.Locale): string {
+export function getDecimalSeparator(locale?: Intl.LocalesArgument): string {
   const numberWithDecimalSeparator = 1.1;
   const r = Intl.NumberFormat(locale).formatToParts(numberWithDecimalSeparator).find(part => part.type === 'decimal')
   if (r) {
     return r.value
   }
-  return "."
+  throw new Error("Invalid decimal")
 }
 
-export function getLengthOfFraction(currency: string, locale?: Intl.Locale): number {
+export function getLengthOfFraction(currency: string, locale?: Intl.LocalesArgument): number {
   const numberFormatUSD = new Intl.NumberFormat(locale, { style: 'currency', currency });
   return numberFormatUSD.formatToParts(1)
     .find(part => part.type === "fraction")
     ?.value.length ?? 0;
 }
 
-export function getCurrencySymbol(currency: string, locale?: Intl.Locale) {
+export function getCurrencySymbol(currency: string, locale?: Intl.LocalesArgument) {
   let result = "";
   try {
     result = (0).toLocaleString(
@@ -28,9 +28,8 @@ export function getCurrencySymbol(currency: string, locale?: Intl.Locale) {
       }
     ).replace(/\d/g, '').trim()
   } catch {
-    result = ""
+    throw new Error("Invalid currency")
   }
-
   return result;
 }
 

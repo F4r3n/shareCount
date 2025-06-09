@@ -1,8 +1,9 @@
 // src/lib/stores/groupUsernames.ts
 import { writable, type Writable } from 'svelte/store';
 import { db } from '../db/db';
+import { browser } from '$app/environment';
 
-interface User {
+export interface User {
     group_uuid: string;
     member_uuid: string;
 }
@@ -11,6 +12,8 @@ export const users: Writable<Record<string, User>> = writable({});
 
 const userStore_name = "current_user"
 function getInitialUserStore(): User | null {
+    if (!browser)
+        return null;
     const string = localStorage.getItem(userStore_name);
     if (string)
         return JSON.parse(string);
@@ -20,7 +23,9 @@ function getInitialUserStore(): User | null {
 export const current_user: Writable<User | null> = writable(getInitialUserStore());
 
 current_user.subscribe((value) => {
-    localStorage.setItem(userStore_name, JSON.stringify(value))
+    if (browser) {
+        localStorage.setItem(userStore_name, JSON.stringify(value))
+    }
 })
 
 
@@ -38,7 +43,7 @@ export class UserProxy {
     }
 
     async synchronize_store(group_uuid: string) {
-        
+
         const data = await this.get_user_group(group_uuid);
         if (data) {
             users.update((values: Record<string, User>) => {
@@ -49,7 +54,7 @@ export class UserProxy {
     }
 
     async get_user_group(group_uuid: string): Promise<User | null> {
-        const data = (await db.user_data.where("group_uuid").equals(group_uuid).toArray()).at(0);
+        const data = (await db.user_data.where("group_uuid").equals(group_uuid).first());
         if (data) {
             return { group_uuid: data.group_uuid, member_uuid: data.member_uuid } as User
         }

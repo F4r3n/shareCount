@@ -122,21 +122,6 @@ export class GroupsProxy {
         }
     }
 
-    private async _deleteGroup(group: Group) {
-        const res = await fetch(`${getFullBackendURL()}/groups`, {
-            method: "DELETE",
-            credentials: "include",
-            headers: {
-                "Content-Type": "application/json",
-            },
-            body: JSON.stringify(group)
-        });
-
-        if (!res.ok) {
-            throw new Error("Request failed");
-        }
-    }
-
     private _convert_DB_to_Group(group: Group_DB): Group {
         return {
             created_at: group.created_at,
@@ -168,7 +153,7 @@ export class GroupsProxy {
         if (uuid != "") {
             const new_group = await this._getGroup(uuid);
             await this.delete_local_group(uuid);
-            this._add_local_group(new_group, STATUS.NOTHING)
+            await this._add_local_group(new_group, STATUS.NOTHING)
         }
     }
 
