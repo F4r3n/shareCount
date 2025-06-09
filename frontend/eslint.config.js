@@ -24,7 +24,7 @@ export default ts.config(
 	},
 	{
 		// Note: there should be no other properties in this object
-		ignores: ["wasm-lib/*", "dev-dist/*"],
+		ignores: ["wasm-lib/*", "dev-dist/*", "coverage/*"],
 	},
 	{
 		files: [

@@ -6,11 +6,10 @@
         compute_settlements,
         type Amount,
         type Settlement,
-    } from "wasm-lib";
+    } from "../../wasm-lib/pkg";
     import Modal from "./Modal.svelte";
     import { type ModalButton } from "./ModalTypes";
     import { transactionsProxy } from "@stores/group_transactions";
-    import { base } from "$app/paths";
     import { getUTC } from "$lib/UTCDate";
     import { current_groupStore } from "@stores/group";
     import { v4 as uuidv4 } from "uuid";
@@ -64,7 +63,7 @@
     }
 
     onMount(async () => {
-        await init(base + "/assets/wasm_lib_bg.wasm");
+        await init();
         balances = compute_balance(await get_amounts());
         settlements = compute_settlements(balances).filter(
             (settlement: Settlement) => {
