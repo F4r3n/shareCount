@@ -34,8 +34,7 @@ export class TransactionsProxy {
     }
 
     private async _get_local_transactionsDB(group_uuid: string): Promise<Transaction_DB[]> {
-        const tr = (await db.transactions.where("group_uuid").equals(group_uuid).toArray());
-        return tr;
+        return await db.transactions.where("group_uuid").equals(group_uuid).toArray();
     }
 
     private async _add_local_debts(transaction_uuid: string, debts: Debt[]) {
@@ -229,7 +228,7 @@ export class TransactionsProxy {
         try {
             for (const tr of to_send_transactions) {
                 this._update_remote_transaction(group_uuid, tr);
-                db.transactions.where("uuid").equals(tr.uuid).modify({ status: STATUS.NOTHING });
+                await db.transactions.where("uuid").equals(tr.uuid).modify({ status: STATUS.NOTHING });
             }
 
             for (const tr of to_delete_transactions) {
