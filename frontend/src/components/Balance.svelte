@@ -96,6 +96,7 @@
         uuid: uuidv4(),
       } as Transaction;
       await transactionsProxy.add_transaction(group_uuid, transaction);
+      transactions.push(transaction);
       balances = compute_balance(await get_amounts());
       console.log("Clear");
       settlements = compute_settlements(balances).filter(
@@ -103,6 +104,7 @@
           return settlement.amount != "0";
         }
       );
+      console.log(settlements);
     }
   }
 
