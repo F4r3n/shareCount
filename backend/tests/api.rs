@@ -18,7 +18,7 @@ async fn get_group_members(
     server: &TestServer,
 ) -> Result<Vec<GroupMember>, anyhow::Error> {
     let response = server
-        .get(format!("/groups/{}/group_members", token).as_str())
+        .get(format!("/groups/{token}/group_members").as_str())
         .await;
     assert_eq!(response.status_code(), 200);
     Ok(response.json::<Vec<GroupMember>>())
@@ -40,7 +40,7 @@ async fn create_group(
     let group = response.json::<GroupNoID>();
 
     let members = members
-        .into_iter()
+        .iter()
         .map(|name| GroupMember::new(name))
         .collect::<Vec<GroupMember>>();
     let response = server
@@ -59,7 +59,7 @@ pub async fn create_server() -> Arc<TestServer> {
             dotenvy::from_filename(".env.test").ok();
             let front_url = match env::var("FRONT_URL") {
                 Ok(val) => val,
-                Err(e) => panic!("Failed to get FRONT_URL: {}", e),
+                Err(e) => panic!("Failed to get FRONT_URL: {e}"),
             };
             let connection = state_server::establish_connection().expect("fail connection");
 
@@ -69,7 +69,7 @@ pub async fn create_server() -> Arc<TestServer> {
 
             let app = match create_router(&front_url, state_server) {
                 Ok(app) => app,
-                Err(e) => panic!("Failed to create router: {}", e),
+                Err(e) => panic!("Failed to create router: {e}"),
             };
 
             Arc::new(TestServer::new(app).expect("Failed to create TestServer"))
@@ -114,7 +114,7 @@ async fn manage_group() -> Result<(), anyhow::Error> {
     //get groups
     println!("get groups");
 
-    let response = server.get(format!("/groups/{}", token).as_str()).await;
+    let response = server.get(format!("/groups/{token}").as_str()).await;
     assert_eq!(response.status_code(), 200);
     let group = response.json::<GroupNoID>();
     assert_eq!(group.name, "Tokyo");
@@ -147,7 +147,7 @@ async fn manage_member() -> Result<(), anyhow::Error> {
     println!("rename members");
 
     let response = server
-        .post(format!("/groups/{}/group_members", token).as_str())
+        .post(format!("/groups/{token}/group_members").as_str())
         .json(&serde_json::to_value(vec![GroupMember {
             modified_at: chrono::Utc::now().naive_utc(),
             nickname: "JAJA".to_string(),
@@ -165,7 +165,7 @@ async fn manage_member() -> Result<(), anyhow::Error> {
     println!("Delete members...");
     //delete members
     let response = server
-        .delete(format!("/groups/{}/group_members", token).as_str())
+        .delete(format!("/groups/{token}/group_members" ).as_str())
         .json(&json!([{"uuid": uuid_jojo, "nickname": "JAJA", "modified_at": chrono::Utc::now().naive_utc()}]))
         .await;
     assert_eq!(response.status_code(), 200);
@@ -204,7 +204,7 @@ async fn get_transaction(
     server: &TestServer,
 ) -> Result<TransactionResponse, anyhow::Error> {
     let response = server
-        .get(format!("/groups/{}/transactions/{}", token, uuid).as_str())
+        .get(format!("/groups/{token}/transactions/{uuid}").as_str())
         .await;
     assert_eq!(response.status_code(), 200);
     let transaction = response.json::<TransactionResponse>();
@@ -224,7 +224,7 @@ async fn manage_transactions() -> Result<(), anyhow::Error> {
 
     let new_uuid = new_transaction.get_uuid();
     let response = server
-        .post(format!("/groups/{}/transactions", token).as_str())
+        .post(format!("/groups/{token}/transactions").as_str())
         .json(&serde_json::to_value(&new_transaction)?)
         .await;
     assert_eq!(response.status_code(), 200);
@@ -237,7 +237,7 @@ async fn manage_transactions() -> Result<(), anyhow::Error> {
     new_transaction.set_description("BBBB");
 
     let response = server
-        .post(format!("/groups/{}/transactions", token).as_str())
+        .post(format!("/groups/{token}/transactions").as_str())
         .json(&serde_json::to_value(&new_transaction)?)
         .await;
     assert_eq!(response.status_code(), 200);
@@ -249,7 +249,7 @@ async fn manage_transactions() -> Result<(), anyhow::Error> {
     let new_transaction = create_transaction(&group, "AAAA", "4", "1");
 
     let response = server
-        .post(format!("/groups/{}/transactions", token).as_str())
+        .post(format!("/groups/{token}/transactions").as_str())
         .json(&serde_json::to_value(&new_transaction)?)
         .await;
     assert_eq!(response.status_code(), 500);
@@ -259,13 +259,13 @@ async fn manage_transactions() -> Result<(), anyhow::Error> {
     let mut new_transaction = create_transaction(&group, "AAAA", "0", "1");
 
     let response = server
-        .post(format!("/groups/{}/transactions", token).as_str())
+        .post(format!("/groups/{token}/transactions").as_str())
         .json(&serde_json::to_value(&new_transaction)?)
         .await;
     assert_eq!(response.status_code(), 500);
     new_transaction.set_amount("3");
     let response = server
-        .post(format!("/groups/{}/transactions", token).as_str())
+        .post(format!("/groups/{token}/transactions").as_str())
         .json(&serde_json::to_value(&new_transaction)?)
         .await;
     assert_eq!(response.status_code(), 200);
@@ -275,7 +275,7 @@ async fn manage_transactions() -> Result<(), anyhow::Error> {
     let new_datetime = datetime.checked_sub_signed(chrono::Duration::hours(1));
     new_transaction.set_time(&new_datetime.unwrap_or_default());
     let response = server
-        .post(format!("/groups/{}/transactions", token).as_str())
+        .post(format!("/groups/{token}/transactions").as_str())
         .json(&serde_json::to_value(&new_transaction)?)
         .await;
     assert_eq!(response.status_code(), 200);
@@ -288,7 +288,7 @@ async fn manage_transactions() -> Result<(), anyhow::Error> {
     let new_datetime = datetime.checked_add_days(chrono::Days::new(1));
     new_transaction.set_time(&new_datetime.unwrap_or_default());
     let response = server
-        .post(format!("/groups/{}/transactions", token).as_str())
+        .post(format!("/groups/{token}/transactions").as_str())
         .json(&serde_json::to_value(&new_transaction)?)
         .await;
     assert_eq!(response.status_code(), 200);
@@ -301,7 +301,7 @@ async fn manage_transactions() -> Result<(), anyhow::Error> {
         .checked_sub_signed(chrono::Duration::hours(1));
     new_transaction.set_time(&new_datetime.unwrap_or_default());
     let response = server
-        .delete(format!("/groups/{}/transactions", token).as_str())
+        .delete(format!("/groups/{token}/transactions").as_str())
         .json(&serde_json::to_value(&new_transaction)?)
         .await;
     assert_eq!(response.status_code(), 200);
@@ -310,7 +310,7 @@ async fn manage_transactions() -> Result<(), anyhow::Error> {
     let new_datetime = new_datetime.unwrap().checked_add_days(chrono::Days::new(2));
     new_transaction.set_time(&new_datetime.unwrap_or_default());
     let response = server
-        .delete(format!("/groups/{}/transactions", token).as_str())
+        .delete(format!("/groups/{token}/transactions").as_str())
         .json(&serde_json::to_value(&new_transaction)?)
         .await;
     assert_eq!(response.status_code(), 200);
@@ -367,7 +367,7 @@ async fn test_v2_transactions_flow() -> Result<(), anyhow::Error> {
         .collect::<Vec<_>>();
 
     let response = server
-        .post(format!("/groups/{}/group_members", token).as_str())
+        .post(format!("/groups/{token}/group_members").as_str())
         .json(&members)
         .await;
     assert_eq!(response.status_code(), 200);
@@ -378,7 +378,7 @@ async fn test_v2_transactions_flow() -> Result<(), anyhow::Error> {
     let uuid = tx.get_uuid();
 
     let response = server
-        .post(format!("/v2/groups/{}/transactions", token).as_str())
+        .post(format!("/v2/groups/{token}/transactions").as_str())
         .json(&vec![tx.clone()])
         .await;
     assert_eq!(response.status_code(), 200);
@@ -388,14 +388,14 @@ async fn test_v2_transactions_flow() -> Result<(), anyhow::Error> {
     modified_tx.set_description("Dinner");
 
     let response = server
-        .post(format!("/v2/groups/{}/transactions", token).as_str())
+        .post(format!("/v2/groups/{token}/transactions").as_str())
         .json(&vec![modified_tx.clone()])
         .await;
     assert_eq!(response.status_code(), 200);
 
     // Get transaction
     let response = server
-        .get(format!("/groups/{}/transactions/{}", token, uuid).as_str())
+        .get(format!("/groups/{token}/transactions/{uuid}").as_str())
         .await;
     assert_eq!(response.status_code(), 200);
     let data = response.json::<TransactionResponse>();
@@ -403,13 +403,13 @@ async fn test_v2_transactions_flow() -> Result<(), anyhow::Error> {
 
     // Delete
     let response = server
-        .delete(format!("/v2/groups/{}/transactions", token).as_str())
+        .delete(format!("/v2/groups/{token}/transactions").as_str())
         .json(&vec![modified_tx.clone()])
         .await;
     assert_eq!(response.status_code(), 200);
 
     let response = server
-        .get(format!("/groups/{}/transactions/{}", token, uuid).as_str())
+        .get(format!("/groups/{token}/transactions/{uuid}").as_str())
         .await;
     assert_eq!(response.status_code(), 404);
 

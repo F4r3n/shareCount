@@ -29,7 +29,7 @@ async fn main() -> anyhow::Result<()> {
 }
 
 async fn serve(app: Router, listening_url: &str) -> anyhow::Result<()> {
-    println!("Backend run: {}", listening_url);
+    println!("Backend run: {listening_url}");
 
     let addr = SocketAddr::from_str(listening_url)?;
     let listener = tokio::net::TcpListener::bind(addr).await?;
