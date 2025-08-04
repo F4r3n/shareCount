@@ -20,10 +20,9 @@ use diesel::prelude::*;
 use diesel::upsert::excluded;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-const MAX_DESCRIPTION_SIZE : usize = 250;
+const MAX_DESCRIPTION_SIZE: usize = 250;
 
-
-#[derive(Deserialize, Serialize, Queryable, Debug)]
+#[derive(Deserialize, Serialize, Queryable, Debug, Clone)]
 pub struct TransactionDebtQuery {
     id: Option<i32>,
     amount: BigDecimal,
@@ -255,7 +254,7 @@ pub struct TransactionChangeset {
     pub group_id: i32,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct TransactionDelete {
     pub uuid: String,
     pub modified_at: NaiveDateTime,
@@ -276,7 +275,7 @@ pub struct TransactionDebtUpsert {
     amount: BigDecimal,
 }
 
-#[derive(Deserialize, Serialize, Queryable, Debug)]
+#[derive(Deserialize, Serialize, Queryable, Debug, Clone)]
 pub struct TransactionQuery {
     uuid: String,
     description: String,
@@ -377,7 +376,12 @@ pub fn modify_create_transaction(
     let member_id = get_member_id(group_id, transaction.paid_by.uuid, conn)?;
     let changeset = TransactionChangeset {
         uuid: transaction.uuid,
-        description: transaction.description.as_str().unicode_truncate(MAX_DESCRIPTION_SIZE).0.to_string(),
+        description: transaction
+            .description
+            .as_str()
+            .unicode_truncate(MAX_DESCRIPTION_SIZE)
+            .0
+            .to_string(),
         amount: transaction.amount,
         paid_by: member_id,
         currency_id: transaction.currency_id,
@@ -448,6 +452,27 @@ pub async fn handler_modify_transaction(
     Ok(())
 }
 
+pub async fn handler_modify_transactions(
+    State(state_server): State<state_server::StateServer>,
+    Path(token): Path<String>,
+    Json(transactions): Json<Vec<TransactionQuery>>,
+) -> Result<(), AppError<String>> {
+    for transaction in transactions {
+        let t = token.clone();
+        check_transaction_validity(&transaction).map_err(|v| AppError {
+            content: Some(v),
+            error: anyhow::anyhow!(StatusCode::INTERNAL_SERVER_ERROR),
+        })?;
+        let mut conn = state_server.pool.get()?;
+        conn.transaction::<_, anyhow::Error, _>(|conn| {
+            modify_create_transaction(t, transaction, conn)
+        })
+        .map_err(AppError::from)?;
+    }
+
+    Ok(())
+}
+
 #[derive(Deserialize, Serialize, Queryable, Debug)]
 pub struct TransactionIDResponse {
     pub id: i32,
@@ -467,6 +492,34 @@ pub async fn handler_delete_transaction(
             .filter(transactions::uuid.eq(transaction.uuid))
             .filter(transactions::modified_at.lt(transaction.modified_at))
             .execute(conn)?;
+
+        Ok(())
+    })
+    .map_err(AppError::from)?;
+
+    Ok(())
+}
+
+pub async fn handler_delete_transactions(
+    State(state_server): State<state_server::StateServer>,
+    Path(token): Path<String>,
+    Json(transactions): Json<Vec<TransactionDelete>>,
+) -> Result<(), AppError> {
+    let mut conn = state_server.pool.get()?;
+    let groud_id = get_group_id(&token, &mut conn)?;
+    conn.transaction::<_, anyhow::Error, _>(|conn| {
+        for transaction in transactions {
+            let affected = diesel::delete(transactions::table)
+                .filter(transactions::group_id.eq(groud_id))
+                .filter(transactions::uuid.eq(transaction.uuid))
+                .filter(transactions::modified_at.le(transaction.modified_at))
+                .execute(conn)?;
+
+            if affected == 0 {
+                // Return Diesel's NotFound which you can convert to 404 via your error handling
+                return Err(diesel::NotFound.into());
+            }
+        }
 
         Ok(())
     })

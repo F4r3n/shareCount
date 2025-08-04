@@ -1,12 +1,11 @@
 import "fake-indexeddb/auto";
-import { expect, test, beforeEach, vi } from 'vitest';
+import { expect, test, beforeEach, vi, afterEach } from 'vitest';
 import { groupMembersProxy } from './group_members';
 import { db, STATUS } from '../db/db';
 import { v4 as uuidv4 } from "uuid";
 import { formatDate, getUTC } from '$lib/UTCDate';
 import type { Group, GroupMember } from "$lib/types";
 import { groupsProxy } from "./group";
-import { afterEach } from "node:test";
 
 vi.mock("./group_members", async (importOriginal) => {
   const originalModule = await importOriginal<typeof import("./group_members")>();

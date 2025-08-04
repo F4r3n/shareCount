@@ -51,7 +51,7 @@ export class TransactionsProxy {
         inTransaction.modified_at = getUTC();
         let has_error = false;
         try {
-            await this._update_remote_transaction(group_uuid, inTransaction);
+            await this._update_remote_transaction(group_uuid, [inTransaction]);
         }
         catch {
             has_error = true;
@@ -73,7 +73,7 @@ export class TransactionsProxy {
         inTransaction.modified_at = getUTC();
         let has_error = false;
         try {
-            await this._update_remote_transaction(group_uuid, inTransaction);
+            await this._update_remote_transaction(group_uuid, [inTransaction]);
         } catch {
             has_error = true;
         }
@@ -93,7 +93,7 @@ export class TransactionsProxy {
     async delete_transaction(group_uuid: string, inTransaction: Transaction) {
         inTransaction.modified_at = getUTC();
         try {
-            this._delete_remote_transaction(group_uuid, inTransaction);
+            this._delete_remote_transaction(group_uuid, [inTransaction]);
         } catch {
             /*empty*/
         } finally {
@@ -226,14 +226,13 @@ export class TransactionsProxy {
         } catch { /* empty */ }
 
         try {
+            this._update_remote_transaction(group_uuid, to_send_transactions);
+
             for (const tr of to_send_transactions) {
-                this._update_remote_transaction(group_uuid, tr);
                 await db.transactions.where("uuid").equals(tr.uuid).modify({ status: STATUS.NOTHING });
             }
+            this._delete_remote_transaction(group_uuid, to_delete_transactions);
 
-            for (const tr of to_delete_transactions) {
-                this._delete_remote_transaction(group_uuid, tr);
-            }
         } catch { /* empty */ }
 
         const new_transactions = await this.get_local_transactions(group_uuid)
@@ -323,8 +322,8 @@ export class TransactionsProxy {
     }
 
 
-    private async _update_remote_transaction(tokenID: string, inTransaction: Transaction) {
-        const url = `${getFullBackendURL()}/groups/${tokenID}/transactions`
+    private async _update_remote_transaction(tokenID: string, inTransaction: Transaction[]) {
+        const url = `${getFullBackendURL()}/v2/groups/${tokenID}/transactions`
         try {
             await fetch(url, {
                 method: "POST",
@@ -339,8 +338,8 @@ export class TransactionsProxy {
         }
     }
 
-    private async _delete_remote_transaction(tokenID: string, inTransaction: Transaction) {
-        const res = await fetch(`${getFullBackendURL()}/groups/${tokenID}/transactions`, {
+    private async _delete_remote_transaction(tokenID: string, inTransaction: Transaction[]) {
+        const res = await fetch(`${getFullBackendURL()}/v2/groups/${tokenID}/transactions`, {
             method: "DELETE",
             credentials: "include",
             headers: {

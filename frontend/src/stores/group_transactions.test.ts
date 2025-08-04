@@ -1,5 +1,5 @@
 import "fake-indexeddb/auto";
-import { beforeEach, test, expect, vi } from "vitest";
+import { beforeEach, test, expect, vi, afterEach } from "vitest";
 import { transactionsProxy } from "./group_transactions";
 import { db, STATUS } from "../db/db";
 import { v4 as uuidv4 } from "uuid";
@@ -8,7 +8,6 @@ import { group_transactions } from "./group_transactions";
 import { groupsProxy } from "./group";
 import type { Group, GroupMember, Transaction } from "$lib/types";
 import { groupMembersProxy } from "./group_members";
-import { afterEach } from "node:test";
 
 vi.mock("./group_transactions", async (importOriginal) => {
     const originalModule = await importOriginal<typeof import("./group_transactions")>();

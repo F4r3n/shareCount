@@ -329,3 +329,89 @@ async fn manage_transactions() -> Result<(), anyhow::Error> {
 
     Ok(())
 }
+
+#[tokio::test]
+async fn test_v2_create_and_manage_group() -> Result<(), anyhow::Error> {
+    let server = create_server().await;
+
+    // Create group (v2 should accept Vec<GroupNoID>)
+    let groups = vec![GroupNoID::new("Tokyo", "USD")];
+    let response = server
+        .post("/v2/groups")
+        .json(&serde_json::to_value(groups)?)
+        .await;
+
+    assert_eq!(response.status_code(), 200);
+    let created: Vec<GroupNoID> = response.json();
+    assert_eq!(created.len(), 1);
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn test_v2_transactions_flow() -> Result<(), anyhow::Error> {
+    let server = create_server().await;
+
+    // Create Group & Members first
+    let response = server
+        .post("/v2/groups")
+        .json(&json!([GroupNoID::new("Tokyo", "USD")]))
+        .await;
+    assert_eq!(response.status_code(), 200);
+    let group: Vec<GroupNoID> = response.json();
+    let token = &group[0].token;
+
+    let members = vec!["Alice", "Bob"]
+        .into_iter()
+        .map(GroupMember::new)
+        .collect::<Vec<_>>();
+
+    let response = server
+        .post(format!("/groups/{}/group_members", token).as_str())
+        .json(&members)
+        .await;
+    assert_eq!(response.status_code(), 200);
+    let members: Vec<GroupMember> = response.json();
+
+    // Create transaction
+    let tx = create_transaction(&members, "Lunch", "20", "10");
+    let uuid = tx.get_uuid();
+
+    let response = server
+        .post(format!("/v2/groups/{}/transactions", token).as_str())
+        .json(&vec![tx.clone()])
+        .await;
+    assert_eq!(response.status_code(), 200);
+
+    // Modify transaction
+    let mut modified_tx = tx.clone();
+    modified_tx.set_description("Dinner");
+
+    let response = server
+        .post(format!("/v2/groups/{}/transactions", token).as_str())
+        .json(&vec![modified_tx.clone()])
+        .await;
+    assert_eq!(response.status_code(), 200);
+
+    // Get transaction
+    let response = server
+        .get(format!("/groups/{}/transactions/{}", token, uuid).as_str())
+        .await;
+    assert_eq!(response.status_code(), 200);
+    let data = response.json::<TransactionResponse>();
+    assert_eq!(data.description, "Dinner");
+
+    // Delete
+    let response = server
+        .delete(format!("/v2/groups/{}/transactions", token).as_str())
+        .json(&vec![modified_tx.clone()])
+        .await;
+    assert_eq!(response.status_code(), 200);
+
+    let response = server
+        .get(format!("/groups/{}/transactions/{}", token, uuid).as_str())
+        .await;
+    assert_eq!(response.status_code(), 404);
+
+    Ok(())
+}

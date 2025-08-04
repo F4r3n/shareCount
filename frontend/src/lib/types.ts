@@ -1,25 +1,25 @@
 
 export interface Debt {
-    id? : number,
-    amount : string,
-    member : GroupMember
+    id?: number,
+    amount: string,
+    member: GroupMember
 }
 
 export interface GroupMember {
-    uuid : string,
-    nickname : string
+    uuid: string,
+    nickname: string
     modified_at: string,
 }
 
 export interface Transaction {
     uuid: string,
-    description : string,
-    currency_id : string,
+    description: string,
+    currency_id: string,
     paid_by: GroupMember,
     created_at: string,
-    amount : string,
+    amount: string,
     exchange_rate: string,
-    debtors : Debt[],
+    debtors: Debt[],
     modified_at: string,
 }
 
