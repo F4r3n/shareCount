@@ -10,7 +10,6 @@
   import { current_user, userProxy, users } from "@stores/groupUsernames";
   import { transactionsProxy } from "@stores/group_transactions";
   import Modal from "./Modal.svelte";
-  import { type ModalButton } from "./ModalTypes";
   import { base } from "$app/paths";
   import { getBackendURL } from "$lib/shareCountAPI";
   import Share from "./Share.svelte";
@@ -78,7 +77,8 @@
   }
 
   function is_present_once(inName: string): boolean {
-    let map = new Map();
+    // eslint-disable-next-line svelte/prefer-svelte-reactivity
+    const map = new Map();
     for (let member of members_to_add) {
       if (!map.has(member.nickname)) map.set(member.nickname, 1);
       else map.set(member.nickname, 1 + map.get(member.nickname));
@@ -95,7 +95,8 @@
     inMembersModified: GroupMember[],
     inMembersToAdd: GroupMember[]
   ): boolean {
-    let set = new Set();
+    // eslint-disable-next-line svelte/prefer-svelte-reactivity
+    const set = new Set();
     for (let member of inMembersToAdd) {
       set.add(member.nickname);
     }

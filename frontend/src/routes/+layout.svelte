@@ -12,12 +12,10 @@
 
   let token_id = $state("");
   onMount(() => {
-    console.log(page.route.id);
     const params = new URLSearchParams(window.location.search);
     token_id = params.get("id") ?? "";
     useRegisterSW();
   });
-  let drawerState = $state(false);
   let webManifestLink = $derived(
     pwaInfo
       ? pwaInfo.webManifest
