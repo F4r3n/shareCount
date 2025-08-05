@@ -47,7 +47,6 @@
           class:tab-active={page.route.id == sub.path}
           onclick={() => {
             goto(base + `${sub.path}?id=${token_id}`);
-            drawerState = false;
           }}
         >
           {sub.name}

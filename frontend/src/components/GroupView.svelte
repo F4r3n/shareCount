@@ -51,6 +51,7 @@
   function clean() {
     members_to_add = [];
     members_to_delete = [];
+    group_modified = structuredClone($state.snapshot(group));
   }
 
   function create_unique_member(): GroupMember {
@@ -140,7 +141,7 @@
 >
   <button
     type="button"
-    class="grid grid-cols-5 grid-rows-4 bg-base-100 w-sm sm:w-md shadow-md p-4 rounded-md hover:shadow-lg cursor-pointer transition-shadow text-left focus:outline-none focus:ring-2 focus:ring-primary"
+    class="grid grid-rows-2 bg-base-100 w-sm sm:w-md shadow-md p-4 rounded-md hover:shadow-lg cursor-pointer transition-shadow text-left focus:outline-none focus:ring-2 focus:ring-primary"
     onclick={() => {
       if (!edit && current_user_uuid) {
         current_groupStore.set(group);
@@ -150,21 +151,18 @@
     }}
     disabled={edit || !current_user_uuid}
   >
-    <h1 class="row-start-1 col-start-1 col-end-3 text-xl font-semibold">
+    <h1
+      class="row-start-1 text-xl font-semibold text-ellipsis whitespace-nowrap overflow-hidden"
+    >
       {group_modified.name}
     </h1>
-    <div class="row-start-1 col-start-5 flex flex-row justify-end">
-      <!-- optional icons or summary -->
-    </div>
 
     {#if current_user_uuid}
-      <div class="row-start-2 col-start-1 col-end-3 text-sm">
+      <div class="row-start-2 text-sm">
         {`${get_member_from_uuid(current_user_uuid)?.nickname} (me)`}
       </div>
     {:else}
-      <div class="row-start-2 col-start-1 col-end-3 text-sm text-error">
-        No user selected.
-      </div>
+      <div class="row-start-2 text-sm text-error">No user selected.</div>
     {/if}
   </button>
   <div class="flex flex-row gap-2 mt-2 justify-end w-sm sm:w-md">
@@ -210,10 +208,11 @@
       <button
         class="btn btn-primary"
         onclick={() => {
-          edit = !edit;
           if (edit) {
             synchronize();
           }
+          edit = !edit;
+
           clean();
         }}
       >
