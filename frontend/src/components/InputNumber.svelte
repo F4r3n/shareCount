@@ -1,6 +1,4 @@
 <script lang="ts">
-  import { getDecimalSeparator } from "$lib/currencyFormat";
-
   let {
     is_editing,
     number_decimal = undefined,
