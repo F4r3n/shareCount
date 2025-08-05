@@ -1,5 +1,6 @@
 pub mod group_members;
 pub mod groups;
+pub mod status;
 pub mod transactions;
 pub use crate::state_server;
 use axum::http::StatusCode;

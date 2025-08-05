@@ -1,4 +1,4 @@
-use crate::entrypoint::{group_members, groups, transactions};
+use crate::entrypoint::{group_members, groups, status, transactions};
 use crate::state_server;
 use axum::routing::delete;
 use axum::{
@@ -59,8 +59,11 @@ pub fn create_router(url: &str, state_server: StateServer) -> Result<Router, any
                 .post(transactions::handler_modify_transactions),
         );
 
+    let status = Router::new().route("/version", get(status::handler_version));
+
     let app = Router::new()
         .merge(v1)
+        .merge(status)
         .nest("/v2", v2)
         .with_state(state_server)
         .layer(cors_layer);
