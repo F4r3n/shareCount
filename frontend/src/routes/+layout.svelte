@@ -33,38 +33,54 @@
 
 <div class="top">
   <div class="navbar bg-neutral text-neutral-content banner">
-    <button class="banner-arrow" aria-label="Go to main page" onclick={() => goto(base + "/")}
-      style="background: none; border: none; padding: 0; margin-right: 1rem; cursor: pointer;">
-      <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
-      </svg>
-    </button>
+    {#if page.route.id != "/"}
+      <button
+        class="banner-arrow"
+        aria-label="Go to main page"
+        onclick={() => goto(base + "/")}
+        style="background: none; border: none; padding: 0; margin-right: 1rem; cursor: pointer;"
+      >
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="28"
+          height="28"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M15 19l-7-7 7-7"
+          />
+        </svg>
+      </button>
+    {/if}
     <div class="text-xl">
       {`ShareCount${$current_groupStore !== null ? ": " + $current_groupStore.name : ""}`}
     </div>
   </div>
-
-
 </div>
 
-  {#if $current_groupStore}
-    <div role="tablist" class="tabs tabs-border justify-center">
-      {#each menus as sub (sub.name)}
-        {#if !sub.need_group || (sub.need_group && $current_groupStore)}
-          <button
-            role="tab"
-            class="tab text-base md:text-lg lg:text-lg"
-            class:tab-active={page.route.id == sub.path}
-            onclick={() => {
-              goto(base + `${sub.path}?id=${token_id}`);
-            }}
-          >
-            {sub.name}
-          </button>
-        {/if}
-      {/each}
-    </div>
-  {/if}
+{#if $current_groupStore}
+  <div role="tablist" class="tabs tabs-border justify-center">
+    {#each menus as sub (sub.name)}
+      {#if !sub.need_group || (sub.need_group && $current_groupStore)}
+        <button
+          role="tab"
+          class="tab text-base md:text-lg lg:text-lg"
+          class:tab-active={page.route.id == sub.path}
+          onclick={() => {
+            goto(base + `${sub.path}?id=${token_id}`);
+          }}
+        >
+          {sub.name}
+        </button>
+      {/if}
+    {/each}
+  </div>
+{/if}
 
 {@render children()}
 
