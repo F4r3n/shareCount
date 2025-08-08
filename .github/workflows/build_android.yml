@@ -95,7 +95,7 @@ jobs:
           mv ./src-tauri/gen/android/app/build/outputs/apk/universal/release/app-universal-release.apk ./src-tauri/gen/android/app/build/outputs/apk/universal/release/${{ env.APP_NAME }}-${{ steps.app-version.outputs.version_string }}.apk
 
       - name: Upload APK artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: ${{ env.APP_NAME }}-apk-${{ steps.app-version.outputs.version_string }}
           path: ./app/shareCount/src-tauri/gen/android/app/build/outputs/apk/universal/release/${{ env.APP_NAME }}-${{ steps.app-version.outputs.version_string }}.apk
