@@ -17,5 +17,7 @@ jobs:
     with:
       upload: false
   build_android:
+    permissions:
+      contents: write
     uses: ./.github/workflows/build_android.yml
     secrets: inherit
