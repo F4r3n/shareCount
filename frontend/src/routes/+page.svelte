@@ -69,7 +69,7 @@
     <div class="mt-4">
         {#each sortedGroup as group (group.token)}
             <div class="mb-5">
-                <GroupView creating={false} {group} onDone={() => {}}
+                <GroupView {group} onDone={() => {}}
                 ></GroupView>
             </div>
         {/each}

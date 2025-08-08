@@ -2,17 +2,13 @@
     import { onMount } from "svelte";
     import { goto } from "$app/navigation";
     import type { Group, GroupMember } from "$lib/types";
-    import { slide } from "svelte/transition";
-    import { MENU, menus } from "$lib/menus";
     import { groupMembersProxy } from "@stores/group_members";
     import GroupViewMemberItem from "./GroupView_MemberItem.svelte";
-    import { current_groupStore, groupsProxy } from "@stores/group";
-    import { current_user, userProxy, users } from "@stores/groupUsernames";
+    import {  groupsProxy } from "@stores/group";
+    import { userProxy, users } from "@stores/groupUsernames";
     import { transactionsProxy } from "@stores/group_transactions";
     import Modal from "./Modal.svelte";
     import { base } from "$app/paths";
-    import { getBackendURL } from "$lib/shareCountAPI";
-    import Share from "./Share.svelte";
     import CurrencySelector from "./CurrencySelector.svelte";
     import { fade } from "svelte/transition";
 
@@ -25,7 +21,6 @@
         creating: boolean;
         onDone: () => void;
     } = $props();
-    let edit = $state(false);
     let modified_members: GroupMember[] = $state([]);
     let original_members: GroupMember[];
     let group_modified = $state(structuredClone($state.snapshot(group)));
@@ -41,7 +36,6 @@
             await userProxy.synchronize_store(group.token);
             current_user_uuid = $users[group.token]?.member_uuid ?? "";
         } else {
-            edit = true;
             members_to_add.push(create_unique_member());
         }
     });
@@ -204,7 +198,6 @@
         disabled={!check_validity}
         onclick={async () => {
             if (check_validity) {
-                edit = false;
 
                 if (creating) {
                     await groupsProxy.add_new_local_group(group_modified);
@@ -256,12 +249,6 @@
 <Modal bind:this={modal}></Modal>
 
 <style>
-    .centered-editor {
-        margin-left: auto;
-        margin-right: auto;
-        display: block;
-        max-width: 100vw;
-    }
     .centered-editor-card {
         margin: 0 auto;
         max-width: 100vw;

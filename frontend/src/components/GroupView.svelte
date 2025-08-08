@@ -13,11 +13,9 @@
   import { userProxy, users, current_user } from "@stores/groupUsernames";
   let {
     group,
-    creating,
     onDone,
   }: {
     group: Group;
-    creating: boolean;
     onDone: () => void;
   } = $props();
   let edit = $state(false);
