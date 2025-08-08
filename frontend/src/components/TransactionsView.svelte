@@ -50,32 +50,8 @@
 
 <!-- Offset with menu-->
 <div class="flex flex-col h-[calc(100dvh-70px)]">
-    <button
-        class="btn btn-accent w-2/3 md:w-1/3 mx-auto add-button m-5"
-        onclick={async () => {
-            const current_member = await groupMembersProxy.get_local_member(
-                $current_user?.member_uuid ?? "",
-            );
-            if (current_member) {
-                creating = true;
-                creating_transaction = {
-                    uuid: uuidv4(),
-                    amount: "",
-                    currency_id: main_currency ?? "EUR",
-                    created_at: getUTC(),
-                    modified_at: getUTC(),
-                    debtors: create_debtors(),
-                    description: "",
-                    exchange_rate: "1",
-                    paid_by: current_member,
-                };
-            }
-        }}
-    >
-        Add transaction
-    </button>
     <div transition:fade class="transactions">
-        <div class="flex flex-col w-full md:w-8/12 mx-1">
+    <div class="flex flex-col w-full md:w-8/12 mx-1">
             {#if creating && creating_transaction}
                 <TransactionView
                     transaction={creating_transaction}
@@ -154,6 +130,30 @@
             {/each}
         </div>
     </div>
+    <button
+        class="btn btn-accent w-2/3 md:w-1/3 add-button"
+        onclick={async () => {
+            const current_member = await groupMembersProxy.get_local_member(
+                $current_user?.member_uuid ?? "",
+            );
+            if (current_member) {
+                creating = true;
+                creating_transaction = {
+                    uuid: uuidv4(),
+                    amount: "",
+                    currency_id: main_currency ?? "EUR",
+                    created_at: getUTC(),
+                    modified_at: getUTC(),
+                    debtors: create_debtors(),
+                    description: "",
+                    exchange_rate: "1",
+                    paid_by: current_member,
+                };
+            }
+        }}
+    >
+        Add transaction
+    </button>
 </div>
 
 <style>
@@ -165,7 +165,13 @@
     }
 
     .add-button {
-        position: sticky;
-        z-index: 1;
+        position: fixed;
+        left: 50%;
+        transform: translateX(-50%);
+        bottom: 0;
+        z-index: 20;
+        margin-bottom: 1.5rem;
+        width: 66vw;
+        max-width: 400px;
     }
 </style>

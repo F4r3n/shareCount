@@ -5,7 +5,7 @@ import { getFullBackendURL } from '$lib/shareCountAPI';
 import { db, STATUS, type Debt_DB, type Transaction_DB } from '../db/db';
 import { groupMembersProxy } from './group_members';
 import { getUTC } from '$lib/UTCDate';
-import { Synchro } from './SynchroHelper';
+import { Synchro, withTimeout } from './SynchroHelper';
 
 
 export const group_transactions: Writable<Record<string, Transaction[]>> = writable({});
@@ -184,7 +184,7 @@ export class TransactionsProxy {
         let remote_transactions: Transaction[] = [];
 
         try {
-            remote_transactions = await this._get_remote_transactions(group_uuid);
+            remote_transactions = await withTimeout(this._get_remote_transactions(group_uuid),7000);
             for (const remote_transaction of remote_transactions) {
                 const local_transaction = map.get(remote_transaction.uuid);
                 if (local_transaction) {

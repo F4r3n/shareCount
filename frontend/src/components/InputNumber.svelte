@@ -34,7 +34,7 @@
   inputmode="numeric"
   placeholder="0"
   pattern={regex}
-  class="input validator input-ghost md:input-md lg:input-lg"
+  class="input validator md:input-md lg:input-lg"
   bind:value={() => value, (v) => (value = v.replaceAll(",", "."))}
   onchange={() => {
     if (onChange) {

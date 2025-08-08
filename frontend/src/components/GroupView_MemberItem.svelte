@@ -43,7 +43,7 @@
         type="text"
         class="input join-item {error_message != ''
             ? 'input-error'
-            : 'input-ghost'}"
+            : 'input'}"
         bind:value={member.nickname}
         onchange={() => {
             let result = onChange(member);

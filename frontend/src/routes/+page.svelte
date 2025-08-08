@@ -7,9 +7,9 @@
         groupsStore,
     } from "@stores/group";
     import type { Group } from "$lib/types";
-    import { getUTC } from "$lib/UTCDate";
-    import { v4 as uuidv4 } from "uuid";
+    import { goto } from "$app/navigation";
     import { store_url } from "$lib/shareCountAPI";
+    import { base } from "$app/paths";
     let current_error: string = $state("");
     onMount(async () => {
         current_groupStore.set(null);
@@ -37,17 +37,7 @@
             }
         }
     });
-    let create = $state(false);
-    let new_group: Group = $state(create_new_group());
-    function create_new_group(): Group {
-        return {
-            token: uuidv4(),
-            created_at: getUTC(),
-            currency_id: "EUR",
-            modified_at: getUTC(),
-            name: "New group",
-        } as Group;
-    }
+
     let sortedGroup = $derived(
         $groupsStore.toSorted((a: Group, b: Group) => {
             return b.created_at.localeCompare(a.created_at);
@@ -75,33 +65,21 @@
 {/if}
 
 <main class="w-full mx-auto flex flex-col items-center">
-    <button
-        disabled={create}
-        onclick={() => {
-            create = true;
-            new_group = create_new_group();
-        }}
-        class="btn btn-accent mt-5">Add Group</button
-    >
-    {#if create}
-        <div class="mt-4">
-            <GroupView
-                creating={true}
-                group={new_group}
-                onDone={async () => {
-                    create = false;
-                }}
-            ></GroupView>
-        </div>
-    {/if}
+
     <div class="mt-4">
         {#each sortedGroup as group (group.token)}
             <div class="mb-5">
-                <GroupView creating={false} {group} onDone={() => {}}
+                <GroupView {group} onDone={() => {}}
                 ></GroupView>
             </div>
         {/each}
     </div>
+    <button
+        onclick={() => {
+            goto(base + `/group`);
+        }}
+        class="btn btn-accent add-group-bottom"
+    >Add Group</button>
 </main>
 
 <style>
@@ -109,5 +87,16 @@
         display: flex;
         width: 100%;
         justify-content: center;
+    }
+
+    .add-group-bottom {
+        position: fixed;
+        bottom: 0;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 100;
+        width: 66vw;
+        max-width: 400px;
+        margin-bottom: 1rem;
     }
 </style>

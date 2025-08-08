@@ -4,7 +4,7 @@ import type { GroupMember } from '$lib/types';
 import { getUTC } from '$lib/UTCDate';
 import { v4 as uuidv4 } from 'uuid';
 import { getFullBackendURL } from '$lib/shareCountAPI';
-import { Synchro } from './SynchroHelper';
+import { Synchro, withTimeout } from './SynchroHelper';
 
 
 export class GroupMemberProxy {
@@ -187,7 +187,7 @@ export class GroupMemberProxy {
         let remotes = [];
 
         try {
-            remotes = await this._get_remote_GroupMembers(group_uuid);
+            remotes = await withTimeout(this._get_remote_GroupMembers(group_uuid), 7000);
 
             for (const remote of remotes) {
                 const local = map.get(remote.uuid);
