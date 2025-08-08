@@ -33,6 +33,12 @@
 
 <div class="top">
   <div class="navbar bg-neutral text-neutral-content banner">
+    <button class="banner-arrow" aria-label="Go to main page" onclick={() => goto(base + "/")}
+      style="background: none; border: none; padding: 0; margin-right: 1rem; cursor: pointer;">
+      <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+      </svg>
+    </button>
     <div class="text-xl">
       {`ShareCount${$current_groupStore !== null ? ": " + $current_groupStore.name : ""}`}
     </div>
@@ -63,6 +69,12 @@
 {@render children()}
 
 <style>
+  .banner-arrow {
+    display: inline-flex;
+    align-items: center;
+    height: 100%;
+    color: var(--color-primary-content);
+  }
   .top {
     position: sticky;
     top: 0;

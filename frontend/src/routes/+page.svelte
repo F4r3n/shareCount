@@ -9,6 +9,7 @@
     import type { Group } from "$lib/types";
     import { getUTC } from "$lib/UTCDate";
     import { v4 as uuidv4 } from "uuid";
+    import { goto } from "$app/navigation";
     import { store_url } from "$lib/shareCountAPI";
     let current_error: string = $state("");
     onMount(async () => {
@@ -75,14 +76,7 @@
 {/if}
 
 <main class="w-full mx-auto flex flex-col items-center">
-    <button
-        disabled={create}
-        onclick={() => {
-            create = true;
-            new_group = create_new_group();
-        }}
-        class="btn btn-accent mt-5">Add Group</button
-    >
+
     {#if create}
         <div class="mt-4">
             <GroupView
@@ -102,6 +96,13 @@
             </div>
         {/each}
     </div>
+    <button
+        onclick={() => {
+            const newGroup = create_new_group();
+            goto(`/group?id=${newGroup.token}`);
+        }}
+        class="btn btn-accent add-group-bottom"
+    >Add Group</button>
 </main>
 
 <style>
@@ -109,5 +110,16 @@
         display: flex;
         width: 100%;
         justify-content: center;
+    }
+
+    .add-group-bottom {
+        position: fixed;
+        bottom: 0;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 100;
+        width: 66vw;
+        max-width: 400px;
+        margin-bottom: 1rem;
     }
 </style>
