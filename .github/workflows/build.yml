@@ -2,10 +2,11 @@ name: Builder
 
 on:
   push:
-    branches: [ "main" ]
+    branches:
+      - "**"
   pull_request:
-    branches: [ "main" ]
-
+    branches:
+      - "**"
 env:
   CARGO_TERM_COLOR: always
 
@@ -18,4 +19,6 @@ jobs:
     secrets: inherit
     with:
       upload: false
-
+  build_android:
+    uses: ./.github/workflows/build_android.yml
+    secrets: inherit
