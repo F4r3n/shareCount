@@ -54,6 +54,7 @@ jobs:
         run: |
           echo "keyAlias=${{ secrets.ANDROID_KEY_ALIAS }}" > keystore.properties
           echo "password=${{ secrets.ANDROID_KEY_PASSWORD }}" >> keystore.properties
+          echo "store_password=${{ secrets.SIGNING_STORE_PASSWORD }}" >> keystore.properties
           base64 -d <<< "${{ secrets.ANDROID_KEY_BASE64 }}" > $RUNNER_TEMP/keystore.jks
           echo "storeFile=$RUNNER_TEMP/keystore.jks" >> keystore.properties
           echo "Keystore properties created."
@@ -66,9 +67,6 @@ jobs:
         working-directory: ./app/shareCount/
         run: cargo install tauri-cli --version "^2.0" && cargo tauri android build
         env:
-          SIGNING_STORE_PASSWORD: ${{ secrets.SIGNING_STORE_PASSWORD }}
-          SIGNING_KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
-          SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
           ROOT_WORKSPACE: ${{ github.workspace }}
           NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
 
