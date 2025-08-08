@@ -4,7 +4,8 @@ import type { GroupMember } from '$lib/types';
 import { getUTC } from '$lib/UTCDate';
 import { v4 as uuidv4 } from 'uuid';
 import { getFullBackendURL } from '$lib/shareCountAPI';
-import { Synchro } from './SynchroHelper';
+import { Synchro, withTimeout } from './SynchroHelper';
+
 
 export class GroupMemberProxy {
 
@@ -117,13 +118,11 @@ export class GroupMemberProxy {
         }
     }
 
-    private async _rename_local_members(group_members: GroupMember[], status: STATUS) {
+    private async _rename_local_members(group_members: GroupMember[], status : STATUS) {
         for (const member of group_members) {
-            await db.group_members.where("uuid").equals(member.uuid).modify({
-                nickname: member.nickname,
-                modified_at: getUTC(),
-                status: status
-            });
+            await db.group_members.where("uuid").equals(member.uuid).modify({ nickname: member.nickname, 
+                modified_at: getUTC(), 
+                status: status });
         }
     }
 
@@ -178,59 +177,64 @@ export class GroupMemberProxy {
     async synchronize(group_uuid: string): Promise<GroupMember[]> {
         const original = await this._fetch_local_members(group_uuid);
 
-
+        const to_send = [];
+        const to_delete = [];
         const map: Map<string, GroupMember_DB> = new Map();
         for (const o of original) {
             map.set(o.uuid, o);
         }
-        this._get_remote_GroupMembers(group_uuid)
-            .then(async (remotes) => {
-                const to_send = [];
-                const to_delete = [];
-                for (const remote of remotes) {
-                    const local = map.get(remote.uuid);
-                    if (local) {
-                        if (local.status === STATUS.TO_UPDATE) {
-                            //If local is newer we send it
-                            if (new Date(remote.modified_at) < new Date(local.modified_at)) {
-                                to_send.push(this._convert_memberDB_member(local));
-                            }
-                            else {
-                                await this._rename_local_members([remote], STATUS.NOTHING);
-                            }
-                        }
-                        else if (local.status === STATUS.NOTHING) {
-                            await this._rename_local_members([remote], STATUS.NOTHING);
-                        }
-                        else if (local.status === STATUS.TO_DELETE) {
-                            to_delete.push(this._convert_memberDB_member(local));
-                        }
-                        else if (local.status === STATUS.TO_CREATE) {
+
+        let remotes = [];
+
+        try {
+            remotes = await withTimeout(this._get_remote_GroupMembers(group_uuid), 7000);
+
+            for (const remote of remotes) {
+                const local = map.get(remote.uuid);
+                if (local) {
+                    if (local.status === STATUS.TO_UPDATE) {
+                        //If local is newer we send it
+                        if (new Date(remote.modified_at) < new Date(local.modified_at)) {
                             to_send.push(this._convert_memberDB_member(local));
                         }
-                        map.delete(local.uuid);
-                    }// If transaction is not present we add it
-                    else {
-                        await this._add_local_members(group_uuid, [remote], STATUS.NOTHING)
+                        else {
+                            await this._rename_local_members([remote], STATUS.NOTHING);
+                        }
                     }
+                    else if(local.status === STATUS.NOTHING) {
+                        await this._rename_local_members([remote], STATUS.NOTHING);
+                    }
+                    else if (local.status === STATUS.TO_DELETE) {
+                        to_delete.push(this._convert_memberDB_member(local));
+                    }
+                    else if (local.status === STATUS.TO_CREATE) {
+                        to_send.push(this._convert_memberDB_member(local));
+                    }
+                    map.delete(local.uuid);
+                }// If transaction is not present we add it
+                else {
+                    await this._add_local_members(group_uuid, [remote], STATUS.NOTHING)
                 }
+            }
 
-                //The ones not mentioned are deleted
-                for (const [, m] of map) {
-                    if (m.status != STATUS.TO_CREATE)
-                        await this._delete_local_member(m, false);
-                    else if (m.status == STATUS.TO_CREATE)
-                        to_send.push(m);
-                }
+            //The ones not mentioned are deleted
+            for (const [, m] of map) {
+                if(m.status != STATUS.TO_CREATE)
+                    await this._delete_local_member(m, false);
+                else if(m.status == STATUS.TO_CREATE)
+                    to_send.push(m);
+            }
 
-                this._add_remote_GroupMembers(group_uuid, to_send);
-                this._delete_remote_GroupMembers(group_uuid, to_delete);
+        } catch { /* empty */ }
 
-                for (const member of to_send) {
-                    await db.group_members.where("uuid").equals(member.uuid).modify({ status: STATUS.NOTHING })
-                }
-            })
+        try {
+            this._add_remote_GroupMembers(group_uuid, to_send);
+            this._delete_remote_GroupMembers(group_uuid, to_delete);
 
+            for (const member of to_send) {
+                await db.group_members.where("uuid").equals(member.uuid).modify({ status: STATUS.NOTHING })
+            }
+        } catch { /* empty */ }
         const members = await this.get_group_members(group_uuid);
         return members;
     }

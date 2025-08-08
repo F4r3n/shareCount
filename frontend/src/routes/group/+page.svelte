@@ -29,7 +29,9 @@
 
 <main class="w-full mx-auto flex flex-col items-center">
     {#if group}
-        <GroupViewEditor creating={new_group} {group} onDone={() => {}} />
+        <div class="flex justify-center w-full">
+            <GroupViewEditor creating={new_group} {group} onDone={() => {}} />
+        </div>
     {:else}
         <div class="alert alert-error mt-5">Group not found.</div>
     {/if}

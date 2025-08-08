@@ -66,7 +66,7 @@
 {#if $current_groupStore}
   <div role="tablist" class="tabs tabs-border justify-center">
     {#each menus as sub (sub.name)}
-      {#if !sub.need_group || (sub.need_group && $current_groupStore)}
+      {#if (sub.need_group && $current_groupStore)}
         <button
           role="tab"
           class="tab text-base md:text-lg lg:text-lg"
