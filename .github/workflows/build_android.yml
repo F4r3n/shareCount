@@ -14,18 +14,21 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - name: Install Node.js
         uses: actions/setup-node@v4
-      - name: Install dependencies
+
+      - name: Install dependencies (frontend)
         working-directory: ./frontend
         run: npm install
+
       - name: Prepare wasm
         working-directory: ./frontend
         run: |
           chmod +x scripts/setup.sh
           ./scripts/setup.sh
 
-      - name: Setup java
+      - name: Setup Java
         uses: actions/setup-java@v4
         with:
           distribution: "temurin"
@@ -38,7 +41,7 @@ jobs:
           ndk-version: r27-beta2
           local-cache: true
 
-      - name: install Rust stable
+      - name: Install Rust stable with targets
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: aarch64-linux-android, armv7-linux-androideabi, i686-linux-android, x86_64-linux-android
@@ -46,7 +49,7 @@ jobs:
       - name: Cache Rust dependencies
         uses: swatinem/rust-cache@v2
 
-      - name: setup Android signing
+      - name: Setup Android signing
         working-directory: ./app/shareCount/src-tauri/gen/android
         run: |
           echo "keyAlias=${{ secrets.ANDROID_KEY_ALIAS }}" > keystore.properties
@@ -55,18 +58,18 @@ jobs:
           echo "storeFile=$RUNNER_TEMP/keystore.jks" >> keystore.properties
           echo "Keystore properties created."
 
-      - name: Install dependencies
+      - name: Install dependencies (app/shareCount)
         working-directory: ./app/shareCount/
         run: npm install
 
-      - name: Build apk
+      - name: Build APK
         working-directory: ./app/shareCount/
         run: cargo install tauri-cli --version "^2.0" && cargo tauri android build
         env:
-          SIGNING_STORE_PASSWORD: ${{secrets.SIGNING_STORE_PASSWORD}}
-          SIGNING_KEY_ALIAS: ${{secrets.SIGNING_KEY_ALIAS}}
-          SIGNING_KEY_PASSWORD: ${{secrets.SIGNING_KEY_PASSWORD}}
-          ROOT_WORKSPACE: ${{github.workspace}}
+          SIGNING_STORE_PASSWORD: ${{ secrets.SIGNING_STORE_PASSWORD }}
+          SIGNING_KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
+          SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
+          ROOT_WORKSPACE: ${{ github.workspace }}
           NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
 
       - name: Get Tauri App Version
@@ -74,45 +77,25 @@ jobs:
         id: app-version
         run: |
           CARGO_TOML_PATH="src-tauri/Cargo.toml"
-          echo "Attempting to read version from $CARGO_TOML_PATH"
-
           if [ ! -f "$CARGO_TOML_PATH" ]; then
             echo "Error: $CARGO_TOML_PATH not found."
             exit 1
           fi
-
-          echo "--- Relevant content from $CARGO_TOML_PATH (looking for 'version = \"...' line) ---"
-          grep '^version = "' "$CARGO_TOML_PATH" || echo "No line starting with 'version = \"' found in $CARGO_TOML_PATH."
-          echo "--- End of relevant content ---"
-
-          # Extract version string from Cargo.toml.
-          # This looks for a line like 'version = "x.y.z"' in the [package] section.
           VERSION_STRING=$(grep '^version = "' "$CARGO_TOML_PATH" | head -n 1 | sed -e 's/version = "//' -e 's/"//')
-
-          echo "Extracted version_string: '$VERSION_STRING'" # Debug output
-
-          if [ -z "$VERSION_STRING" ] || [ "$VERSION_STRING" = "null" ]; then # Check for empty or literal "null"
+          if [ -z "$VERSION_STRING" ] || [ "$VERSION_STRING" = "null" ]; then
             echo "Error: Version not found or is invalid in $CARGO_TOML_PATH."
-            echo "Please ensure $CARGO_TOML_PATH contains a line like 'version = \"x.y.z\"' (typically under the [package] section)."
             exit 1
           fi
-
-          echo "Successfully extracted version: $VERSION_STRING"
           echo "version_string=$VERSION_STRING" >> "$GITHUB_OUTPUT"
         shell: bash
 
       - name: Rename APK file
         working-directory: ./app/shareCount/
         run: |
-          mv ./src-tauri/gen/android/app/build/outputs/apk/universal/release/app-universal-release.apk ./src-tauri/gen/android/app/build/outputs/apk/universal/release/${{env.APP_NAME}}-${{ steps.app-version.outputs.version_string }}.apk
+          mv ./src-tauri/gen/android/app/build/outputs/apk/universal/release/app-universal-release.apk ./src-tauri/gen/android/app/build/outputs/apk/universal/release/${{ env.APP_NAME }}-${{ steps.app-version.outputs.version_string }}.apk
 
-      - name: Publish
-        uses: softprops/action-gh-release@v1
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v3
         with:
-          name: App v${{ steps.app-version.outputs.version_string }}
-          tag_name: app-v${{ steps.app-version.outputs.version_string }}
-          body: "See the assets to download this version and install."
-          draft: false
-          prerelease: false
-          files: |
-            ./app/shareCount/src-tauri/gen/android/app/build/outputs/apk/universal/release/${{env.APP_NAME}}-${{ steps.app-version.outputs.version_string }}.apk
+          name: ${{ env.APP_NAME }}-apk-${{ steps.app-version.outputs.version_string }}
+          path: ./app/shareCount/src-tauri/gen/android/app/build/outputs/apk/universal/release/${{ env.APP_NAME }}-${{ steps.app-version.outputs.version_string }}.apk
