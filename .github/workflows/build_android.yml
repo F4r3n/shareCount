@@ -3,7 +3,6 @@ name: Android
 on:
   workflow_call:
 
-
 env:
   APP_NAME: "android-app"
   GITHUB_TOKEN: ${{ secrets.GH_PAT }}
@@ -12,8 +11,6 @@ jobs:
   publish-android:
     permissions:
       contents: write
-    strategy:
-      fail-fast: true
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -31,10 +28,10 @@ jobs:
       - name: Setup java
         uses: actions/setup-java@v4
         with:
-          distribution: 'temurin'
-          java-version: '21' 
-  
-      - name: Setup NDK 
+          distribution: "temurin"
+          java-version: "21"
+
+      - name: Setup NDK
         uses: nttld/setup-ndk@v1
         id: setup-ndk
         with:
