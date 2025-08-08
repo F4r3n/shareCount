@@ -7,10 +7,9 @@
         groupsStore,
     } from "@stores/group";
     import type { Group } from "$lib/types";
-    import { getUTC } from "$lib/UTCDate";
-    import { v4 as uuidv4 } from "uuid";
     import { goto } from "$app/navigation";
     import { store_url } from "$lib/shareCountAPI";
+    import { base } from "$app/paths";
     let current_error: string = $state("");
     onMount(async () => {
         current_groupStore.set(null);
@@ -38,17 +37,7 @@
             }
         }
     });
-    let create = $state(false);
-    let new_group: Group = $state(create_new_group());
-    function create_new_group(): Group {
-        return {
-            token: uuidv4(),
-            created_at: getUTC(),
-            currency_id: "EUR",
-            modified_at: getUTC(),
-            name: "New group",
-        } as Group;
-    }
+
     let sortedGroup = $derived(
         $groupsStore.toSorted((a: Group, b: Group) => {
             return b.created_at.localeCompare(a.created_at);
@@ -77,17 +66,6 @@
 
 <main class="w-full mx-auto flex flex-col items-center">
 
-    {#if create}
-        <div class="mt-4">
-            <GroupView
-                creating={true}
-                group={new_group}
-                onDone={async () => {
-                    create = false;
-                }}
-            ></GroupView>
-        </div>
-    {/if}
     <div class="mt-4">
         {#each sortedGroup as group (group.token)}
             <div class="mb-5">
@@ -98,8 +76,7 @@
     </div>
     <button
         onclick={() => {
-            const newGroup = create_new_group();
-            goto(`/group?id=${newGroup.token}`);
+            goto(base + `/group`);
         }}
         class="btn btn-accent add-group-bottom"
     >Add Group</button>

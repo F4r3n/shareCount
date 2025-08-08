@@ -32,7 +32,6 @@
   let modal: Modal | null = $state(null);
   let current_user_uuid = $state("");
   onMount(async () => {
-    console.log(edit, creating)
     if (!creating) {
       clean();
       //The members are not there yet, but there were added before

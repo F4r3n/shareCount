@@ -2,20 +2,15 @@
   import { onMount } from "svelte";
   import { goto } from "$app/navigation";
   import type { Group, GroupMember } from "$lib/types";
-  import { slide } from "svelte/transition";
   import { MENU, menus } from "$lib/menus";
   import { groupMembersProxy } from "@stores/group_members";
-  import GroupViewMemberItem from "./GroupView_MemberItem.svelte";
   import { current_groupStore, groupsProxy } from "@stores/group";
-  import { current_user, userProxy, users } from "@stores/groupUsernames";
-  import { transactionsProxy } from "@stores/group_transactions";
   import Modal from "./Modal.svelte";
   import { base } from "$app/paths";
   import { getBackendURL } from "$lib/shareCountAPI";
   import Share from "./Share.svelte";
-  import CurrencySelector from "./CurrencySelector.svelte";
   import { fade } from "svelte/transition";
-
+  import { userProxy, users, current_user } from "@stores/groupUsernames";
   let {
     group,
     creating,
@@ -30,6 +25,8 @@
   let modal: Modal | null = $state(null);
   let current_user_uuid = $state("");
   onMount(async () => {
+    await userProxy.synchronize_store(group.token);
+    current_user_uuid = $users[group.token]?.member_uuid ?? "";
     original_members = await groupMembersProxy.synchronize(group.token);
   });
 
