@@ -56,7 +56,7 @@
 
   function create_unique_member(): GroupMember {
     let member_number = 1;
-    let new_member = groupMembersProxy.create_group_member("New");
+    let new_member = groupMembersProxy.create_group_member("Name");
     let found = check_unicity(new_member.nickname);
     if (found) {
       return new_member;

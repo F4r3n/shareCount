@@ -281,7 +281,7 @@
                   placeholder="Hotel"
                   readonly={!is_editing}
                   maxlength="250"
-                  class="input input-ghost md:input-md lg:input-lg"
+                  class="input md:input-md lg:input-lg"
                   bind:value={modified_transaction.description}
                   onchange={() => {
                     modified_transaction.modified_at = getUTC();
@@ -290,6 +290,15 @@
               </div>
               <legend class="fieldset-legend">Amount</legend>
               <div class="join">
+                <InputNumber
+                  title="Transaction amount"
+                  {is_editing}
+                  bind:value={modified_transaction.amount}
+                  number_decimal={currency_fixed}
+                  onChange={(value: string, valid: boolean) => {
+                    if (valid) updateDebtors(value);
+                  }}
+                ></InputNumber>
                 <CurrencySelector
                   bind:current_currency={modified_transaction.currency_id}
                   onChange={(newCurrency) => {
@@ -306,15 +315,7 @@
                     }
                   }}
                 ></CurrencySelector>
-                <InputNumber
-                  title="Transaction amount"
-                  {is_editing}
-                  bind:value={modified_transaction.amount}
-                  number_decimal={currency_fixed}
-                  onChange={(value: string, valid: boolean) => {
-                    if (valid) updateDebtors(value);
-                  }}
-                ></InputNumber>
+
               </div>
               {#if modified_transaction.currency_id != group_currency}
                 <legend class="fieldset-legend">Exchange rate</legend>

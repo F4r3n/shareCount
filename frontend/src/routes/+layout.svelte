@@ -19,7 +19,7 @@
   let webManifestLink = $derived(
     pwaInfo
       ? pwaInfo.webManifest
-      : { href: "", linkTag: "", useCredentials: false }
+      : { href: "", linkTag: "", useCredentials: false },
   );
 </script>
 
@@ -31,33 +31,44 @@
   />
 </svelte:head>
 
-<div class="navbar bg-neutral text-neutral-content banner">
-  <div class="text-xl">
-    {`ShareCount${$current_groupStore !== null ? ": " + $current_groupStore.name : ""}`}
+<div class="top">
+  <div class="navbar bg-neutral text-neutral-content banner">
+    <div class="text-xl">
+      {`ShareCount${$current_groupStore !== null ? ": " + $current_groupStore.name : ""}`}
+    </div>
   </div>
+
+
 </div>
 
-{#if $current_groupStore}
-  <div role="tablist" class="tabs tabs-border justify-center">
-    {#each menus as sub (sub.name)}
-      {#if !sub.need_group || (sub.need_group && $current_groupStore)}
-        <button
-          role="tab"
-          class="tab text-base md:text-lg lg:text-lg"
-          class:tab-active={page.route.id == sub.path}
-          onclick={() => {
-            goto(base + `${sub.path}?id=${token_id}`);
-          }}
-        >
-          {sub.name}
-        </button>
-      {/if}
-    {/each}
-  </div>
-{/if}
+  {#if $current_groupStore}
+    <div role="tablist" class="tabs tabs-border justify-center">
+      {#each menus as sub (sub.name)}
+        {#if !sub.need_group || (sub.need_group && $current_groupStore)}
+          <button
+            role="tab"
+            class="tab text-base md:text-lg lg:text-lg"
+            class:tab-active={page.route.id == sub.path}
+            onclick={() => {
+              goto(base + `${sub.path}?id=${token_id}`);
+            }}
+          >
+            {sub.name}
+          </button>
+        {/if}
+      {/each}
+    </div>
+  {/if}
+
 {@render children()}
 
 <style>
+  .top {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+
   .banner {
     background-color: var(--color-primary);
     color: var(--color-primary-content);
