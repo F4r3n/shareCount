@@ -2,7 +2,7 @@
   import type { Transaction, Debt, GroupMember } from "$lib/types";
   import { onMount } from "svelte";
   import { SvelteMap } from "svelte/reactivity";
-  import { getCurrencySymbol, getLengthOfFraction } from "$lib/currencyFormat";
+  import { getCurrencySymbol } from "$lib/currencyFormat";
   import { goto } from "$app/navigation";
   import { base } from "$app/paths";
   let {
@@ -47,17 +47,8 @@
     }
   });
 
-  interface Error {
-    code?: number;
-    message: string;
-  }
-
-  let error: Error | null = $state(null);
   const currency_symbol = $derived(
     getCurrencySymbol(modified_transaction.currency_id)
-  );
-  const currency_fixed = $derived(
-    getLengthOfFraction(modified_transaction.currency_id)
   );
 </script>
 

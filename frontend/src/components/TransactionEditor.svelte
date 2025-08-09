@@ -6,12 +6,9 @@
   import Big from "big.js";
   import { getUTC } from "$lib/UTCDate";
   import InputNumber from "./InputNumber.svelte";
-  import { getCurrencySymbol, getLengthOfFraction } from "$lib/currencyFormat";
+  import { getLengthOfFraction } from "$lib/currencyFormat";
   import CurrencySelector from "./CurrencySelector.svelte";
-  import { transactionsProxy } from "@stores/group_transactions";
-  import { STATUS } from "../db/db";
-  import { goto } from "$app/navigation";
-  import { base } from "$app/paths";
+
   let {
     transaction,
     group_currency = transaction.currency_id,
@@ -180,9 +177,7 @@
     }
   }
   let error: Error | null = $state(null);
-  const currency_symbol = $derived(
-    getCurrencySymbol(modified_transaction.currency_id)
-  );
+
   const currency_fixed = $derived(
     getLengthOfFraction(modified_transaction.currency_id)
   );
