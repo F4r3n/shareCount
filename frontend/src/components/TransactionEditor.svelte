@@ -1,7 +1,6 @@
 <script lang="ts">
   import type { Transaction, Debt, GroupMember } from "$lib/types";
   import { onMount } from "svelte";
-  import { slide } from "svelte/transition";
   import { SvelteMap } from "svelte/reactivity";
   import Big from "big.js";
   import { getUTC } from "$lib/UTCDate";
@@ -197,7 +196,7 @@
   }
 </script>
 
-<main transition:slide>
+<main>
   <form onsubmit={handleSubmit}>
     <div class="flex flex-col p-3 rounded-md">
       <div class="flex items-center">

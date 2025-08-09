@@ -10,6 +10,7 @@
   import TransactionEditor from "@components/TransactionEditor.svelte";
   import { base } from "$app/paths";
   import { goto } from "$app/navigation";
+  import { fade } from "svelte/transition";
 
   let transaction: Transaction | undefined = $state(undefined);
   let new_transaction = $state(false);
@@ -62,7 +63,7 @@
   }
 </script>
 
-<main class="w-full flex flex-col items-center">
+<main in:fade class="w-full flex flex-col items-center">
   {#if transaction}
     <div class="justify-center w-full">
       <TransactionEditor

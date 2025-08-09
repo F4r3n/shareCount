@@ -8,6 +8,7 @@
   import { goto } from "$app/navigation";
   import { base } from "$app/paths";
   import { MENU, menus } from "$lib/menus";
+  import { fade } from "svelte/transition";
 
   let loading = $state(true);
   let current_error: string = $state("");
@@ -46,18 +47,20 @@
   </div>
 {/if}
 
-{#if loading}
-  <div class="flex justify-center items-center h-full">
-    <div class="flex w-full flex-col gap-4">
-      <div class="skeleton h-32 w-full"></div>
-      <div class="skeleton h-4 w-28"></div>
-      <div class="skeleton h-64 w-full"></div>
-      <div class="skeleton h-32 w-full"></div>
+<div in:fade>
+  {#if loading}
+    <div class="flex justify-center items-center h-full">
+      <div class="flex w-full flex-col gap-4">
+        <div class="skeleton h-32 w-full"></div>
+        <div class="skeleton h-4 w-28"></div>
+        <div class="skeleton h-64 w-full"></div>
+        <div class="skeleton h-32 w-full"></div>
+      </div>
     </div>
-  </div>
-{:else}
-  <TransactionsView members={group_members}></TransactionsView>
-{/if}
+  {:else}
+    <TransactionsView members={group_members}></TransactionsView>
+  {/if}
+</div>
 
 <style>
 </style>
