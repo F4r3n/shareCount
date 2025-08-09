@@ -76,14 +76,14 @@
     -webkit-mask-image: linear-gradient(
       to bottom,
       transparent 0%,
-      black 2%,
+      black 0.5%,
       black 90%,
       transparent 100%
     );
     mask-image: linear-gradient(
       to bottom,
       transparent 0%,
-      black 2%,
+      black 0.5%,
       black 90%,
       transparent 100%
     );
@@ -94,6 +94,7 @@
     mask-size: 100% 100%;
   }
   .transactions {
+    padding-top: 5px;
     display: flex;
     width: 100%;
     justify-content: center;
