@@ -2,7 +2,7 @@
   import "../app.css";
   import { goto } from "$app/navigation";
   import { onMount } from "svelte";
-  import { menus } from "$lib/menus";
+  import { type MenuNavigation, menus } from "$lib/menus";
   import { current_groupStore } from "@stores/group";
   import { base } from "$app/paths";
   import { page } from "$app/state";
@@ -10,11 +10,12 @@
 
   let token_id = $state("");
   let mainfest = $state({ href: "", linkTag: "", useCredentials: false });
+  let current_menu: MenuNavigation | undefined = $derived(
+    menus.find((menu) => menu.path == page.route.id)
+  );
   onMount(async () => {
     const params = new URLSearchParams(window.location.search);
     token_id = params.get("id") ?? "";
-    console.log(import.meta.env.IS_MOBILE);
-
     if (!import.meta.env.IS_MOBILE) {
       // Only load the PWA code if we are on mobile
       const { initPWA } = await import(/* @vite-ignore */ "../lib/pwa-init");
@@ -36,11 +37,11 @@
 
 <div class="top">
   <div class="navbar bg-neutral text-neutral-content banner">
-    {#if page.route.id != "/"}
+    {#if current_menu?.return_path && current_menu.return_path.length > 0}
       <button
         class="banner-arrow"
         aria-label="Go to main page"
-        onclick={() => goto(base + "/")}
+        onclick={() => goto(base + current_menu?.return_path)}
         style="background: none; border: none; padding: 0; margin-right: 1rem; cursor: pointer;"
       >
         <svg
@@ -66,10 +67,10 @@
   </div>
 </div>
 
-{#if $current_groupStore}
+{#if $current_groupStore && current_menu?.display_tab}
   <div role="tablist" class="tabs tabs-border justify-center">
     {#each menus as sub (sub.name)}
-      {#if sub.need_group && $current_groupStore}
+      {#if sub.display_tab}
         <button
           role="tab"
           class="tab text-base md:text-lg lg:text-lg"

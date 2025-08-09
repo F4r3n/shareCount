@@ -4,7 +4,7 @@
   import { SvelteMap } from "svelte/reactivity";
   import { getCurrencySymbol, getLengthOfFraction } from "$lib/currencyFormat";
   import { goto } from "$app/navigation";
-  import { base } from "$service-worker";
+  import { base } from "$app/paths";
   let {
     transaction,
     members,

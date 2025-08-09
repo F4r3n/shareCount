@@ -6,7 +6,7 @@
   import { current_groupStore } from "@stores/group";
   import { fade } from "svelte/transition";
   import { goto } from "$app/navigation";
-  import { base } from "$service-worker";
+  import { base } from "$app/paths";
   let {
     members,
   }: {
@@ -32,7 +32,7 @@
 </script>
 
 <!-- Offset with menu-->
-<div class="flex flex-col h-[calc(100dvh-70px)]">
+<div class="transactions-container">
   <div transition:fade class="transactions">
     <div class="flex flex-col w-full md:w-8/12 mx-1">
       {#each transactions as transaction, id (transaction.uuid)}
@@ -58,17 +58,41 @@
       {/each}
     </div>
   </div>
-  <button
-    class="btn btn-accent w-2/3 md:w-1/3 add-button"
-    onclick={async () => {
-      goto(base + `/transaction?id=`);
-    }}
-  >
-    Add transaction
-  </button>
 </div>
+<button
+  class="btn btn-accent md:w-1/3 add-button"
+  onclick={async () => {
+    goto(base + `/transaction?id=`);
+  }}
+>
+  Add transaction
+</button>
 
 <style>
+  .transactions-container {
+    height: calc(100svh - 150px); /* visible height minus menu */
+    overflow-y: auto;
+    /* Mask fade for top and bottom edges */
+    -webkit-mask-image: linear-gradient(
+      to bottom,
+      transparent 0%,
+      black 2%,
+      black 90%,
+      transparent 100%
+    );
+    mask-image: linear-gradient(
+      to bottom,
+      transparent 0%,
+      black 2%,
+      black 90%,
+      transparent 100%
+    );
+
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-size: 100% 100%;
+    mask-size: 100% 100%;
+  }
   .transactions {
     display: flex;
     width: 100%;
@@ -80,10 +104,8 @@
     position: fixed;
     left: 50%;
     transform: translateX(-50%);
-    bottom: 0;
+    bottom: calc(1.5rem + env(safe-area-inset-bottom)); /* safe on iOS */
     z-index: 20;
-    margin-bottom: 1.5rem;
-    width: 66vw;
-    max-width: 400px;
+    pointer-events: auto;
   }
 </style>

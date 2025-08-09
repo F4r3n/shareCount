@@ -10,12 +10,12 @@
   import CurrencySelector from "./CurrencySelector.svelte";
   import { transactionsProxy } from "@stores/group_transactions";
   import { STATUS } from "../db/db";
+  import { goto } from "$app/navigation";
+  import { base } from "$app/paths";
   let {
     transaction,
     group_currency = transaction.currency_id,
     members,
-    is_editing,
-    is_open,
     is_creating,
     onSave,
     onDelete,
@@ -24,10 +24,8 @@
     transaction: Transaction;
     group_currency?: string;
     members: GroupMember[];
-    is_editing: boolean;
-    is_open: boolean;
     is_creating: boolean;
-    onSave: (tx: Transaction) => Promise<boolean>;
+    onSave: (tx: Transaction) => void;
     onDelete?: (tx: Transaction) => void;
     onCancel: (tx: Transaction) => void;
   } = $props();
@@ -127,21 +125,10 @@
   });
 
   function handleDelete() {
-    // Replace with your actual logic
-    is_open = false;
     if (onDelete) {
       onDelete($state.snapshot(modified_transaction));
     }
     modal?.close();
-  }
-  let changed = $derived(hasChanged(modified_transaction));
-  async function hasChanged(
-    modified_transaction: Transaction
-  ): Promise<boolean> {
-    const status = await transactionsProxy.get_status_transation(
-      modified_transaction.uuid
-    );
-    return STATUS.NOTHING != status;
   }
 
   interface Error {
@@ -200,15 +187,12 @@
     getLengthOfFraction(modified_transaction.currency_id)
   );
 
-  async function handleSubmit() {
+  function handleSubmit(event: Event) {
+    event.preventDefault();
     error = validate(modified_transaction);
     if (error == null) {
       transaction = modified_transaction;
-      if (await onSave(modified_transaction)) {
-        is_editing = false;
-        is_open = false;
-      }
-      changed = hasChanged(modified_transaction);
+      onSave(modified_transaction);
     }
   }
 
@@ -218,182 +202,165 @@
   }
 </script>
 
-<main>
-  <div transition:slide>
-    <form onsubmit={handleSubmit}>
-      <div class="flex flex-col p-3 border-accent border rounded-md">
-        <div class="flex items-center">
-          <fieldset class="fieldset">
-            <legend class="fieldset-legend">Title</legend>
+<main transition:slide>
+  <form onsubmit={handleSubmit}>
+    <div class="flex flex-col p-3 rounded-md">
+      <div class="flex items-center">
+        <fieldset class="fieldset w-full">
+          <legend class="fieldset-legend">Title</legend>
 
-            <div class="flex items-center gap-x-2 flex-grow">
-              <input
-                type="text"
-                placeholder="Hotel"
-                readonly={!is_editing}
-                maxlength="250"
-                class="input md:input-md lg:input-lg"
-                bind:value={modified_transaction.description}
-                onchange={() => {
-                  modified_transaction.modified_at = getUTC();
-                }}
-              />
-            </div>
-            <legend class="fieldset-legend">Amount</legend>
-            <div class="join">
-              <InputNumber
-                title="Transaction amount"
-                {is_editing}
-                bind:value={modified_transaction.amount}
-                number_decimal={currency_fixed}
-                onChange={(value: string, valid: boolean) => {
-                  if (valid) updateDebtors(value);
-                }}
-              ></InputNumber>
-              <CurrencySelector
-                bind:current_currency={modified_transaction.currency_id}
-                onChange={(newCurrency) => {
-                  if (newCurrency != group_currency) {
-                    getExchangeRate(
-                      newCurrency,
-                      group_currency,
-                      new Date(modified_transaction.created_at)
-                    ).then((value: number) => {
-                      modified_transaction.exchange_rate = value.toString();
-                    });
-                  } else {
-                    modified_transaction.exchange_rate = "1";
-                  }
-                }}
-              ></CurrencySelector>
-            </div>
-            {#if modified_transaction.currency_id != group_currency}
-              <legend class="fieldset-legend">Exchange rate</legend>
-              <InputNumber
-                {is_editing}
-                bind:value={modified_transaction.exchange_rate}
-                title="Exchange rate"
-              ></InputNumber>
-            {/if}
+          <input
+            type="text"
+            placeholder="Hotel"
+            maxlength="250"
+            class="input w-full"
+            bind:value={modified_transaction.description}
+            onchange={() => {
+              modified_transaction.modified_at = getUTC();
+            }}
+          />
+          <legend class="fieldset-legend">Amount</legend>
+          <div class="join">
+            <InputNumber
+              title="Transaction amount"
+              is_editing={true}
+              bind:value={modified_transaction.amount}
+              number_decimal={currency_fixed}
+              onChange={(value: string, valid: boolean) => {
+                if (valid) updateDebtors(value);
+              }}
+            ></InputNumber>
+            <CurrencySelector
+              bind:current_currency={modified_transaction.currency_id}
+              onChange={(newCurrency) => {
+                if (newCurrency != group_currency) {
+                  getExchangeRate(
+                    newCurrency,
+                    group_currency,
+                    new Date(modified_transaction.created_at)
+                  ).then((value: number) => {
+                    modified_transaction.exchange_rate = value.toString();
+                  });
+                } else {
+                  modified_transaction.exchange_rate = "1";
+                }
+              }}
+            ></CurrencySelector>
+          </div>
+          {#if modified_transaction.currency_id != group_currency}
+            <legend class="fieldset-legend">Exchange rate</legend>
+            <InputNumber
+              is_editing={true}
+              bind:value={modified_transaction.exchange_rate}
+              title="Exchange rate"
+            ></InputNumber>
+          {/if}
+        </fieldset>
+      </div>
+      <div class="flex flex-col sm:flex-row sm:items-center sm:gap-4">
+        <div class="flex items-center sm:space-x-8 space-x-4">
+          <fieldset class="fieldset">
+            <legend class="fieldset-legend">Paid by</legend>
+            <select class="select" bind:value={modified_transaction.paid_by}>
+              <option disabled selected value={modified_transaction.paid_by}>
+                {modified_transaction.paid_by.nickname}
+              </option>
+              {#each members as member (member.uuid)}
+                <option value={member}>
+                  {member.nickname}
+                </option>
+              {/each}
+            </select>
+          </fieldset>
+          <fieldset class="fieldset">
+            <legend class="fieldset-legend">When</legend>
+            <input
+              type="date"
+              class="input input-bordered w-full max-w-[10rem] sm:max-w-xs"
+              aria-label="Transaction date"
+              bind:value={date_value}
+              onchange={() => {
+                const date = new Date();
+                modified_transaction.created_at =
+                  date_value +
+                  `T${date.getUTCHours()}:${date.getUTCMinutes()}:${date.getSeconds()}.000000`;
+              }}
+            />
           </fieldset>
         </div>
-        <div class="flex flex-col sm:flex-row sm:items-center sm:gap-4">
-          <div class="flex items-center sm:space-x-8 space-x-4">
-            <fieldset class="fieldset">
-              <legend class="fieldset-legend">Paid by</legend>
-              <select
-                class="select"
-                disabled={!is_editing}
-                bind:value={modified_transaction.paid_by}
-              >
-                <option disabled selected value={modified_transaction.paid_by}>
-                  {modified_transaction.paid_by.nickname}
-                </option>
-                {#each members as member (member.uuid)}
-                  <option value={member}>
-                    {member.nickname}
-                  </option>
-                {/each}
-              </select>
-            </fieldset>
-            <fieldset class="fieldset">
-              <legend class="fieldset-legend">When</legend>
+      </div>
+      <div class="flex flex-col justify-between w-full pl-4 pr-4">
+        {#each mapDebt as [nickname, debtContainer] (nickname)}
+          <div class="flex flex-row mt-2 justify-between w-full items-center">
+            <label class="label mr-2">
               <input
-                type="date"
-                readonly={!is_editing}
-                class="input input-bordered w-full max-w-[10rem] sm:max-w-xs"
-                aria-label="Transaction date"
-                bind:value={date_value}
+                type="checkbox"
+                class="checkbox checkbox-accent"
+                bind:checked={debtContainer.activated}
                 onchange={() => {
-                  const date = new Date();
-                  modified_transaction.created_at =
-                    date_value +
-                    `T${date.getUTCHours()}:${date.getUTCMinutes()}:${date.getSeconds()}.000000`;
+                  updateDebtors(modified_transaction.amount);
                 }}
               />
-            </fieldset>
-          </div>
-        </div>
-        <div class="flex flex-col justify-between w-full pl-4 pr-4">
-          {#each mapDebt as [nickname, debtContainer] (nickname)}
-            <div class="flex flex-row mt-2 justify-between w-full items-center">
-              {#if is_editing}
-                <label class="label mr-2">
-                  <input
-                    type="checkbox"
-                    class="checkbox checkbox-accent"
-                    bind:checked={debtContainer.activated}
-                    onchange={() => {
-                      updateDebtors(modified_transaction.amount);
-                    }}
-                  />
-                  {nickname}
-                </label>
-                <div class="max-w-1/3">
-                  <InputNumber
-                    title="Debtor amount"
-                    number_decimal={currency_fixed}
-                    {is_editing}
-                    bind:value={debtContainer.debt.amount}
-                  ></InputNumber>
-                </div>
-              {:else}
-                <div>
-                  {debtContainer.debt.member.nickname}
-                </div>
-                <div>{debtContainer.debt.amount}</div>
-              {/if}
+              {nickname}
+            </label>
+            <div class="max-w-1/3">
+              <InputNumber
+                title="Debtor amount"
+                number_decimal={currency_fixed}
+                is_editing={true}
+                bind:value={debtContainer.debt.amount}
+              ></InputNumber>
             </div>
-          {/each}
-        </div>
+          </div>
+        {/each}
       </div>
-      {#if error}
-        <div role="alert" class="alert alert-error">
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            class="h-6 w-6 shrink-0 stroke-current"
-            fill="none"
-            viewBox="0 0 24 24"
+    </div>
+    {#if error}
+      <div role="alert" class="alert alert-error">
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          class="h-6 w-6 shrink-0 stroke-current"
+          fill="none"
+          viewBox="0 0 24 24"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"
+          />
+        </svg>
+        <span>{error.message}</span>
+      </div>
+    {/if}
+    <div class="flex flex-row justify-between gap-x-2 m-2">
+      <!-- Left side: Delete and Reset -->
+      {#if is_creating}
+        <button type="button" class="btn btn-sm btn-error" onclick={reset}>
+          Cancel
+        </button>
+      {:else}
+        <div class="flex flex-row gap-x-2">
+          <button
+            type="button"
+            class="btn btn-error"
+            onclick={() => {
+              modal?.showModal();
+            }}
           >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"
-            />
-          </svg>
-          <span>{error.message}</span>
+            Delete
+          </button>
+          <button type="button" class="btn btn-error" onclick={reset}>
+            Reset
+          </button>
         </div>
       {/if}
-      <div class="flex flex-row justify-between gap-x-2 m-2">
-        <!-- Left side: Delete and Reset -->
-        {#if is_creating}
-          <button type="button" class="btn btn-sm btn-error" onclick={reset}>
-            Cancel
-          </button>
-        {:else}
-          <div class="flex flex-row gap-x-2">
-            <button
-              type="button"
-              class="btn btn-error"
-              onclick={() => {
-                modal?.showModal();
-              }}
-            >
-              Delete
-            </button>
-            <button type="button" class="btn btn-error" onclick={reset}>
-              Reset
-            </button>
-          </div>
-        {/if}
 
-        <div>
-          <button type="submit" class="btn btn-primary"> Save </button>
-        </div>
+      <div>
+        <button type="submit" class="btn btn-primary"> Save </button>
       </div>
-    </form>
-  </div>
+    </div>
+  </form>
 </main>
 
 <dialog

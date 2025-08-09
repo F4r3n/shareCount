@@ -14,7 +14,6 @@
   let group_members: GroupMember[] = $state([]);
 
   onMount(async () => {
-    console.log("mount");
     if ($current_user?.group_uuid) {
       group_members = await groupMembersProxy.synchronize(
         $current_user.group_uuid

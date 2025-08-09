@@ -3,12 +3,13 @@
   import { onMount } from "svelte";
   import { getUTC } from "$lib/UTCDate";
   import { v4 as uuidv4 } from "uuid";
-  import GroupViewEditor from "@components/GroupViewEditor.svelte";
   import { transactionsProxy } from "@stores/group_transactions";
   import { current_user } from "@stores/groupUsernames";
   import { groupMembersProxy } from "@stores/group_members";
   import { current_groupStore } from "@stores/group";
   import TransactionEditor from "@components/TransactionEditor.svelte";
+  import { base } from "$app/paths";
+  import { goto } from "$app/navigation";
 
   let transaction: Transaction | undefined = $state(undefined);
   let new_transaction = $state(false);
@@ -31,7 +32,7 @@
       }
     }
 
-    new_transaction = transaction != undefined;
+    new_transaction = transaction == undefined;
   });
 
   function create_new_transaction(
@@ -61,33 +62,41 @@
   }
 </script>
 
-<main class="w-full mx-auto flex flex-col items-center">
+<main class="w-full flex flex-col items-center">
   {#if transaction}
-    <div class="flex justify-center w-full">
+    <div class="justify-center w-full">
       <TransactionEditor
         {transaction}
         group_currency={$current_groupStore?.currency_id}
         {members}
-        is_editing={true}
-        is_open={true}
-        is_creating={true}
+        is_creating={new_transaction}
         onCancel={() => {
           //creating = false;
         }}
-        onSave={async (newTransaction: Transaction): Promise<boolean> => {
+        onDelete={(tx: Transaction) => {
           if ($current_groupStore) {
-            transactionsProxy.add_transaction(
-              $current_groupStore.token,
-              newTransaction
-            );
+            transactionsProxy.delete_transaction($current_groupStore.token, tx);
           }
-          //creating = false;
-          return true;
+          goto(base + "/expenses");
+        }}
+        onSave={(newTransaction: Transaction) => {
+          if ($current_groupStore) {
+            if (new_transaction) {
+              transactionsProxy.add_transaction(
+                $current_groupStore.token,
+                newTransaction
+              );
+            } else {
+              transactionsProxy.modify_transaction(
+                $current_groupStore.token,
+                newTransaction
+              );
+            }
+          }
+          goto(base + "/expenses");
         }}
       ></TransactionEditor>
     </div>
-  {:else}
-    <div class="alert alert-error mt-5">Transaction not found.</div>
   {/if}
 </main>
 
