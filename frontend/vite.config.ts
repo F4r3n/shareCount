@@ -7,7 +7,7 @@ import { SvelteKitPWA } from '@vite-pwa/sveltekit'
 import { generateSW } from './generateSW.mjs';
 
 const host = process.env.TAURI_DEV_HOST;
-const IS_MOBILE = process.env.TAURI_DEV_HOST != undefined;
+const IS_MOBILE = process.env.TAURI_ENV_PLATFORM != undefined;
 const plugins = [tailwindcss(),
 sveltekit(),
 wasm(),
@@ -61,8 +61,9 @@ export default defineConfig({
 		host: '127.0.0.1',
 		port: 5173
 	},
+	envPrefix: ['VITE_', 'TAURI_ENV_*'],
 	define: {
-		'import.meta.env.IS_MOBILE': JSON.stringify(IS_MOBILE),
+		'import.meta.env.IS_MOBILE': IS_MOBILE,
 		'process.env.NODE_ENV': process.env.NODE_ENV === 'production' ? '"production"' : '"development"',
 	},
 	resolve: process.env.VITEST

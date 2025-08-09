@@ -184,7 +184,7 @@ export class TransactionsProxy {
         let remote_transactions: Transaction[] = [];
 
         try {
-            remote_transactions = await withTimeout(this._get_remote_transactions(group_uuid),7000);
+            remote_transactions = await withTimeout(this._get_remote_transactions(group_uuid), 7000);
             for (const remote_transaction of remote_transactions) {
                 const local_transaction = map.get(remote_transaction.uuid);
                 if (local_transaction) {
@@ -251,6 +251,14 @@ export class TransactionsProxy {
             return tr.status;
         }
         return STATUS.NOTHING;
+    }
+
+    async get_transation(uuid: string): Promise<Transaction | undefined> {
+        const tr = await db.transactions.where("uuid").equals(uuid).first();
+        if (tr) {
+            return await this._convert_transactionDB_transaction(tr);
+        }
+        return undefined;
     }
 
     private async _convert_debtDB_debt(debt: Debt_DB): Promise<Debt> {

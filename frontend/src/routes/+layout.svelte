@@ -5,22 +5,23 @@
   import { menus } from "$lib/menus";
   import { current_groupStore } from "@stores/group";
   import { base } from "$app/paths";
-  import { pwaInfo } from "virtual:pwa-info";
-  import { useRegisterSW } from "virtual:pwa-register/svelte";
   import { page } from "$app/state";
   let { children } = $props();
 
   let token_id = $state("");
-  onMount(() => {
+  let mainfest = $state({ href: "", linkTag: "", useCredentials: false });
+  onMount(async () => {
     const params = new URLSearchParams(window.location.search);
     token_id = params.get("id") ?? "";
-    useRegisterSW();
+    console.log(import.meta.env.IS_MOBILE);
+
+    if (!import.meta.env.IS_MOBILE) {
+      // Only load the PWA code if we are on mobile
+      const { initPWA } = await import(/* @vite-ignore */ "../lib/pwa-init");
+      initPWA();
+    }
   });
-  let webManifestLink = $derived(
-    pwaInfo
-      ? pwaInfo.webManifest
-      : { href: "", linkTag: "", useCredentials: false }
-  );
+  let webManifestLink = $derived(mainfest);
 </script>
 
 <svelte:head>
