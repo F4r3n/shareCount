@@ -40,8 +40,6 @@
 		"typescript": "5.9",
 		"typescript-eslint": "8.39",
 		"vite": "7.0",
-		"vite-plugin-top-level-await": "^1.6",
-		"vite-plugin-wasm": "^3.5",
 		"vitest": "^3.2"
 	},
 	"dependencies": {

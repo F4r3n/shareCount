@@ -1,12 +1,6 @@
 <script lang="ts">
   import type { Debt, GroupMember, Transaction } from "$lib/types";
   import { onMount } from "svelte";
-  import init, {
-    compute_balance,
-    compute_settlements,
-    type Amount,
-    type Settlement,
-  } from "../../wasm-lib/pkg";
   import Modal from "./Modal.svelte";
   import { type ModalButton } from "./ModalTypes";
   import { transactionsProxy } from "@stores/group_transactions";
@@ -17,7 +11,13 @@
   import Big from "big.js";
   import { getCurrencySymbol, getLengthOfFraction } from "$lib/currencyFormat";
   import { fade } from "svelte/transition";
-
+  import {
+    create_amounts,
+    compute_balance,
+    compute_settlements,
+    type Amount,
+    type Settlement,
+  } from "@stores/settlement";
   let {
     members,
     transactions,
@@ -32,40 +32,11 @@
   let settlements: Settlement[] = $state([]);
   let is_loaded = $state(false);
 
-  async function get_amounts(): Promise<Amount[]> {
-    let amounts = [];
-
-    for (const member of members) {
-      amounts.push({ member: member, amount: "0" } as Amount);
-    }
-
-    for (const transaction of transactions) {
-      amounts.push({
-        member: transaction.paid_by,
-        amount: new Big(transaction.amount)
-          .mul(new Big(transaction.exchange_rate))
-          .toString(),
-      } as Amount);
-      for (let debt of transaction.debtors) {
-        amounts.push({
-          member: debt.member,
-          amount:
-            "-" +
-            new Big(debt.amount)
-              .mul(new Big(transaction.exchange_rate))
-              .toString(),
-        } as Amount);
-      }
-    }
-    return amounts;
-  }
-
   onMount(async () => {
-    await init();
-    balances = compute_balance(await get_amounts());
+    balances = compute_balance(create_amounts(members, transactions));
     settlements = compute_settlements(balances).filter(
       (settlement: Settlement) => {
-        return settlement.amount != "0";
+        return !settlement.amount.eq(new Big(0));
       }
     );
     is_loaded = true;
@@ -97,10 +68,10 @@
       } as Transaction;
       await transactionsProxy.add_transaction(group_uuid, transaction);
       transactions.push(transaction);
-      balances = compute_balance(await get_amounts());
+      balances = compute_balance(await create_amounts(members, transactions));
       settlements = compute_settlements(balances).filter(
         (settlement: Settlement) => {
-          return settlement.amount != "0";
+          return !settlement.amount.eq(new Big(0));
         }
       );
     }
@@ -161,7 +132,7 @@
                       if ($current_groupStore) {
                         refund(
                           $current_groupStore.token,
-                          settlement.amount,
+                          settlement.amount.toString(),
                           $current_groupStore.currency_id,
                           settlement.member_from.uuid,
                           settlement.member_to.uuid

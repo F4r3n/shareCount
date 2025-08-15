@@ -1,17 +1,13 @@
 import tailwindcss from '@tailwindcss/vite';
 import { sveltekit } from '@sveltejs/kit/vite';
 import { defineConfig } from 'vite';
-import wasm from 'vite-plugin-wasm';
-import topLevelAwait from "vite-plugin-top-level-await";
 import { SvelteKitPWA } from '@vite-pwa/sveltekit'
 import { generateSW } from './generateSW.mjs';
 
 const host = process.env.TAURI_DEV_HOST;
 const IS_MOBILE = process.env.TAURI_ENV_PLATFORM != undefined;
 const plugins = [tailwindcss(),
-sveltekit(),
-wasm(),
-topLevelAwait()];
+sveltekit()];
 
 if (!IS_MOBILE) {
 	plugins.push(SvelteKitPWA({
