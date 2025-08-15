@@ -67,6 +67,7 @@
         uuid: uuidv4(),
       } as Transaction;
       await transactionsProxy.add_transaction(group_uuid, transaction);
+      transactionsProxy.synchronize(group_uuid);
       transactions.push(transaction);
       balances = compute_balance(await create_amounts(members, transactions));
       settlements = compute_settlements(balances).filter(

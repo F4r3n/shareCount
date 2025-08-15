@@ -37,7 +37,7 @@
 
   let sortedGroup = $derived(
     $groupsStore.toSorted((a: Group, b: Group) => {
-      return b.created_at.localeCompare(a.created_at);
+      return b.modified_at.localeCompare(a.modified_at);
     })
   );
 </script>

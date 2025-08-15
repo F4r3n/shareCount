@@ -84,7 +84,7 @@
       url={build_share_url()}
     />
     <button
-      class="btn btn-error"
+      class="btn btn-secondary"
       onclick={() => {
         modal?.open(
           "Should I delete this group?",

@@ -93,7 +93,7 @@ export function compute_settlements(transactions: Amount[]): Settlement[] {
         // min(top.amount, -bottom.amount)
         const minAmount = top.amount.cmp(bottom.amount.neg()) <= 0
             ? top.amount
-            : bottom.amount.times(-1);
+            : bottom.amount.neg();
 
         bottom.amount = bottom.amount.plus(minAmount);
         top.amount = top.amount.minus(minAmount);
