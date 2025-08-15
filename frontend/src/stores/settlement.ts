@@ -31,7 +31,7 @@ export function create_amounts(members: GroupMember[], transactions: Transaction
                 member: debt.member,
                 amount:
                     new Big(debt.amount)
-                        .mul(new Big(transaction.exchange_rate)).mul(-1),
+                        .mul(new Big(transaction.exchange_rate)).neg(),
             } as Amount);
         }
     }
@@ -91,7 +91,7 @@ export function compute_settlements(transactions: Amount[]): Settlement[] {
         }
 
         // min(top.amount, -bottom.amount)
-        const minAmount = top.amount.cmp(bottom.amount.times(-1)) <= 0
+        const minAmount = top.amount.cmp(bottom.amount.neg()) <= 0
             ? top.amount
             : bottom.amount.times(-1);
 

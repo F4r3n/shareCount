@@ -26,8 +26,10 @@
     await userProxy.synchronize_store(group.token);
     current_user_uuid = $users[group.token]?.member_uuid ?? "";
 
-    groupMembersProxy.synchronize(group.token);
     original_members = await groupMembersProxy.get_local_members(group.token);
+    groupMembersProxy.synchronize(group.token).then((members) => {
+      original_members = members;
+    });
   });
 
   function get_member_from_uuid(uuid: string): GroupMember | null {
@@ -105,6 +107,8 @@
     <button
       class="btn btn-primary"
       onclick={() => {
+        console.log("go");
+        console.log(group);
         goto(base + `/group?id=${group.token}`);
       }}
     >

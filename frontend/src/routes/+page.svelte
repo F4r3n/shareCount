@@ -73,7 +73,7 @@
     onclick={() => {
       goto(base + `/group`);
     }}
-    class="btn btn-accent add-group-bottom">Add Group</button
+    class="btn btn-primary add-group-bottom">Add Group</button
   >
 </main>
 

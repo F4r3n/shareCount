@@ -49,7 +49,7 @@
   </div>
 </div>
 <button
-  class="btn btn-accent md:w-1/3 add-button"
+  class="btn btn-primary md:w-1/3 add-button"
   onclick={async () => {
     goto(base + `/transaction?id=`);
   }}

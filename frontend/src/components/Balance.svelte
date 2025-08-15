@@ -122,7 +122,7 @@
             </div>
 
             <button
-              class="btn mt-3 btn-accent"
+              class="btn mt-3 btn-primary"
               onclick={() => {
                 modal?.open(
                   "Should I create a transaction",
