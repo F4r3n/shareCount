@@ -4,7 +4,7 @@ import type { GroupMember } from '$lib/types';
 import { getUTC } from '$lib/UTCDate';
 import { v4 as uuidv4 } from 'uuid';
 import { getFullBackendURL } from '$lib/shareCountAPI';
-import { Synchro, withTimeout } from './SynchroHelper';
+import { withTimeout } from './SynchroHelper';
 
 
 export class GroupMemberProxy {
@@ -86,26 +86,12 @@ export class GroupMemberProxy {
         }
     }
 
-    async rename_members(uuid: string, group_members: GroupMember[]) {
-        let has_error = false;
-        try {
-            this._add_remote_GroupMembers(uuid, group_members);
-        } catch {
-            has_error = true;
-        } finally {
-            await this._rename_local_members(group_members, Synchro.compute_next_status(has_error, STATUS.TO_CREATE));
-        }
+    async rename_members(group_members: GroupMember[]) {
+        await this._rename_local_members(group_members, STATUS.TO_CREATE);
     }
 
     async add_members(uuid: string, group_members: GroupMember[]) {
-        let has_error = false;
-        try {
-            await this._add_remote_GroupMembers(uuid, group_members);
-        } catch {
-            has_error = true;
-        } finally {
-            await this._add_local_members(uuid, group_members, Synchro.compute_next_status(has_error, STATUS.TO_CREATE));
-        }
+        await this._add_local_members(uuid, group_members, STATUS.TO_CREATE);
     }
 
     async delete_members(uuid: string, group_members: GroupMember[]) {
@@ -118,11 +104,13 @@ export class GroupMemberProxy {
         }
     }
 
-    private async _rename_local_members(group_members: GroupMember[], status : STATUS) {
+    private async _rename_local_members(group_members: GroupMember[], status: STATUS) {
         for (const member of group_members) {
-            await db.group_members.where("uuid").equals(member.uuid).modify({ nickname: member.nickname, 
-                modified_at: getUTC(), 
-                status: status });
+            await db.group_members.where("uuid").equals(member.uuid).modify({
+                nickname: member.nickname,
+                modified_at: getUTC(),
+                status: status
+            });
         }
     }
 
@@ -133,7 +121,7 @@ export class GroupMemberProxy {
         }
     }
 
-    async get_local_members(uuid: string): Promise<GroupMember[]> {
+    public async get_local_members(uuid: string): Promise<GroupMember[]> {
         return await db.group_members.where("group_uuid").equals(uuid).and((member) => { return member.status !== STATUS.TO_DELETE }).toArray();
     }
 
@@ -201,7 +189,7 @@ export class GroupMemberProxy {
                             await this._rename_local_members([remote], STATUS.NOTHING);
                         }
                     }
-                    else if(local.status === STATUS.NOTHING) {
+                    else if (local.status === STATUS.NOTHING) {
                         await this._rename_local_members([remote], STATUS.NOTHING);
                     }
                     else if (local.status === STATUS.TO_DELETE) {
@@ -219,9 +207,9 @@ export class GroupMemberProxy {
 
             //The ones not mentioned are deleted
             for (const [, m] of map) {
-                if(m.status != STATUS.TO_CREATE)
+                if (m.status != STATUS.TO_CREATE)
                     await this._delete_local_member(m, false);
-                else if(m.status == STATUS.TO_CREATE)
+                else if (m.status == STATUS.TO_CREATE)
                     to_send.push(m);
             }
 

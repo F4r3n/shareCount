@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import type { GroupMember } from "$lib/types";
+  import type { GroupMember, Transaction } from "$lib/types";
   import TransactionsView from "@components/TransactionsView.svelte";
   import { current_user } from "@stores/groupUsernames";
   import { groupMembersProxy } from "@stores/group_members";
@@ -13,13 +13,21 @@
   let loading = $state(true);
   let current_error: string = $state("");
   let group_members: GroupMember[] = $state([]);
+  let transactions: Transaction[] = $state([]);
 
   onMount(async () => {
     if ($current_user?.group_uuid) {
-      group_members = await groupMembersProxy.synchronize(
+      groupMembersProxy.synchronize($current_user.group_uuid);
+      group_members = await groupMembersProxy.get_local_members(
         $current_user.group_uuid
       );
-      await transactionsProxy.synchronize($current_user.group_uuid);
+
+      transactions = await transactionsProxy.synchronize_local(
+        $current_user.group_uuid
+      );
+      transactionsProxy.synchronize($current_user.group_uuid).then((trs) => {
+        transactions = trs;
+      });
     } else {
       goto(base + menus[MENU.GROUPS]);
     }
@@ -58,7 +66,7 @@
       </div>
     </div>
   {:else}
-    <TransactionsView members={group_members}></TransactionsView>
+    <TransactionsView members={group_members} {transactions}></TransactionsView>
   {/if}
 </div>
 

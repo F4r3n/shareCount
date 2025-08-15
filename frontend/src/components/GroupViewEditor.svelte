@@ -30,7 +30,7 @@
     if (!creating) {
       clean();
       //The members are not there yet, but there were added before
-      original_members = await groupMembersProxy.synchronize(group.token);
+      original_members = await groupMembersProxy.get_local_members(group.token);
       modified_members = structuredClone(original_members);
 
       await userProxy.synchronize_store(group.token);
@@ -192,7 +192,7 @@
       if (check_validity) {
         if (creating) {
           await groupsProxy.add_new_local_group(group_modified);
-          await groupsProxy.synchronize();
+          groupsProxy.synchronize();
           await groupMembersProxy.add_members(
             group.token,
             $state.snapshot(members_to_add)
@@ -202,7 +202,7 @@
           await groupsProxy.modify_group(group_modified);
           await groupMembersProxy.delete_local_members(members_to_delete);
           await groupMembersProxy.add_members(group.token, members_to_add);
-          await groupMembersProxy.rename_members(group.token, modified_members);
+          await groupMembersProxy.rename_members(modified_members);
           original_members = await groupMembersProxy.get_group_members(
             group.token
           );
@@ -212,11 +212,7 @@
           if (member) {
             userProxy.set_user_group(group.token, member.uuid);
           }
-          try {
-            await groupMembersProxy.synchronize(group.token);
-          } catch (error) {
-            console.error("Failed to synchronize group members:", error);
-          }
+          groupMembersProxy.synchronize(group.token);
         }
         onDone();
         clean();

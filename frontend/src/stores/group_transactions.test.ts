@@ -4,7 +4,6 @@ import { transactionsProxy } from "./group_transactions";
 import { db, STATUS } from "../db/db";
 import { v4 as uuidv4 } from "uuid";
 import { getUTC } from "$lib/UTCDate";
-import { group_transactions } from "./group_transactions";
 import { groupsProxy } from "./group";
 import type { Group, GroupMember, Transaction } from "$lib/types";
 import { groupMembersProxy } from "./group_members";
@@ -27,7 +26,6 @@ vi.mock("./group_transactions", async (importOriginal) => {
 beforeEach(async () => {
     await db.transactions.clear();
     await db.debts.clear();
-    group_transactions.set({});
     vi.restoreAllMocks();
     const token = uuidv4();
     const new_group = { created_at: getUTC(), currency_id: "EUR", modified_at: getUTC(), name: "TEST", token: token } as Group
@@ -79,15 +77,6 @@ test("add_transaction adds transaction locally and updates store", async () => {
     const dbTr = await db.transactions.get(transaction.uuid);
     expect(dbTr).toBeDefined();
     expect(dbTr?.amount).toBe("100");
-
-    // Check in Svelte store
-    let storeValue: Record<string, Transaction[]> = {};
-    group_transactions.subscribe((v) => (storeValue = v))();
-    if (storeValue) {
-        expect(storeValue[group_uuid].length).toBe(1);
-        expect(storeValue[group_uuid][0].uuid).toBe(transaction.uuid);
-    }
-
 });
 
 test("add_transaction handles remote failure and sets status", async () => {
@@ -118,10 +107,6 @@ test("modify_transaction updates local and store", async () => {
 
     const dbTr = await db.transactions.get(transaction.uuid);
     expect(dbTr?.description).toBe("Updated");
-
-    let storeValue: Record<string, Transaction[]> = {};
-    group_transactions.subscribe((v) => (storeValue = v))();
-    expect(storeValue[group_uuid][0].description).toBe("Updated");
 });
 
 test("delete_transaction removes transaction from store and marks as TO_DELETE", async () => {
@@ -136,10 +121,6 @@ test("delete_transaction removes transaction from store and marks as TO_DELETE",
 
     const dbTr = await db.transactions.get(transaction.uuid);
     expect(dbTr?.status).toBe(STATUS.TO_DELETE);
-
-    let storeValue: Record<string, Transaction[]> = {};
-    group_transactions.subscribe((v) => (storeValue = v))();
-    expect(storeValue[group_uuid].length).toBe(0);
 });
 
 test("has_spent returns true if user has paid or owes", async () => {
@@ -180,23 +161,3 @@ test("synchronize merges remote and local transactions correctly", async () => {
     expect(result.find((t) => t.uuid === localTr.uuid)).toBeDefined();
 });
 
-test("local_synchronize loads transactions into Svelte store", async () => {
-    const group_uuid = ((await groupsProxy.get_local_groups())[0]).token;
-    const members = await groupMembersProxy.get_group_members(group_uuid);
-    const transaction = makeTransaction(members[0], members[1]);
-
-    // Add transaction to DB
-    await db.transactions.add({
-        ...transaction,
-        group_uuid,
-        paid_by: transaction.paid_by.uuid,
-        status: STATUS.NOTHING
-    });
-
-    await transactionsProxy.local_synchronize(group_uuid);
-
-    let storeValue: Record<string, Transaction[]> = {};
-    group_transactions.subscribe((v) => (storeValue = v))();
-    expect(storeValue[group_uuid].length).toBe(1);
-    expect(storeValue[group_uuid][0].uuid).toBe(transaction.uuid);
-});

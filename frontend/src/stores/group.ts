@@ -41,6 +41,17 @@ export class GroupsProxy {
         return groups;
     }
 
+    async synchronize_local(): Promise<Group[]> {
+        const grs = await this.get_local_groups();
+        try {
+            this.SetStoreGroups(grs);
+        } catch {
+            this.SetStoreGroups([]);
+
+        }
+        return grs;
+    }
+
     private async _add_local_group(inGroup: Group, status: STATUS) {
         await db.groups.add({
             created_at: inGroup.created_at,
@@ -179,12 +190,8 @@ export class GroupsProxy {
                 await db.groups.where("uuid").equals(new_group.token).modify(this._convert_Group_to_DB(new_group));
             } catch {/**/ }
         }
-        try {
-            this.SetStoreGroups(await this.get_local_groups());
-        } catch {
-            this.SetStoreGroups([]);
 
-        }
+        await this.synchronize_local();
     }
 
 }

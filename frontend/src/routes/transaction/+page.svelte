@@ -13,7 +13,7 @@
   import { fade } from "svelte/transition";
 
   let transaction: Transaction | undefined = $state(undefined);
-  let new_transaction = $state(false);
+  let is_creating = $state(false);
   let members = $state([] as GroupMember[]);
   onMount(async () => {
     const params = new URLSearchParams(window.location.search);
@@ -27,13 +27,14 @@
         $current_user?.member_uuid ?? ""
       );
       if (current_member) {
+        const current_tr =
+          await transactionsProxy.get_transation(transaction_uuid);
         transaction =
-          (await transactionsProxy.get_transation(transaction_uuid)) ??
+          current_tr ??
           create_new_transaction(currency, current_member, members);
+        is_creating = current_tr == undefined;
       }
     }
-
-    new_transaction = transaction == undefined;
   });
 
   function create_new_transaction(
@@ -70,7 +71,7 @@
         {transaction}
         group_currency={$current_groupStore?.currency_id}
         {members}
-        is_creating={new_transaction}
+        {is_creating}
         onCancel={() => {
           //creating = false;
         }}
@@ -80,18 +81,14 @@
           }
           goto(base + "/expenses");
         }}
-        onSave={(newTransaction: Transaction) => {
-          if ($current_groupStore) {
-            if (new_transaction) {
-              transactionsProxy.add_transaction(
-                $current_groupStore.token,
-                newTransaction
-              );
+        onSave={async (newTransaction: Transaction) => {
+          const token = $current_groupStore?.token;
+
+          if (token) {
+            if (is_creating) {
+              await transactionsProxy.add_transaction(token, newTransaction);
             } else {
-              transactionsProxy.modify_transaction(
-                $current_groupStore.token,
-                newTransaction
-              );
+              await transactionsProxy.modify_transaction(token, newTransaction);
             }
           }
           goto(base + "/expenses");

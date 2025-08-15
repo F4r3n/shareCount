@@ -25,7 +25,9 @@
   onMount(async () => {
     await userProxy.synchronize_store(group.token);
     current_user_uuid = $users[group.token]?.member_uuid ?? "";
-    original_members = await groupMembersProxy.synchronize(group.token);
+
+    groupMembersProxy.synchronize(group.token);
+    original_members = await groupMembersProxy.get_local_members(group.token);
   });
 
   function get_member_from_uuid(uuid: string): GroupMember | null {
@@ -94,7 +96,7 @@
           {
             text: "No, cancel",
             callback: () => {},
-          },
+          }
         );
       }}
     >

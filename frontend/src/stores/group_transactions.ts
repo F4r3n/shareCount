@@ -1,14 +1,12 @@
 // src/lib/stores/groupUsernames.ts
-import { writable, type Writable } from 'svelte/store';
 import type { Debt, Transaction } from '$lib/types';
 import { getFullBackendURL } from '$lib/shareCountAPI';
 import { db, STATUS, type Debt_DB, type Transaction_DB } from '../db/db';
 import { groupMembersProxy } from './group_members';
 import { getUTC } from '$lib/UTCDate';
-import { Synchro, withTimeout } from './SynchroHelper';
+import { withTimeout } from './SynchroHelper';
 
 
-export const group_transactions: Writable<Record<string, Transaction[]>> = writable({});
 
 export class TransactionsProxy {
 
@@ -23,7 +21,7 @@ export class TransactionsProxy {
         return result;
     }
 
-    private async get_local_transactions(group_uuid: string): Promise<Transaction[]> {
+    public async get_local_transactions(group_uuid: string): Promise<Transaction[]> {
         const tr = await this._get_local_transactionsDB(group_uuid)
         const result: Transaction[] = [];
         for (const t of tr) {
@@ -31,6 +29,11 @@ export class TransactionsProxy {
         }
 
         return result;
+    }
+
+    public async synchronize_local(group_uuid: string): Promise<Transaction[]> {
+        const trs = this._sort_transactions(await this.get_local_transactions(group_uuid));
+        return trs;
     }
 
     private async _get_local_transactionsDB(group_uuid: string): Promise<Transaction_DB[]> {
@@ -49,70 +52,28 @@ export class TransactionsProxy {
 
     async add_transaction(group_uuid: string, inTransaction: Transaction) {
         inTransaction.modified_at = getUTC();
-        let has_error = false;
-        try {
-            await this._update_remote_transaction(group_uuid, [inTransaction]);
-        }
-        catch {
-            has_error = true;
-        }
-        finally {
-            this._add_local_transaction(group_uuid, inTransaction, Synchro.compute_next_status(has_error, STATUS.TO_CREATE));
-            group_transactions.update((values: Record<string, Transaction[]>) => {
-                if (!values[group_uuid]) {
-                    values[group_uuid] = [];
-                }
-                values[group_uuid].push(inTransaction);
-                values[group_uuid] = this._sort_transactions(values[group_uuid]);
-                return values;
-            })
-        }
+
+        await this._add_local_transaction(group_uuid, inTransaction, STATUS.TO_CREATE);
     }
 
     async modify_transaction(group_uuid: string, inTransaction: Transaction) {
         inTransaction.modified_at = getUTC();
-        let has_error = false;
-        try {
-            await this._update_remote_transaction(group_uuid, [inTransaction]);
-        } catch {
-            has_error = true;
-        }
-        finally {
-            const status = Synchro.compute_next_status(has_error, await this.get_status_transation(inTransaction.uuid));
-            await this._modify_local_transaction(group_uuid, inTransaction, status);
-            group_transactions.update((values: Record<string, Transaction[]>) => {
-                const id = values[group_uuid].findIndex((value) => { return value.uuid === inTransaction.uuid })
-                values[group_uuid][id] = inTransaction;
-                values[group_uuid] = this._sort_transactions(values[group_uuid]);
 
-                return values;
-            })
-        }
+        const status = await this.get_status_transation(inTransaction.uuid);
+        await this._modify_local_transaction(group_uuid, inTransaction, status);
     }
 
     async delete_transaction(group_uuid: string, inTransaction: Transaction) {
         inTransaction.modified_at = getUTC();
-        try {
-            this._delete_remote_transaction(group_uuid, [inTransaction]);
-        } catch {
-            /*empty*/
-        } finally {
-            this._delete_local_transaction(inTransaction.uuid, true);
-            group_transactions.update((values: Record<string, Transaction[]>) => {
-                const id = values[group_uuid].findIndex((value) => { return value.uuid === inTransaction.uuid })
-                values[group_uuid].splice(id, 1);
-                values[group_uuid] = this._sort_transactions(values[group_uuid]);
-                return values;
-            });
-        }
 
+        await this._delete_local_transaction(inTransaction.uuid, true);
     }
 
     private async _add_local_transaction(group_uuid: string, inTransaction: Transaction, status: STATUS) {
         const transaction_db = this._convert_transaction_transactionDB(group_uuid, inTransaction, status);
         //If add multiple times
-        this._delete_local_debts(transaction_db.uuid);
-        this._add_local_debts(transaction_db.uuid, inTransaction.debtors);
+        await this._delete_local_debts(transaction_db.uuid);
+        await this._add_local_debts(transaction_db.uuid, inTransaction.debtors);
         await db.transactions.add(transaction_db);
     }
 
@@ -140,20 +101,6 @@ export class TransactionsProxy {
         const new_tr_db = this._convert_transaction_transactionDB(group_uuid, transaction, inStatus);
         new_tr_db.modified_at = getUTC();
         await db.transactions.where("uuid").equals(transaction.uuid).modify(new_tr_db);
-    }
-
-    async local_synchronize(group_uuid: string) {
-        const original_transactions = await this._get_local_transactionsDB(group_uuid);
-        const transactions: Transaction[] = [];
-        for (const tr of original_transactions) {
-            transactions.push(await this._convert_transactionDB_transaction(tr))
-        }
-        group_transactions.update((values: Record<string, Transaction[]>) => {
-            values[group_uuid] = transactions;
-            values[group_uuid] = this._sort_transactions(values[group_uuid]);
-            return values;
-        })
-        return transactions;
     }
 
     async has_spent(group: string, user: string): Promise<boolean> {
@@ -234,16 +181,7 @@ export class TransactionsProxy {
             this._delete_remote_transaction(group_uuid, to_delete_transactions);
 
         } catch { /* empty */ }
-
-        const new_transactions = await this.get_local_transactions(group_uuid)
-
-        group_transactions.update((values: Record<string, Transaction[]>) => {
-
-            values[group_uuid] = new_transactions;
-            values[group_uuid] = this._sort_transactions(values[group_uuid]);
-            return values;
-        })
-        return new_transactions;
+        return await this.synchronize_local(group_uuid);
     }
     async get_status_transation(uuid: string): Promise<STATUS> {
         const tr = await db.transactions.where("uuid").equals(uuid).first();

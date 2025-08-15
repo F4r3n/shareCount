@@ -21,7 +21,7 @@
       current_members = await groupMembersProxy.get_group_members(
         $current_user.group_uuid
       );
-      transactions = await transactionsProxy.synchronize(
+      transactions = await transactionsProxy.synchronize_local(
         $current_user.group_uuid
       );
     } else {

@@ -20,7 +20,7 @@ if (!IS_MOBILE) {
 		strategies: generateSW ? "generateSW" : "injectManifest",
 		filename: "sw.ts",
 		devOptions: {
-			enabled: true,
+			enabled: process.env.NODE_ENV === "development",
 			type: 'module',
 			navigateFallback: '/',
 			suppressWarnings: true

@@ -1,27 +1,16 @@
 <script lang="ts">
   import type { Transaction, GroupMember } from "$lib/types";
   import TransactionView from "./TransactionView.svelte";
-  import { onMount } from "svelte";
-  import { group_transactions } from "@stores/group_transactions";
-  import { current_groupStore } from "@stores/group";
   import { fade } from "svelte/transition";
   import { goto } from "$app/navigation";
   import { base } from "$app/paths";
   let {
     members,
+    transactions,
   }: {
     members: GroupMember[];
+    transactions: Transaction[];
   } = $props();
-
-  let transactions: Transaction[] = $derived(
-    $current_groupStore ? $group_transactions[$current_groupStore.token] : []
-  );
-
-  onMount(async () => {
-    if ($current_groupStore) {
-      transactions = $group_transactions[$current_groupStore.token];
-    }
-  });
 
   const options = {
     weekday: undefined,
