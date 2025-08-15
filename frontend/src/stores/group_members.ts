@@ -86,8 +86,18 @@ export class GroupMemberProxy {
         }
     }
 
+    async get_status(uuid: string): Promise<STATUS> {
+        const tr = await db.group_members.where("uuid").equals(uuid).first();
+        if (tr) {
+            return tr.status;
+        }
+        return STATUS.NOTHING;
+    }
+
     async rename_members(group_members: GroupMember[]) {
-        await this._rename_local_members(group_members, STATUS.TO_CREATE);
+        for (const member of group_members) {
+            await this._rename_local_member(member);
+        }
     }
 
     async add_members(uuid: string, group_members: GroupMember[]) {
@@ -102,6 +112,19 @@ export class GroupMemberProxy {
                 this._delete_local_member(member, true);
             }
         }
+    }
+
+    private async _rename_local_member(member: GroupMember) {
+        let status = await this.get_status(member.uuid);
+        if (status == STATUS.NOTHING) {
+            status = STATUS.TO_UPDATE;
+        }
+        await db.group_members.where("uuid").equals(member.uuid).modify({
+            nickname: member.nickname,
+            modified_at: getUTC(),
+            status: status
+        });
+
     }
 
     private async _rename_local_members(group_members: GroupMember[], status: STATUS) {

@@ -59,7 +59,10 @@ export class TransactionsProxy {
     async modify_transaction(group_uuid: string, inTransaction: Transaction) {
         inTransaction.modified_at = getUTC();
 
-        const status = await this.get_status_transation(inTransaction.uuid);
+        let status = await this.get_status_transation(inTransaction.uuid);
+        if (status == STATUS.NOTHING) {
+            status = STATUS.TO_UPDATE;
+        }
         await this._modify_local_transaction(group_uuid, inTransaction, status);
     }
 

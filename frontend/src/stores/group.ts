@@ -76,20 +76,28 @@ export class GroupsProxy {
         this.SetStoreGroups(groups);
     }
 
+    async get_status(uuid: string): Promise<STATUS> {
+        const tr = await db.groups.where("uuid").equals(uuid).first();
+        if (tr) {
+            return tr.status;
+        }
+        return STATUS.NOTHING;
+    }
+
     async modify_group(inGroup: Group) {
-        try {
-            this._add_remote_group(inGroup);
-        }
-        finally {
-            this._modify_local_group(inGroup)
-        }
+        await this._modify_local_group(inGroup)
     }
 
     private async _modify_local_group(inGroup: Group) {
+        let status = await this.get_status(inGroup.token);
+        if (status == STATUS.NOTHING) {
+            status = STATUS.TO_UPDATE;
+        }
         db.groups.where("uuid").equals(inGroup.token).modify(
             {
                 currency_id: inGroup.currency_id,
                 name: inGroup.name,
+                status: status,
                 modified_at: getUTC()
             });
         groupsStore.update((values: Group[]) => {
