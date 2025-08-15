@@ -11,30 +11,25 @@ on:
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: ./frontend
 
     steps:
-    - uses: actions/checkout@v4
-    - name: Install Node.js
-      uses: actions/setup-node@v4
-    - name: Prepare wasm
-      run: |
-        chmod +x scripts/setup.sh
-        ./scripts/setup.sh
-    - name: Install Dependencies
-      run: npm install
-    - name: Build
-      run: npm run build
-    - name: Lint
-      run: npm run lint
-    - name: Run tests
-      run: npm run test
-    - name: Upload artifact
-      if: ${{ inputs.upload }}
-      uses: actions/upload-pages-artifact@v3
-      with:
-        path: './frontend/build'
+      - uses: actions/checkout@v4
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+      - name: Install Dependencies
+        run: npm install
+      - name: Build
+        run: npm run build
+      - name: Lint
+        run: npm run lint
+      - name: Run tests
+        run: npm run test
+      - name: Upload artifact
+        if: ${{ inputs.upload }}
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: "./frontend/build"

@@ -22,12 +22,6 @@ jobs:
         working-directory: ./frontend
         run: npm install
 
-      - name: Prepare wasm
-        working-directory: ./frontend
-        run: |
-          chmod +x scripts/setup.sh
-          ./scripts/setup.sh
-
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
