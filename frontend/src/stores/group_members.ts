@@ -105,12 +105,8 @@ export class GroupMemberProxy {
     }
 
     async delete_members(uuid: string, group_members: GroupMember[]) {
-        try {
-            this._delete_remote_GroupMembers(uuid, group_members);
-        } finally {
-            for (const member of group_members) {
-                this._delete_local_member(member, true);
-            }
+        for (const member of group_members) {
+            await this._delete_local_member(member, true);
         }
     }
 
