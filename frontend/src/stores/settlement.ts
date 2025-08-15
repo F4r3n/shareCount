@@ -1,10 +1,6 @@
-import type { Transaction } from "$lib/types";
+import type { Transaction, GroupMember } from "$lib/types";
 import Big from "big.js";
 
-export interface GroupMember {
-    uuid: string;
-    nickname: string;
-}
 
 export interface Amount {
     member: GroupMember;
