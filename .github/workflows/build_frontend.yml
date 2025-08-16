@@ -28,6 +28,14 @@ jobs:
         run: npm run lint
       - name: Run tests
         run: npm run test
+
+      - name: Build well known
+        run: |
+          mkdir build/.well-known
+          base64 -d <<< "${{ secrets.ANDROID_KEY_BASE64 }}" > keystore.jks
+          ./scripts/generate_wellknown.sh keystore.jks "${{ secrets.ANDROID_KEY_PASSWORD }}"" ../app/shareCount/src-tauri/tauri.conf.json "${{ secrets.ANDROID_KEY_ALIAS }}""
+          cp assetlinks.json build/.well-known/
+
       - name: Upload data
         uses: actions/upload-artifact@v4
         with:
