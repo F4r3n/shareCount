@@ -4,7 +4,7 @@ on:
   workflow_call:
 
 env:
-  APP_NAME: "android-app"
+  APP_NAME: "shareCount-app"
   GITHUB_TOKEN: ${{ secrets.GH_PAT }}
 
 jobs:
