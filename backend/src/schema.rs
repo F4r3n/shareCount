@@ -56,6 +56,53 @@ diesel::table! {
     }
 }
 
+diesel::table! {
+    groups_history (id) {
+        id -> Integer,
+        group_id -> Integer,
+        name -> Text,
+        currency_id -> Text,
+        token -> Text,
+        created_at -> Timestamp,
+        modified_at -> Timestamp,
+        operation -> Text,
+    }
+}
+
+diesel::table! {
+    group_members_history (id) {
+        id -> Integer,
+        group_member_id -> Integer,
+        nickname -> Text,
+        modified_at -> Timestamp,
+        operation -> Text,
+    }
+}
+
+diesel::table! {
+    transactions_history (id) {
+        id -> Integer,
+        transaction_id -> Integer,
+        description -> Text,
+        amount -> Numeric,
+        paid_by -> Integer,
+        currency_id -> Text,
+        exchange_rate -> Numeric,
+        created_at -> Timestamp,
+        modified_at -> Timestamp,
+        operation -> Text,
+    }
+}
+
+diesel::table! {
+    transaction_debts_history (id) {
+        id -> Integer,
+        transaction_debt_id -> Integer,
+        amount -> Numeric,
+        operation -> Text,
+    }
+}
+
 // Define relationships
 diesel::joinable!(group_members -> groups (group_id));
 diesel::joinable!(group_members -> users (user_id));
@@ -72,3 +119,8 @@ diesel::allow_tables_to_appear_in_same_query!(
     transactions,
     transaction_debts,
 );
+
+diesel::joinable!(groups_history -> groups (group_id));
+diesel::joinable!(group_members_history -> group_members (group_member_id));
+diesel::joinable!(transactions_history -> transactions (transaction_id));
+diesel::joinable!(transaction_debts_history -> transaction_debts (transaction_debt_id));

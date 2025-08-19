@@ -6,6 +6,7 @@ import { generateSW } from './generateSW.mjs';
 
 const host = process.env.TAURI_DEV_HOST;
 const IS_MOBILE = process.env.TAURI_ENV_PLATFORM != undefined;
+const isDev = process.env.NODE_ENV === 'development';
 const plugins = [tailwindcss(),
 sveltekit()];
 
@@ -56,6 +57,7 @@ export default defineConfig({
 	},
 	envPrefix: ['VITE_', 'TAURI_ENV_*'],
 	define: {
+		'import.meta.env.VITE_BACKEND_URL': isDev ? '"127.0.0.1:4000"' : '""',
 		'import.meta.env.IS_MOBILE': IS_MOBILE,
 		'process.env.NODE_ENV': process.env.NODE_ENV === 'production' ? '"production"' : '"development"',
 	},
