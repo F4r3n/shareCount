@@ -1,3 +1,4 @@
+use crate::entrypoint::history;
 use crate::entrypoint::{group_members, groups, status, transactions};
 use crate::state_server;
 use axum::routing::delete;
@@ -60,6 +61,11 @@ pub fn create_router(url: &str, state_server: StateServer) -> Result<Router, any
         );
 
     let status = Router::new().route("/version", get(status::handler_version));
+
+    let history = Router::new().route(
+        "/groups/{token_id}/history/group_members",
+        get(history::handler_get_members_history),
+    );
 
     let app = Router::new()
         .merge(v1)

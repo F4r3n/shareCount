@@ -1,7 +1,12 @@
-drop TABLE groups_history;
-drop TABLE group_members_history;
-drop TABLE transactions_history;
-drop TABLE transaction_debts_history;
+drop TABLE IF EXISTS groups_history;
+drop TABLE IF EXISTS group_members_history;
+drop TABLE IF EXISTS transactions_history;
+drop TABLE IF EXISTS transaction_debts_history;
+
+DROP TRIGGER IF EXISTS trg_groups_history ON groups;
+DROP TRIGGER IF EXISTS trg_group_members_history ON group_members;
+DROP TRIGGER IF EXISTS trg_transactions_history ON transactions;
+DROP TRIGGER IF EXISTS trg_transaction_debts_history ON transaction_debts;
 
 
 drop TABLE IF EXISTS transaction_debts;
@@ -109,10 +114,11 @@ FOR EACH ROW EXECUTE FUNCTION log_groups_history();
 -- GROUP MEMBERS
 CREATE TABLE group_members_history (
   id SERIAL PRIMARY KEY,
+  group_id INTEGER NOT NULL REFERENCES groups(id),
   group_member_id INTEGER NOT NULL REFERENCES group_members(id),
   nickname TEXT NOT NULL,
   modified_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  operation TEXT, -- 'INSERT', 'UPDATE', 'DELETE'
+  operation TEXT -- 'INSERT', 'UPDATE', 'DELETE'
 );
 
 CREATE OR REPLACE FUNCTION log_group_members_history()
@@ -120,21 +126,21 @@ RETURNS TRIGGER AS $$
 BEGIN
   IF TG_OP = 'DELETE' THEN
     INSERT INTO group_members_history
-      (group_member_id, nickname, modified_at, operation)
+      (group_id, group_member_id, nickname, modified_at, operation)
     VALUES
-      (OLD.id, OLD.nickname, OLD.modified_at, 'DELETE');
+      (OLD.group_id, OLD.id, OLD.nickname, OLD.modified_at, 'DELETE');
     RETURN OLD;
   ELSIF TG_OP = 'UPDATE' THEN
     INSERT INTO group_members_history
-      (group_member_id, nickname, modified_at, operation)
+      (group_id, group_member_id, nickname, modified_at, operation)
     VALUES
-      (NEW.id, NEW.nickname, NEW.modified_at, 'UPDATE');
+      (NEW.group_id, NEW.id, NEW.nickname, NEW.modified_at, 'UPDATE');
     RETURN NEW;
   ELSIF TG_OP = 'INSERT' THEN
     INSERT INTO group_members_history
-      (group_member_id, nickname, modified_at, operation)
+      (group_id, group_member_id, nickname, modified_at, operation)
     VALUES
-      (NEW.id, NEW.nickname, NEW.modified_at, 'INSERT');
+      (NEW.group_id, NEW.id, NEW.nickname, NEW.modified_at, 'INSERT');
     RETURN NEW;
   END IF;
 END;
@@ -148,6 +154,7 @@ FOR EACH ROW EXECUTE FUNCTION log_group_members_history();
 -- TRANSACTIONS
 CREATE TABLE transactions_history (
   id SERIAL PRIMARY KEY,
+  group_id INTEGER NOT NULL REFERENCES groups(id),
   transaction_id INTEGER NOT NULL REFERENCES transactions(id),
   description TEXT NOT NULL,
   amount NUMERIC NOT NULL CONSTRAINT positive_price CHECK (amount > 0),
@@ -164,21 +171,21 @@ RETURNS TRIGGER AS $$
 BEGIN
   IF TG_OP = 'DELETE' THEN
     INSERT INTO transactions_history
-      (transaction_id, description, amount, paid_by, currency_id, exchange_rate, created_at, modified_at, operation)
+      (group_id, transaction_id, description, amount, paid_by, currency_id, exchange_rate, created_at, modified_at, operation)
     VALUES
-      (OLD.id, OLD.description, OLD.amount, OLD.paid_by, OLD.currency_id, OLD.exchange_rate, OLD.created_at, OLD.modified_at, 'DELETE');
+      (OLD.group_id, OLD.id, OLD.description, OLD.amount, OLD.paid_by, OLD.currency_id, OLD.exchange_rate, OLD.created_at, OLD.modified_at, 'DELETE');
     RETURN OLD;
   ELSIF TG_OP = 'UPDATE' THEN
     INSERT INTO transactions_history
-      (transaction_id, description, amount, paid_by, currency_id, exchange_rate, created_at, modified_at, operation)
+      (group_id, transaction_id, description, amount, paid_by, currency_id, exchange_rate, created_at, modified_at, operation)
     VALUES
-      (NEW.id, NEW.description, NEW.amount, NEW.paid_by, NEW.currency_id, NEW.exchange_rate, NEW.created_at, NEW.modified_at, 'UPDATE');
+      (NEW.group_id, NEW.id, NEW.description, NEW.amount, NEW.paid_by, NEW.currency_id, NEW.exchange_rate, NEW.created_at, NEW.modified_at, 'UPDATE');
     RETURN NEW;
   ELSIF TG_OP = 'INSERT' THEN
     INSERT INTO transactions_history
-      (transaction_id, description, amount, paid_by, currency_id, exchange_rate, created_at, modified_at, operation)
+      (group_id, transaction_id, description, amount, paid_by, currency_id, exchange_rate, created_at, modified_at, operation)
     VALUES
-      (NEW.id, NEW.description, NEW.amount, NEW.paid_by, NEW.currency_id, NEW.exchange_rate, NEW.created_at, NEW.modified_at, 'INSERT');
+      (NEW.group_id, NEW.id, NEW.description, NEW.amount, NEW.paid_by, NEW.currency_id, NEW.exchange_rate, NEW.created_at, NEW.modified_at, 'INSERT');
     RETURN NEW;
   END IF;
 END;
@@ -192,6 +199,8 @@ FOR EACH ROW EXECUTE FUNCTION log_transactions_history();
 -- TRANSACTION DEBTS
 CREATE TABLE transaction_debts_history (
   id SERIAL PRIMARY KEY,
+  transaction_id INTEGER NOT NULL REFERENCES transactions(id),
+  group_member_id INTEGER NOT NULL REFERENCES group_members(id) ON DELETE CASCADE,
   transaction_debt_id INTEGER NOT NULL REFERENCES transaction_debts(id),
   amount NUMERIC NOT NULL,
   operation TEXT -- 'INSERT', 'UPDATE', 'DELETE'
@@ -202,21 +211,21 @@ RETURNS TRIGGER AS $$
 BEGIN
   IF TG_OP = 'DELETE' THEN
     INSERT INTO transaction_debts_history
-      (transaction_debt_id, amount, operation)
+      (transaction_id, group_member_id, transaction_debt_id, amount, operation)
     VALUES
-      (OLD.id, OLD.amount, 'DELETE');
+      (OLD.transaction_id, OLD.group_member_id, OLD.id, OLD.amount, 'DELETE');
     RETURN OLD;
   ELSIF TG_OP = 'UPDATE' THEN
     INSERT INTO transaction_debts_history
-      (transaction_debt_id, amount, operation)
+      (transaction_id, group_member_id, transaction_debt_id, amount, operation)
     VALUES
-      (NEW.id, NEW.amount, 'UPDATE');
+      (NEW.transaction_id, NEW.group_member_id, NEW.id, NEW.amount, 'UPDATE');
     RETURN NEW;
   ELSIF TG_OP = 'INSERT' THEN
     INSERT INTO transaction_debts_history
-      (transaction_debt_id, amount, operation)
+      (transaction_id, group_member_id, transaction_debt_id, amount, operation)
     VALUES
-      (NEW.id, NEW.amount, 'INSERT');
+      (NEW.transaction_id, NEW.group_member_id, NEW.id, NEW.amount, 'INSERT');
     RETURN NEW;
   END IF;
 END;
@@ -225,6 +234,7 @@ $$ LANGUAGE plpgsql;
 CREATE TRIGGER trg_transaction_debts_history
 AFTER INSERT OR UPDATE OR DELETE ON transaction_debts
 FOR EACH ROW EXECUTE FUNCTION log_transaction_debts_history();
+
 
 
 -- SEED DATA

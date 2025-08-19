@@ -1,7 +1,9 @@
 pub mod group_members;
 pub mod groups;
+pub mod history;
 pub mod status;
 pub mod transactions;
+
 pub use crate::state_server;
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
