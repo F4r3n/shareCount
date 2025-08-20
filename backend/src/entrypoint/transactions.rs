@@ -513,13 +513,14 @@ pub struct TransactionIDResponse {
 pub fn get_transaction_id(
     uuid: &str,
     conn: &mut PooledConnection<ConnectionManager<PgConnection>>,
-) -> Result<i32, anyhow::Error> {
+) -> Option<i32> {
     let id = transactions::table
         .select(transactions::id)
         .filter(transactions::uuid.eq(uuid))
-        .get_result::<i32>(conn)?;
+        .get_result::<i32>(conn)
+        .optional();
 
-    Ok(id)
+    id.ok().flatten()
 }
 
 pub async fn handler_delete_transactions(
@@ -532,22 +533,20 @@ pub async fn handler_delete_transactions(
     conn.transaction::<_, anyhow::Error, _>(|conn| {
         let mut err = Ok(());
         for transaction in transactions {
+            let id = get_transaction_id(&transaction.uuid, conn);
+
             let query = diesel::delete(transactions::table)
                 .filter(transactions::group_id.eq(group_id))
                 .filter(transactions::uuid.eq(&transaction.uuid))
                 .filter(transactions::modified_at.le(transaction.modified_at));
-            let debug = diesel::debug_query::<diesel::pg::Pg, _>(&query);
-            dbg!(debug);
-
             let affected = query.execute(conn)?;
-            dbg!(group_id);
-            dbg!(&transaction);
-            if affected > 0 {
-                delete_transaction_history(get_transaction_id(&transaction.uuid, conn)?, conn)?;
-            }
+
             if affected == 0 {
                 // Return Diesel's NotFound which you can convert to 404 via your error handling
                 err = Err(diesel::NotFound.into());
+            } else if let Some(id) = id {
+                dbg!(id);
+                let _ = delete_transaction_history(id, conn);
             }
         }
         err

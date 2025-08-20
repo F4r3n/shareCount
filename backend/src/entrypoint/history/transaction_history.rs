@@ -70,11 +70,29 @@ pub fn delete_transaction_history(
     transaction_id: i32,
     conn: &mut PooledConnection<ConnectionManager<PgConnection>>,
 ) -> Result<(), anyhow::Error> {
+    use crate::schema::{transactions, transactions_history};
+
+    // First fetch the transaction being deleted
+    let tx = transactions::table
+        .find(transaction_id)
+        .first::<TransactionRow>(conn)?;
+
+    let new_transaction_history = TransactionHistory {
+        amount: tx.amount.clone(),
+        created_at: tx.created_at,
+        currency_id: tx.currency_id.clone(),
+        description: tx.description.clone(),
+        exchange_rate: tx.exchange_rate.clone(),
+        group_id: tx.group_id,
+        modified_at: tx.modified_at,
+        paid_by: tx.paid_by,
+        transaction_id: tx.id,
+        operation: "DELETE".to_string(),
+    };
+
+    // Insert into history with all fields + operation
     diesel::insert_into(transactions_history::table)
-        .values((
-            transactions_history::transaction_id.eq(transaction_id),
-            transactions_history::operation.eq("DELETE"),
-        ))
+        .values(&new_transaction_history)
         .execute(conn)?;
 
     Ok(())
