@@ -63,6 +63,29 @@ pub fn add_transaction_history(
         "INSERT"
     };
 
+    _add_transaction_history(transaction_row, transactions_debts, conn, operation_type)
+}
+
+pub fn delete_transaction_history(
+    transaction_id: i32,
+    conn: &mut PooledConnection<ConnectionManager<PgConnection>>,
+) -> Result<(), anyhow::Error> {
+    diesel::insert_into(transactions_history::table)
+        .values((
+            transactions_history::transaction_id.eq(transaction_id),
+            transactions_history::operation.eq("DELETE"),
+        ))
+        .execute(conn)?;
+
+    Ok(())
+}
+
+fn _add_transaction_history(
+    transaction_row: &TransactionRow,
+    transactions_debts: &[TransactionDebtRow],
+    conn: &mut PooledConnection<ConnectionManager<PgConnection>>,
+    operation_type: &str,
+) -> Result<(), anyhow::Error> {
     let new_transaction_history = TransactionHistory {
         amount: transaction_row.amount.clone(),
         created_at: transaction_row.created_at,

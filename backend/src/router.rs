@@ -36,7 +36,6 @@ pub fn create_router(url: &str, state_server: StateServer) -> Result<Router, any
         .route(
             "/groups/{token_id}/transactions",
             get(transactions::handler_get_all_transactions)
-                .delete(transactions::handler_delete_transaction)
                 .post(transactions::handler_modify_transaction),
         )
         .route(
@@ -64,15 +63,15 @@ pub fn create_router(url: &str, state_server: StateServer) -> Result<Router, any
 
     let history = Router::new()
         .route(
-            "/groups/{token_id}/history/group_members",
+            "/history/groups/{token_id}/group_members",
             get(history::group_member_history::handler_get_members_history),
         )
         .route(
-            "/groups/{token_id}/history",
+            "/history/groups/{token_id}",
             get(history::group_member_history::handler_get_group_history),
         )
         .route(
-            "/groups/{token_id}/history/transactions",
+            "/history/groups/{token_id}/transactions",
             get(history::transaction_history::handler_get_transactions_history),
         );
 

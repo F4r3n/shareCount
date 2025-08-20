@@ -1,7 +1,7 @@
 drop TABLE IF EXISTS groups_history;
 drop TABLE IF EXISTS group_members_history;
-drop TABLE IF EXISTS transactions_history;
 drop TABLE IF EXISTS transaction_debts_history;
+drop TABLE IF EXISTS transactions_history;
 
 DROP TRIGGER IF EXISTS trg_groups_history ON groups;
 DROP TRIGGER IF EXISTS trg_group_members_history ON group_members;
@@ -70,7 +70,7 @@ CREATE TABLE transaction_debts (
 -- GROUPS
 CREATE TABLE groups_history (
   id SERIAL PRIMARY KEY,
-  group_id INTEGER NOT NULL REFERENCES groups(id),
+  group_id INTEGER NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
   name TEXT NOT NULL,
   currency_id TEXT NOT NULL,
   token TEXT NOT NULL UNIQUE,
@@ -112,8 +112,8 @@ FOR EACH ROW EXECUTE FUNCTION log_groups_history();
 -- GROUP MEMBERS
 CREATE TABLE group_members_history (
   id SERIAL PRIMARY KEY,
-  group_id INTEGER NOT NULL REFERENCES groups(id),
-  group_member_id INTEGER NOT NULL REFERENCES group_members(id),
+  group_id INTEGER NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
+  group_member_id INTEGER NOT NULL,
   nickname TEXT NOT NULL,
   modified_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   operation TEXT -- 'INSERT', 'UPDATE', 'DELETE'
@@ -152,11 +152,11 @@ FOR EACH ROW EXECUTE FUNCTION log_group_members_history();
 -- TRANSACTIONS
 CREATE TABLE transactions_history (
   id SERIAL PRIMARY KEY,
-  group_id INTEGER NOT NULL REFERENCES groups(id),
-  transaction_id INTEGER NOT NULL REFERENCES transactions(id),
+  group_id INTEGER NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
+  transaction_id INTEGER NOT NULL REFERENCES transactions(id) ON DELETE CASCADE,
   description TEXT NOT NULL,
   amount NUMERIC NOT NULL CONSTRAINT positive_price CHECK (amount > 0),
-  paid_by INTEGER NOT NULL REFERENCES group_members(id),
+  paid_by INTEGER NOT NULL REFERENCES group_members(id) ON DELETE CASCADE,
   currency_id TEXT NOT NULL,
   exchange_rate NUMERIC NOT NULL DEFAULT 1,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -168,13 +168,12 @@ CREATE TABLE transactions_history (
 -- TRANSACTION DEBTS
 CREATE TABLE transaction_debts_history (
   id SERIAL PRIMARY KEY,
-  transaction_history_id INTEGER NOT NULL REFERENCES transactions_history(id)
+  transaction_history_id INTEGER NOT NULL REFERENCES transactions_history(id) ON DELETE CASCADE,
   group_member_id INTEGER NOT NULL REFERENCES group_members(id) ON DELETE CASCADE,
-  transaction_debt_id INTEGER NOT NULL REFERENCES transaction_debts(id),
+  transaction_debt_id INTEGER NOT NULL REFERENCES transaction_debts(id) ON DELETE CASCADE,
   amount NUMERIC NOT NULL,
   operation TEXT -- 'INSERT', 'UPDATE', 'DELETE'
 );
-
 
 
 

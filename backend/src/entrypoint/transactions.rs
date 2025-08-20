@@ -1,5 +1,6 @@
 use crate::entrypoint::group_members::get_member_id;
 use crate::entrypoint::group_members::GroupMemberNoDate;
+use crate::entrypoint::history::transaction_history::delete_transaction_history;
 use crate::entrypoint::AppError;
 use crate::schema::group_members;
 use crate::schema::groups;
@@ -509,26 +510,16 @@ pub struct TransactionIDResponse {
     pub id: i32,
 }
 
-pub async fn handler_delete_transaction(
-    State(state_server): State<state_server::StateServer>,
-    Path(token): Path<String>,
-    Json(transaction): Json<TransactionDelete>,
-) -> Result<(), AppError> {
-    let mut conn = state_server.pool.get()?;
-    conn.transaction::<_, anyhow::Error, _>(|conn| {
-        let groud_id = get_group_id(&token, conn)?;
+pub fn get_transaction_id(
+    uuid: &str,
+    conn: &mut PooledConnection<ConnectionManager<PgConnection>>,
+) -> Result<i32, anyhow::Error> {
+    let id = transactions::table
+        .select(transactions::id)
+        .filter(transactions::uuid.eq(uuid))
+        .get_result::<i32>(conn)?;
 
-        diesel::delete(transactions::table)
-            .filter(transactions::group_id.eq(groud_id))
-            .filter(transactions::uuid.eq(transaction.uuid))
-            .filter(transactions::modified_at.lt(transaction.modified_at))
-            .execute(conn)?;
-
-        Ok(())
-    })
-    .map_err(AppError::from)?;
-
-    Ok(())
+    Ok(id)
 }
 
 pub async fn handler_delete_transactions(
@@ -537,22 +528,29 @@ pub async fn handler_delete_transactions(
     Json(transactions): Json<Vec<TransactionDelete>>,
 ) -> Result<(), AppError> {
     let mut conn = state_server.pool.get()?;
-    let groud_id = get_group_id(&token, &mut conn)?;
+    let group_id = get_group_id(&token, &mut conn)?;
     conn.transaction::<_, anyhow::Error, _>(|conn| {
+        let mut err = Ok(());
         for transaction in transactions {
-            let affected = diesel::delete(transactions::table)
-                .filter(transactions::group_id.eq(groud_id))
-                .filter(transactions::uuid.eq(transaction.uuid))
-                .filter(transactions::modified_at.le(transaction.modified_at))
-                .execute(conn)?;
+            let query = diesel::delete(transactions::table)
+                .filter(transactions::group_id.eq(group_id))
+                .filter(transactions::uuid.eq(&transaction.uuid))
+                .filter(transactions::modified_at.le(transaction.modified_at));
+            let debug = diesel::debug_query::<diesel::pg::Pg, _>(&query);
+            dbg!(debug);
 
+            let affected = query.execute(conn)?;
+            dbg!(group_id);
+            dbg!(&transaction);
+            if affected > 0 {
+                delete_transaction_history(get_transaction_id(&transaction.uuid, conn)?, conn)?;
+            }
             if affected == 0 {
                 // Return Diesel's NotFound which you can convert to 404 via your error handling
-                return Err(diesel::NotFound.into());
+                err = Err(diesel::NotFound.into());
             }
         }
-
-        Ok(())
+        err
     })
     .map_err(AppError::from)?;
 
