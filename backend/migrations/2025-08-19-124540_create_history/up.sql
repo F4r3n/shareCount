@@ -95,71 +95,14 @@ CREATE TABLE transactions_history (
   operation TEXT -- 'INSERT', 'UPDATE', 'DELETE'
 );
 
-CREATE OR REPLACE FUNCTION log_transactions_history()
-RETURNS TRIGGER AS $$
-BEGIN
-  IF TG_OP = 'DELETE' THEN
-    INSERT INTO transactions_history
-      (group_id, transaction_id, description, amount, paid_by, currency_id, exchange_rate, created_at, modified_at, operation)
-    VALUES
-      (OLD.group_id, OLD.id, OLD.description, OLD.amount, OLD.paid_by, OLD.currency_id, OLD.exchange_rate, OLD.created_at, OLD.modified_at, 'DELETE');
-    RETURN OLD;
-  ELSIF TG_OP = 'UPDATE' THEN
-    INSERT INTO transactions_history
-      (group_id, transaction_id, description, amount, paid_by, currency_id, exchange_rate, created_at, modified_at, operation)
-    VALUES
-      (NEW.group_id, NEW.id, NEW.description, NEW.amount, NEW.paid_by, NEW.currency_id, NEW.exchange_rate, NEW.created_at, NEW.modified_at, 'UPDATE');
-    RETURN NEW;
-  ELSIF TG_OP = 'INSERT' THEN
-    INSERT INTO transactions_history
-      (group_id, transaction_id, description, amount, paid_by, currency_id, exchange_rate, created_at, modified_at, operation)
-    VALUES
-      (NEW.group_id, NEW.id, NEW.description, NEW.amount, NEW.paid_by, NEW.currency_id, NEW.exchange_rate, NEW.created_at, NEW.modified_at, 'INSERT');
-    RETURN NEW;
-  END IF;
-END;
-$$ LANGUAGE plpgsql;
-
-CREATE TRIGGER trg_transactions_history
-AFTER INSERT OR UPDATE OR DELETE ON transactions
-FOR EACH ROW EXECUTE FUNCTION log_transactions_history();
-
 
 -- TRANSACTION DEBTS
 CREATE TABLE transaction_debts_history (
   id SERIAL PRIMARY KEY,
-  transaction_id INTEGER NOT NULL REFERENCES transactions(id),
+  transaction_history_id INTEGER NOT NULL REFERENCES transactions_history(id),
   group_member_id INTEGER NOT NULL REFERENCES group_members(id) ON DELETE CASCADE,
   transaction_debt_id INTEGER NOT NULL REFERENCES transaction_debts(id),
   amount NUMERIC NOT NULL,
   operation TEXT -- 'INSERT', 'UPDATE', 'DELETE'
 );
 
-CREATE OR REPLACE FUNCTION log_transaction_debts_history()
-RETURNS TRIGGER AS $$
-BEGIN
-  IF TG_OP = 'DELETE' THEN
-    INSERT INTO transaction_debts_history
-      (transaction_id, group_member_id, transaction_debt_id, amount, operation)
-    VALUES
-      (OLD.transaction_id, OLD.group_member_id, OLD.id, OLD.amount, 'DELETE');
-    RETURN OLD;
-  ELSIF TG_OP = 'UPDATE' THEN
-    INSERT INTO transaction_debts_history
-      (transaction_id, group_member_id, transaction_debt_id, amount, operation)
-    VALUES
-      (NEW.transaction_id, NEW.group_member_id, NEW.id, NEW.amount, 'UPDATE');
-    RETURN NEW;
-  ELSIF TG_OP = 'INSERT' THEN
-    INSERT INTO transaction_debts_history
-      (transaction_id, group_member_id, transaction_debt_id, amount, operation)
-    VALUES
-      (NEW.transaction_id, NEW.group_member_id, NEW.id, NEW.amount, 'INSERT');
-    RETURN NEW;
-  END IF;
-END;
-$$ LANGUAGE plpgsql;
-
-CREATE TRIGGER trg_transaction_debts_history
-AFTER INSERT OR UPDATE OR DELETE ON transaction_debts
-FOR EACH ROW EXECUTE FUNCTION log_transaction_debts_history();

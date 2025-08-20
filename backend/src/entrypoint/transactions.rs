@@ -4,7 +4,9 @@ use crate::entrypoint::AppError;
 use crate::schema::group_members;
 use crate::schema::groups;
 use crate::schema::transaction_debts;
+use crate::schema::transaction_debts_history;
 use crate::schema::transactions;
+use crate::schema::transactions_history;
 pub use crate::state_server;
 use axum::http::StatusCode;
 use axum::{
@@ -21,6 +23,30 @@ use diesel::upsert::excluded;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 const MAX_DESCRIPTION_SIZE: usize = 250;
+
+#[derive(Deserialize, Serialize, Queryable, Debug, Clone, Selectable, Insertable)]
+#[diesel(table_name = crate::schema::transactions)]
+pub struct TransactionRow {
+    id: i32,
+    group_id: i32,
+    description: String,
+    amount: BigDecimal,
+    paid_by: i32,
+    currency_id: String,
+    exchange_rate: BigDecimal,
+    created_at: NaiveDateTime,
+    modified_at: NaiveDateTime,
+    uuid: String,
+}
+
+#[derive(Deserialize, Serialize, Queryable, Debug, Clone, Selectable, Insertable)]
+#[diesel(table_name = crate::schema::transaction_debts)]
+pub struct TransactionDebtRow {
+    id: i32,
+    transaction_id: i32,
+    group_member_id: i32,
+    amount: BigDecimal,
+}
 
 #[derive(Deserialize, Serialize, Queryable, Debug, Clone)]
 pub struct TransactionDebtQuery {
@@ -391,14 +417,14 @@ pub fn modify_create_transaction(
         group_id,
     };
     use diesel::query_dsl::methods::FilterDsl;
-    if let Ok(transaction_id) = diesel::insert_into(transactions::table)
+    if let Ok(transaction_row) = diesel::insert_into(transactions::table)
         .values(&changeset)
         .on_conflict(transactions::uuid)
         .do_update()
         .set(&changeset)
         .filter(transactions::modified_at.lt(excluded(transactions::modified_at)))
-        .returning(transactions::id)
-        .get_result::<i32>(conn)
+        .returning(TransactionRow::as_select())
+        .get_result::<TransactionRow>(conn)
     {
         let debts = transaction
             .debtors
@@ -412,7 +438,7 @@ pub fn modify_create_transaction(
                 let member_id = get_member_id(group_id, debt.member.uuid, conn);
 
                 TransactionDebtUpsert {
-                    transaction_id,
+                    transaction_id: transaction_row.id,
                     group_member_id: member_id.unwrap_or(0),
                     amount: debt.amount,
                     // Include ID only for updates
@@ -421,7 +447,7 @@ pub fn modify_create_transaction(
             })
             .collect::<Vec<_>>();
 
-        diesel::insert_into(transaction_debts::table)
+        let debts = diesel::insert_into(transaction_debts::table)
             .values(&debts)
             .on_conflict((
                 transaction_debts::transaction_id,
@@ -429,7 +455,10 @@ pub fn modify_create_transaction(
             ))
             .do_update()
             .set(transaction_debts::amount.eq(diesel::upsert::excluded(transaction_debts::amount)))
-            .execute(conn)?;
+            .returning(TransactionDebtRow::as_select())
+            .get_results::<TransactionDebtRow>(conn)?;
+
+        add_transaction_history(&transaction_row, &debts, conn)?;
     }
 
     Ok(())
@@ -570,4 +599,77 @@ pub fn get_transaction_debt(
         .filter(groups::id.eq(group_id))
         .load::<(i32, BigDecimal)>(conn)?;
     Ok(transaction_result)
+}
+
+pub fn add_transaction_history(
+    transaction_row: &TransactionRow,
+    transactions_debts: &[TransactionDebtRow],
+    conn: &mut PooledConnection<ConnectionManager<PgConnection>>,
+) -> Result<(), anyhow::Error> {
+    #[derive(Insertable, AsChangeset, Debug)]
+    #[diesel(table_name = transactions_history)]
+    pub struct TransactionHistory {
+        transaction_id: i32,
+        group_id: i32,
+        description: String,
+        amount: BigDecimal,
+        paid_by: i32,
+        currency_id: String,
+        exchange_rate: BigDecimal,
+        created_at: NaiveDateTime,
+        modified_at: NaiveDateTime,
+        operation: String,
+    }
+
+    #[derive(Insertable, AsChangeset, Debug)]
+    #[diesel(table_name = transaction_debts_history)]
+    pub struct TransactionDebtHistory {
+        group_member_id: i32,
+        transaction_history_id: i32,
+        transaction_debt_id: i32,
+        amount: BigDecimal,
+        operation: String,
+    }
+    let has_transaction = transactions_history::table
+        .select(transactions_history::transaction_id)
+        .get_result::<i32>(conn)
+        .optional()?;
+    let operation_type = if has_transaction.is_some() {
+        "UPDATE"
+    } else {
+        "INSERT"
+    };
+
+    let new_transaction_history = TransactionHistory {
+        amount: transaction_row.amount.clone(),
+        created_at: transaction_row.created_at,
+        currency_id: transaction_row.currency_id.clone(),
+        description: transaction_row.description.clone(),
+        exchange_rate: transaction_row.exchange_rate.clone(),
+        group_id: transaction_row.group_id,
+        modified_at: transaction_row.modified_at,
+        paid_by: transaction_row.paid_by,
+        transaction_id: transaction_row.id,
+        operation: operation_type.to_string(),
+    };
+
+    let transaction_history_id = diesel::insert_into(transactions_history::table)
+        .values(new_transaction_history)
+        .returning(transactions_history::id)
+        .get_result::<i32>(conn)?;
+
+    for debt in transactions_debts {
+        let new_history_debt = TransactionDebtHistory {
+            amount: debt.amount.clone(),
+            group_member_id: debt.group_member_id,
+            operation: operation_type.to_string(),
+            transaction_history_id: transaction_history_id,
+            transaction_debt_id: debt.id,
+        };
+        diesel::insert_into(transaction_debts_history::table)
+            .values(new_history_debt)
+            .execute(conn)?;
+    }
+
+    Ok(())
 }

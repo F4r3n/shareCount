@@ -1,7 +1,5 @@
 // @generated automatically by Diesel CLI.
 
-use diesel::sql_types::Integer;
-
 diesel::table! {
     users (id) {
         id -> Integer,
@@ -102,7 +100,7 @@ diesel::table! {
     transaction_debts_history (id) {
         id -> Integer,
         group_member_id -> Integer,
-        transaction_id -> Integer,
+        transaction_history_id -> Integer,
         transaction_debt_id -> Integer,
         amount -> Numeric,
         operation -> Text,
@@ -133,4 +131,4 @@ diesel::joinable!(transactions_history -> transactions (transaction_id));
 diesel::joinable!(transactions_history -> groups (group_id));
 diesel::joinable!(transaction_debts_history -> transaction_debts (transaction_debt_id));
 diesel::joinable!(transaction_debts_history -> group_members (group_member_id));
-diesel::joinable!(transaction_debts_history -> transactions (transaction_id));
+diesel::joinable!(transaction_debts_history -> transactions_history (transaction_history_id));
