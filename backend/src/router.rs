@@ -62,14 +62,24 @@ pub fn create_router(url: &str, state_server: StateServer) -> Result<Router, any
 
     let status = Router::new().route("/version", get(status::handler_version));
 
-    let history = Router::new().route(
-        "/groups/{token_id}/history/group_members",
-        get(history::handler_get_members_history),
-    );
+    let history = Router::new()
+        .route(
+            "/groups/{token_id}/history/group_members",
+            get(history::group_member_history::handler_get_members_history),
+        )
+        .route(
+            "/groups/{token_id}/history",
+            get(history::group_member_history::handler_get_group_history),
+        )
+        .route(
+            "/groups/{token_id}/history/transactions",
+            get(history::transaction_history::handler_get_transactions_history),
+        );
 
     let app = Router::new()
         .merge(v1)
         .merge(status)
+        .merge(history)
         .nest("/v2", v2)
         .with_state(state_server)
         .layer(cors_layer);

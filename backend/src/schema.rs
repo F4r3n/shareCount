@@ -122,6 +122,8 @@ diesel::allow_tables_to_appear_in_same_query!(
     group_members,
     transactions,
     transaction_debts,
+    transactions_history,
+    transaction_debts_history
 );
 
 diesel::joinable!(groups_history -> groups (group_id));
