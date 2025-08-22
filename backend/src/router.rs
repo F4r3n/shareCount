@@ -71,6 +71,10 @@ pub fn create_router(url: &str, state_server: StateServer) -> Result<Router, any
             get(history::group_member_history::handler_get_group_history),
         )
         .route(
+            "/history/groups/{token_id}/transaction/{transaction_uuid}",
+            get(history::transaction_history::handler_get_transaction_history),
+        )
+        .route(
             "/history/groups/{token_id}/transactions",
             get(history::transaction_history::handler_get_transactions_history),
         );

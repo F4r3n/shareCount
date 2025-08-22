@@ -84,7 +84,7 @@ diesel::table! {
     transactions_history (id) {
         id -> Integer,
         group_id -> Integer,
-        transaction_id -> Integer,
+        uuid -> Text,
         description -> Text,
         amount -> Numeric,
         paid_by -> Integer,
@@ -101,7 +101,6 @@ diesel::table! {
         id -> Integer,
         group_member_id -> Integer,
         transaction_history_id -> Integer,
-        transaction_debt_id -> Integer,
         amount -> Numeric,
         operation -> Text,
     }
@@ -128,8 +127,6 @@ diesel::allow_tables_to_appear_in_same_query!(
 
 diesel::joinable!(groups_history -> groups (group_id));
 diesel::joinable!(group_members_history -> groups (group_id));
-diesel::joinable!(transactions_history -> transactions (transaction_id));
 diesel::joinable!(transactions_history -> groups (group_id));
-diesel::joinable!(transaction_debts_history -> transaction_debts (transaction_debt_id));
 diesel::joinable!(transaction_debts_history -> group_members (group_member_id));
 diesel::joinable!(transaction_debts_history -> transactions_history (transaction_history_id));

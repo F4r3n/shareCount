@@ -14,7 +14,7 @@ use chrono::NaiveDateTime;
 use diesel::prelude::*;
 use serde::Deserialize;
 use serde::Serialize;
-const MAX_MEMBER_NAME_SIZE : usize = 250;
+const MAX_MEMBER_NAME_SIZE: usize = 250;
 
 #[derive(Queryable, Selectable, Debug, Serialize, Insertable, Deserialize, AsChangeset, Clone)]
 #[diesel(table_name = crate::schema::group_members)]
@@ -35,7 +35,7 @@ impl GroupMember {
     }
 }
 
-#[derive(Deserialize, Serialize, Queryable, Debug, Clone)]
+#[derive(Deserialize, Serialize, Queryable, Debug, Clone, PartialEq)]
 pub struct GroupMemberNoDate {
     pub uuid: String,
     pub nickname: String,
@@ -117,7 +117,12 @@ pub fn add_group_members(
         let new_member = NewGroupMember {
             group_id,
             modified_at: member.modified_at,
-            nickname: member.nickname.as_str().unicode_truncate(MAX_MEMBER_NAME_SIZE).0.to_string(),
+            nickname: member
+                .nickname
+                .as_str()
+                .unicode_truncate(MAX_MEMBER_NAME_SIZE)
+                .0
+                .to_string(),
             user_id: None,
             uuid: member.uuid,
         };
@@ -151,7 +156,6 @@ pub async fn handler_add_group_members(
     Path(token): Path<String>,
     Json(members): Json<Vec<GroupMember>>,
 ) -> Result<Json<Vec<GroupMember>>, AppError> {
-
     let mut conn = state_server.pool.get()?;
     let result = conn
         .transaction::<Vec<GroupMember>, anyhow::Error, _>(|conn| {

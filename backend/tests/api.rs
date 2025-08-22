@@ -1,12 +1,12 @@
 use axum_test::TestServer;
 use chrono::{self, Datelike};
+use diesel_migrations::{embed_migrations, EmbeddedMigrations};
 use serde_json::json;
 use share_count::entrypoint::groups::GroupNoID;
+use share_count::entrypoint::history::transaction_history::TransactionResponseHistory;
 use share_count::router::create_router;
 use share_count::state_server;
 use std::env;
-//use diesel_migrations::FileBasedMigrations;
-use diesel_migrations::{embed_migrations, EmbeddedMigrations};
 pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!();
 use share_count::entrypoint::group_members::{GroupMember, GroupMemberNoDate};
 use share_count::entrypoint::transactions::{TransactionQuery, TransactionResponse};
@@ -22,6 +22,37 @@ async fn get_group_members(
         .await;
     assert_eq!(response.status_code(), 200);
     Ok(response.json::<Vec<GroupMember>>())
+}
+
+async fn send_transaction(transaction_query: &TransactionQuery, token: &str, server: &TestServer) {
+    let response = server
+        .post(format!("/v2/groups/{token}/transactions").as_str())
+        .json(&vec![transaction_query.clone()])
+        .await;
+    assert_eq!(response.status_code(), 200);
+}
+
+async fn get_transactions_history(
+    token: &str,
+    server: &TestServer,
+) -> Vec<TransactionResponseHistory> {
+    let response = server
+        .get(format!("/history/groups/{token}/transactions").as_str())
+        .await;
+    assert_eq!(response.status_code(), 200);
+    response.json::<Vec<TransactionResponseHistory>>()
+}
+
+async fn get_transaction_history(
+    token: &str,
+    uuid: &str,
+    server: &TestServer,
+) -> TransactionResponseHistory {
+    let response = server
+        .get(format!("/history/groups/{token}/transaction/{uuid}").as_str())
+        .await;
+    assert_eq!(response.status_code(), 200);
+    response.json::<TransactionResponseHistory>()
 }
 
 async fn create_group(
@@ -418,7 +449,7 @@ async fn test_v2_transactions_flow() -> Result<(), anyhow::Error> {
 
     Ok(())
 }
-/*
+
 #[tokio::test]
 async fn test_historic() -> Result<(), anyhow::Error> {
     let server = create_server().await;
@@ -445,21 +476,36 @@ async fn test_historic() -> Result<(), anyhow::Error> {
     let members: Vec<GroupMember> = response.json();
 
     // Create transaction
-    let tx = create_transaction(&members, "Lunch", "20", "10");
-    //let uuid = tx.get_uuid();
+    let mut tx: TransactionQuery = create_transaction(&members, "Lunch", "20", "10");
 
-    let response = server
-        .post(format!("/v2/groups/{token}/transactions").as_str())
-        .json(&vec![tx.clone()])
-        .await;
-    assert_eq!(response.status_code(), 200);
+    send_transaction(&tx, token, &server).await;
+    let values = get_transactions_history(token, &server).await;
+    assert_eq!(values.len(), 1);
+    let history_first = values.first().unwrap();
+    assert_eq!(history_first.operation, "INSERT");
 
-    let response = server
-        .post(format!("/v2/groups/{token}/history/transactions").as_str())
-        .json(&vec![tx.clone()])
+    let first_transaction = get_transaction_history(token, &tx.get_uuid(), &server).await;
+    assert_eq!(&first_transaction, history_first);
+
+    let new_datetime = tx
+        .get_time()
+        .checked_add_days(chrono::Days::new(1))
+        .unwrap();
+    tx.set_time(&new_datetime);
+    send_transaction(&tx, token, &server).await;
+    let values = get_transactions_history(token, &server).await;
+    assert_eq!(values.len(), 2);
+    assert_eq!(values[0].operation, "UPDATE");
+
+    server
+        .delete(format!("/v2/groups/{token}/transactions").as_str())
+        .json(&serde_json::to_value(vec![&tx])?)
         .await;
-    assert_eq!(response.status_code(), 200);
+    let values = get_transactions_history(token, &server).await;
+    assert_eq!(values.len(), 3);
+    dbg!(&values);
+
+    assert_eq!(values.first().unwrap().operation, "DELETE");
 
     Ok(())
 }
-*/

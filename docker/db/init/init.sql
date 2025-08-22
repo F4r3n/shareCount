@@ -148,15 +148,14 @@ CREATE TRIGGER trg_group_members_history
 AFTER INSERT OR UPDATE OR DELETE ON group_members
 FOR EACH ROW EXECUTE FUNCTION log_group_members_history();
 
-
 -- TRANSACTIONS
 CREATE TABLE transactions_history (
   id SERIAL PRIMARY KEY,
-  group_id INTEGER NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
-  transaction_id INTEGER NOT NULL REFERENCES transactions(id) ON DELETE CASCADE,
+  group_id INTEGER NOT NULL REFERENCES groups(id),
+  uuid TEXT NOT NULL,
   description TEXT NOT NULL,
   amount NUMERIC NOT NULL CONSTRAINT positive_price CHECK (amount > 0),
-  paid_by INTEGER NOT NULL REFERENCES group_members(id) ON DELETE CASCADE,
+  paid_by INTEGER NOT NULL REFERENCES group_members(id),
   currency_id TEXT NOT NULL,
   exchange_rate NUMERIC NOT NULL DEFAULT 1,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -168,9 +167,8 @@ CREATE TABLE transactions_history (
 -- TRANSACTION DEBTS
 CREATE TABLE transaction_debts_history (
   id SERIAL PRIMARY KEY,
-  transaction_history_id INTEGER NOT NULL REFERENCES transactions_history(id) ON DELETE CASCADE,
+  transaction_history_id INTEGER NOT NULL REFERENCES transactions_history(id),
   group_member_id INTEGER NOT NULL REFERENCES group_members(id) ON DELETE CASCADE,
-  transaction_debt_id INTEGER NOT NULL REFERENCES transaction_debts(id) ON DELETE CASCADE,
   amount NUMERIC NOT NULL,
   operation TEXT -- 'INSERT', 'UPDATE', 'DELETE'
 );

@@ -84,7 +84,7 @@ FOR EACH ROW EXECUTE FUNCTION log_group_members_history();
 CREATE TABLE transactions_history (
   id SERIAL PRIMARY KEY,
   group_id INTEGER NOT NULL REFERENCES groups(id),
-  transaction_id INTEGER NOT NULL REFERENCES transactions(id),
+  uuid TEXT NOT NULL,
   description TEXT NOT NULL,
   amount NUMERIC NOT NULL CONSTRAINT positive_price CHECK (amount > 0),
   paid_by INTEGER NOT NULL REFERENCES group_members(id),
@@ -101,7 +101,6 @@ CREATE TABLE transaction_debts_history (
   id SERIAL PRIMARY KEY,
   transaction_history_id INTEGER NOT NULL REFERENCES transactions_history(id),
   group_member_id INTEGER NOT NULL REFERENCES group_members(id) ON DELETE CASCADE,
-  transaction_debt_id INTEGER NOT NULL REFERENCES transaction_debts(id),
   amount NUMERIC NOT NULL,
   operation TEXT -- 'INSERT', 'UPDATE', 'DELETE'
 );

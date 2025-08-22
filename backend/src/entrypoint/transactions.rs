@@ -360,6 +360,10 @@ impl TransactionQuery {
         self.modified_at = *time;
     }
 
+    pub fn get_time(&self) -> NaiveDateTime {
+        self.modified_at
+    }
+
     pub fn get_uuid(&self) -> String {
         self.uuid.clone()
     }
@@ -534,7 +538,9 @@ pub async fn handler_delete_transactions(
         let mut err = Ok(());
         for transaction in transactions {
             let id = get_transaction_id(&transaction.uuid, conn);
-
+            if let Some(id) = id {
+                delete_transaction_history(id, conn);
+            }
             let query = diesel::delete(transactions::table)
                 .filter(transactions::group_id.eq(group_id))
                 .filter(transactions::uuid.eq(&transaction.uuid))
@@ -544,9 +550,6 @@ pub async fn handler_delete_transactions(
             if affected == 0 {
                 // Return Diesel's NotFound which you can convert to 404 via your error handling
                 err = Err(diesel::NotFound.into());
-            } else if let Some(id) = id {
-                dbg!(id);
-                let _ = delete_transaction_history(id, conn);
             }
         }
         err
