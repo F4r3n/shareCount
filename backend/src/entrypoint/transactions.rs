@@ -124,53 +124,50 @@ pub async fn handler_get_all_transactions(
         .load::<(i32, i32, BigDecimal, String, String)>(&mut conn)?;
 
     let mut map: HashMap<i32, TransactionResponse> = HashMap::new();
-    transaction_result.into_iter().for_each(
-        |(
+    for (
+        id,
+        uuid,
+        desc,
+        time,
+        amount,
+        exchange_rate,
+        modified_at,
+        currency_id,
+        nickname,
+        member_uuid,
+    ) in transaction_result.into_iter()
+    {
+        map.insert(
             id,
-            uuid,
-            desc,
-            time,
-            amount,
-            exchange_rate,
-            modified_at,
-            currency_id,
-            nickname,
-            member_uuid,
-        )| {
-            map.insert(
-                id,
-                TransactionResponse {
-                    uuid,
-                    description: desc,
-                    modified_at,
-                    paid_by: GroupMemberNoDate {
-                        uuid: member_uuid,
-                        nickname,
-                    },
-                    created_at: time,
-                    currency_id,
-                    amount,
-                    exchange_rate,
-                    debtors: Vec::new(),
+            TransactionResponse {
+                uuid,
+                description: desc,
+                modified_at,
+                paid_by: GroupMemberNoDate {
+                    uuid: member_uuid,
+                    nickname,
                 },
-            );
-        },
-    );
+                created_at: time,
+                currency_id,
+                amount,
+                exchange_rate,
+                debtors: Vec::new(),
+            },
+        );
+    }
 
-    debts
-        .into_iter()
-        .for_each(|(debt_id, transaction_id, amount, nickname, member_uuid)| {
-            if let Some(value) = map.get_mut(&transaction_id) {
-                value.debtors.push(TransactionDebtResponse {
-                    id: debt_id,
-                    amount,
-                    member: GroupMemberNoDate {
-                        uuid: member_uuid,
-                        nickname,
-                    },
-                });
-            }
-        });
+    for (debt_id, transaction_id, amount, nickname, member_uuid) in debts.into_iter() {
+        if let Some(value) = map.get_mut(&transaction_id) {
+            value.debtors.push(TransactionDebtResponse {
+                id: debt_id,
+                amount,
+                member: GroupMemberNoDate {
+                    uuid: member_uuid,
+                    nickname,
+                },
+            });
+        }
+    }
 
     let mut v = map.into_values().collect::<Vec<TransactionResponse>>();
     v.sort_by(|a: &TransactionResponse, b: &TransactionResponse| a.created_at.cmp(&b.created_at));
@@ -249,18 +246,16 @@ pub async fn handler_get_transaction(
         ))
         .load::<(i32, BigDecimal, String, String)>(&mut conn)?;
 
-    debts
-        .into_iter()
-        .for_each(|(debt_id, amount, member_uuid, nickname)| {
-            transaction_response.debtors.push(TransactionDebtResponse {
-                id: debt_id,
-                amount,
-                member: GroupMemberNoDate {
-                    uuid: member_uuid,
-                    nickname,
-                },
-            });
+    for (debt_id, amount, member_uuid, nickname) in debts.into_iter() {
+        transaction_response.debtors.push(TransactionDebtResponse {
+            id: debt_id,
+            amount,
+            member: GroupMemberNoDate {
+                uuid: member_uuid,
+                nickname,
+            },
         });
+    }
 
     Ok(Json(transaction_response))
 }
@@ -425,7 +420,7 @@ pub fn modify_create_transaction(
         .on_conflict(transactions::uuid)
         .do_update()
         .set(&changeset)
-        .filter(transactions::modified_at.lt(excluded(transactions::modified_at)))
+        .filter(transactions::modified_at.le(excluded(transactions::modified_at)))
         .returning(TransactionRow::as_select())
         .get_result::<TransactionRow>(conn)
     {

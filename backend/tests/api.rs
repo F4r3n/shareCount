@@ -1,5 +1,5 @@
 use axum_test::TestServer;
-use chrono::{self, Datelike};
+use chrono::{self, Datelike, NaiveDateTime};
 use diesel_migrations::{embed_migrations, EmbeddedMigrations};
 use serde_json::json;
 use share_count::entrypoint::groups::GroupNoID;
@@ -35,10 +35,24 @@ async fn send_transaction(transaction_query: &TransactionQuery, token: &str, ser
 async fn get_transactions_history(
     token: &str,
     server: &TestServer,
+    from: Option<NaiveDateTime>,
+    to: Option<NaiveDateTime>,
 ) -> Vec<TransactionResponseHistory> {
-    let response = server
-        .get(format!("/history/groups/{token}/transactions").as_str())
-        .await;
+    let mut query = format!("/history/groups/{token}/transactions");
+    let mut params = Vec::new();
+
+    if let Some(from) = from {
+        params.push(format!("from={}", from.and_utc().timestamp_millis()));
+    }
+    if let Some(to) = to {
+        params.push(format!("to={}", to.and_utc().timestamp_millis()));
+    }
+
+    if !params.is_empty() {
+        query.push('?');
+        query.push_str(&params.join("&"));
+    }
+    let response = server.get(&query).await;
     assert_eq!(response.status_code(), 200);
     response.json::<Vec<TransactionResponseHistory>>()
 }
@@ -479,7 +493,7 @@ async fn test_historic() -> Result<(), anyhow::Error> {
     let mut tx: TransactionQuery = create_transaction(&members, "Lunch", "20", "10");
 
     send_transaction(&tx, token, &server).await;
-    let values = get_transactions_history(token, &server).await;
+    let values = get_transactions_history(token, &server, None, None).await;
     assert_eq!(values.len(), 1);
     let history_first = values.first().unwrap();
     assert_eq!(history_first.operation, "INSERT");
@@ -487,13 +501,15 @@ async fn test_historic() -> Result<(), anyhow::Error> {
     let first_transaction = get_transaction_history(token, &tx.get_uuid(), &server).await;
     assert_eq!(&first_transaction, history_first);
 
+    let until = tx.get_time();
+
     let new_datetime = tx
         .get_time()
         .checked_add_days(chrono::Days::new(1))
         .unwrap();
     tx.set_time(&new_datetime);
     send_transaction(&tx, token, &server).await;
-    let values = get_transactions_history(token, &server).await;
+    let values = get_transactions_history(token, &server, None, None).await;
     assert_eq!(values.len(), 2);
     assert_eq!(values[0].operation, "UPDATE");
 
@@ -501,11 +517,17 @@ async fn test_historic() -> Result<(), anyhow::Error> {
         .delete(format!("/v2/groups/{token}/transactions").as_str())
         .json(&serde_json::to_value(vec![&tx])?)
         .await;
-    let values = get_transactions_history(token, &server).await;
+    let values = get_transactions_history(token, &server, None, None).await;
     assert_eq!(values.len(), 3);
-    dbg!(&values);
-
     assert_eq!(values.first().unwrap().operation, "DELETE");
+
+    server
+        .delete(format!("/v2/groups/{token}/transactions").as_str())
+        .json(&serde_json::to_value(vec![&tx])?)
+        .await;
+    let values = get_transactions_history(token, &server, None, Some(until)).await;
+    assert_eq!(values.len(), 1);
+    assert_eq!(values.first().unwrap().operation, "INSERT");
 
     Ok(())
 }

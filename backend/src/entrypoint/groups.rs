@@ -118,7 +118,7 @@ fn create_group(
             .on_conflict(groups::token)
             .do_update()
             .set(&to_insert)
-            .filter(groups::modified_at.lt(excluded(groups::modified_at)))
+            .filter(groups::modified_at.le(excluded(groups::modified_at)))
             .returning(groups::id)
             .get_result::<i32>(conn)
             .or(get_group_id(&group_query.token, conn))?;
@@ -161,7 +161,7 @@ pub async fn handler_delete_groups(
 
         conn.transaction::<(), anyhow::Error, _>(|conn| {
             diesel::delete(groups::table)
-                .filter(groups::modified_at.lt(group.modified_at))
+                .filter(groups::modified_at.le(group.modified_at))
                 .filter(groups::token.eq(group.token))
                 .execute(conn)?;
             Ok(())
@@ -179,7 +179,7 @@ pub async fn handler_delete_group(
 
     conn.transaction::<(), anyhow::Error, _>(|conn| {
         diesel::delete(groups::table)
-            .filter(groups::modified_at.lt(group_query.modified_at))
+            .filter(groups::modified_at.le(group_query.modified_at))
             .filter(groups::token.eq(group_query.token))
             .execute(conn)?;
         Ok(())

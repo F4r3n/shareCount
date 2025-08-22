@@ -144,7 +144,7 @@ pub fn add_group_members(
                 group_members::nickname.eq(&new_member.nickname),
                 group_members::uuid.eq(&new_member.uuid),
             ))
-            .filter(group_members::modified_at.lt(excluded(group_members::modified_at)))
+            .filter(group_members::modified_at.le(excluded(group_members::modified_at)))
             .returning(GroupMember::as_returning())
             .execute(conn)?;
     }
@@ -208,7 +208,7 @@ pub async fn handler_delete_group_members(
                 if !has_debt && !has_paid {
                     diesel::delete(group_members::table)
                         .filter(group_members::id.eq(member_id))
-                        .filter(group_members::modified_at.lt(member.modified_at))
+                        .filter(group_members::modified_at.le(member.modified_at))
                         .execute(conn)?;
                 }
             }

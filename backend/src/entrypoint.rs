@@ -26,7 +26,7 @@ impl<T: Serialize> AppError<T> {
     fn message(&self) -> String {
         let content = self.convert_content();
         let m = json!({"message":self.error.to_string(), "content":content});
-        serde_json::to_string(&m).unwrap_or(String::from(""))
+        serde_json::to_string(&m).unwrap_or_default()
     }
 
     pub fn convert_message(&self) -> (StatusCode, String) {

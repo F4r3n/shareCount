@@ -11,8 +11,10 @@ use crate::schema::transactions_history;
 pub use crate::state_server;
 
 use axum::extract::Path;
+use axum::extract::Query;
 use axum::extract::State;
 use axum::Json;
+use bigdecimal::num_traits::SaturatingAdd;
 use bigdecimal::BigDecimal;
 
 use chrono::NaiveDateTime;
@@ -20,6 +22,12 @@ use diesel::prelude::*;
 use diesel::r2d2::ConnectionManager;
 use diesel::r2d2::PooledConnection;
 use serde::{Deserialize, Serialize};
+
+#[derive(Deserialize, Debug)]
+pub struct HistoryQuery {
+    from: Option<i64>,
+    to: Option<i64>,
+}
 
 #[derive(Deserialize, Serialize, Queryable, Debug, PartialEq)]
 pub struct TransactionResponseHistory {
@@ -81,7 +89,6 @@ pub fn add_transaction_history(
     } else {
         "INSERT"
     };
-
     _add_transaction_history(transaction_row, transactions_debts, conn, operation_type)
 }
 
@@ -146,7 +153,7 @@ fn _add_transaction_history(
             amount: debt.amount.clone(),
             group_member_id: debt.group_member_id,
             operation: operation_type.to_string(),
-            transaction_history_id: transaction_history_id,
+            transaction_history_id,
         };
         diesel::insert_into(transaction_debts_history::table)
             .values(new_history_debt)
@@ -159,10 +166,11 @@ fn _add_transaction_history(
 pub async fn handler_get_transactions_history(
     State(state_server): State<state_server::StateServer>,
     Path(token): Path<String>,
+    Query(params): Query<HistoryQuery>,
 ) -> Result<Json<Vec<TransactionResponseHistory>>, AppError> {
     let mut conn = state_server.pool.get()?;
 
-    let transaction_result = groups::table
+    let mut query = groups::table
         .inner_join(transactions_history::table)
         .inner_join(group_members::table.on(group_members::id.eq(transactions_history::paid_by)))
         .select((
@@ -179,19 +187,33 @@ pub async fn handler_get_transactions_history(
             transactions_history::operation,
         ))
         .filter(groups::token.eq(&token))
-        .load::<(
-            i32,
-            String,
-            String,
-            NaiveDateTime,
-            BigDecimal,
-            BigDecimal,
-            NaiveDateTime,
-            String,
-            String,
-            String,
-            String,
-        )>(&mut conn)?;
+        .into_boxed();
+    if let Some(from) = params.from {
+        if let Some(ts) = chrono::DateTime::<chrono::Utc>::from_timestamp_millis(from) {
+            query = query.filter(transactions_history::modified_at.ge(ts.naive_utc()));
+        }
+    }
+    if let Some(to) = params.to {
+        if let Some(ts) =
+            chrono::DateTime::<chrono::Utc>::from_timestamp_millis(to.saturating_add(1))
+        {
+            query = query.filter(transactions_history::modified_at.le(ts.naive_utc()));
+        }
+    }
+
+    let transaction_result = query.load::<(
+        i32,
+        String,
+        String,
+        NaiveDateTime,
+        BigDecimal,
+        BigDecimal,
+        NaiveDateTime,
+        String,
+        String,
+        String,
+        String,
+    )>(&mut conn)?;
 
     let debts = transaction_debts_history::table
         .inner_join(transactions_history::table)
