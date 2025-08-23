@@ -4,7 +4,7 @@ CREATE TABLE groups_history (
   group_id INTEGER NOT NULL REFERENCES groups(id),
   name TEXT NOT NULL,
   currency_id TEXT NOT NULL,
-  token TEXT NOT NULL UNIQUE,
+  token TEXT NOT NULL,
   modified_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   operation TEXT -- 'INSERT', 'UPDATE', 'DELETE'
@@ -83,6 +83,7 @@ FOR EACH ROW EXECUTE FUNCTION log_group_members_history();
 -- TRANSACTIONS
 CREATE TABLE transactions_history (
   id SERIAL PRIMARY KEY,
+  modified_by_uuid TEXT NOT NULL,
   group_id INTEGER NOT NULL REFERENCES groups(id),
   uuid TEXT NOT NULL,
   description TEXT NOT NULL,

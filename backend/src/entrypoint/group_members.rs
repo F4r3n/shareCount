@@ -97,6 +97,23 @@ pub fn get_uuid(
         .map_err(|v| anyhow!(v))
 }
 
+pub fn validate_uuid(
+    in_group_id: i32,
+    uuid: &str,
+    conn: &mut PooledConnection<ConnectionManager<PgConnection>>,
+) -> bool {
+    let value = group_members::table
+        .select(group_members::uuid)
+        .filter(group_members::group_id.eq(in_group_id))
+        .filter(group_members::uuid.eq(uuid))
+        .execute(conn);
+    if let Ok(value) = value {
+        value > 0
+    } else {
+        false
+    }
+}
+
 pub fn add_group_members(
     group_id: i32,
     members: Vec<GroupMember>,

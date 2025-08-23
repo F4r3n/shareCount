@@ -1,51 +1,16 @@
 <script lang="ts">
-  import type { Transaction, Debt, GroupMember } from "$lib/types";
-  import { onMount } from "svelte";
-  import { SvelteMap } from "svelte/reactivity";
+  import type { Transaction } from "$lib/types";
   import { getCurrencySymbol } from "$lib/currencyFormat";
   import { goto } from "$app/navigation";
   import { base } from "$app/paths";
   let {
     transaction,
-    members,
   }: {
     transaction: Transaction;
-    members: GroupMember[];
   } = $props();
   let modified_transaction = $state(
     structuredClone($state.snapshot(transaction))
   );
-
-  class DebtContainer {
-    activated: boolean = $state(false);
-    debt = $state({
-      member: { uuid: "", nickname: "" } as GroupMember,
-      amount: "0",
-    } as Debt);
-    constructor(debt: Debt, activated: boolean) {
-      this.debt = debt;
-      this.activated = activated;
-      if (!this.activated) this.activated = parseFloat(this.debt.amount) >= 0;
-    }
-
-    setDebt(inDebt: Debt) {
-      this.debt = inDebt;
-    }
-  }
-  let mapDebt: SvelteMap<string, DebtContainer> = new SvelteMap();
-
-  onMount(() => {
-    for (const member of members) {
-      mapDebt.set(
-        member.nickname,
-        new DebtContainer({ member: member, amount: "0" } as Debt, false)
-      );
-    }
-
-    for (const debt of modified_transaction.debtors) {
-      mapDebt.set(debt.member.nickname, new DebtContainer(debt, true));
-    }
-  });
 
   const currency_symbol = $derived(
     getCurrencySymbol(modified_transaction.currency_id)

@@ -14,7 +14,6 @@ use axum::extract::Path;
 use axum::extract::Query;
 use axum::extract::State;
 use axum::Json;
-use bigdecimal::num_traits::SaturatingAdd;
 use bigdecimal::BigDecimal;
 
 use chrono::NaiveDateTime;
@@ -32,6 +31,7 @@ pub struct HistoryQuery {
 #[derive(Deserialize, Serialize, Queryable, Debug, PartialEq)]
 pub struct TransactionResponseHistory {
     pub id: i32,
+    pub modified_by_uuid: String,
     pub uuid: String,
     pub description: String,
     pub currency_id: String,
@@ -55,6 +55,7 @@ pub struct TransactionDebtHistoryResponse {
 #[diesel(table_name = transactions_history)]
 pub struct TransactionHistory {
     uuid: String,
+    modified_by_uuid: String,
     group_id: i32,
     description: String,
     amount: BigDecimal,
@@ -77,6 +78,7 @@ pub struct TransactionDebtHistory {
 
 pub fn add_transaction_history(
     transaction_row: &TransactionRow,
+    modified_by_uuid: &str,
     transactions_debts: &[TransactionDebtRow],
     conn: &mut PooledConnection<ConnectionManager<PgConnection>>,
 ) -> Result<(), anyhow::Error> {
@@ -89,11 +91,18 @@ pub fn add_transaction_history(
     } else {
         "INSERT"
     };
-    _add_transaction_history(transaction_row, transactions_debts, conn, operation_type)
+    _add_transaction_history(
+        transaction_row,
+        modified_by_uuid,
+        transactions_debts,
+        conn,
+        operation_type,
+    )
 }
 
 pub fn delete_transaction_history(
     transaction_id: i32,
+    modified_by_uuid: &str,
     conn: &mut PooledConnection<ConnectionManager<PgConnection>>,
 ) {
     use crate::schema::{transactions, transactions_history};
@@ -106,6 +115,7 @@ pub fn delete_transaction_history(
     if let Ok(tx) = tx {
         let new_transaction_history = TransactionHistory {
             amount: tx.amount.clone(),
+            modified_by_uuid: modified_by_uuid.to_string(),
             created_at: tx.created_at,
             currency_id: tx.currency_id.clone(),
             description: tx.description.clone(),
@@ -126,12 +136,14 @@ pub fn delete_transaction_history(
 
 fn _add_transaction_history(
     transaction_row: &TransactionRow,
+    modified_by_uuid: &str,
     transactions_debts: &[TransactionDebtRow],
     conn: &mut PooledConnection<ConnectionManager<PgConnection>>,
     operation_type: &str,
 ) -> Result<(), anyhow::Error> {
     let new_transaction_history = TransactionHistory {
         amount: transaction_row.amount.clone(),
+        modified_by_uuid: modified_by_uuid.to_string(),
         created_at: transaction_row.created_at,
         currency_id: transaction_row.currency_id.clone(),
         description: transaction_row.description.clone(),
@@ -175,6 +187,7 @@ pub async fn handler_get_transactions_history(
         .inner_join(group_members::table.on(group_members::id.eq(transactions_history::paid_by)))
         .select((
             transactions_history::id,
+            transactions_history::modified_by_uuid,
             transactions_history::uuid,
             transactions_history::description,
             transactions_history::created_at,
@@ -205,6 +218,7 @@ pub async fn handler_get_transactions_history(
         i32,
         String,
         String,
+        String,
         NaiveDateTime,
         BigDecimal,
         BigDecimal,
@@ -232,6 +246,7 @@ pub async fn handler_get_transactions_history(
     transaction_result.into_iter().for_each(
         |(
             id,
+            modified_by_uuid,
             uuid,
             desc,
             time,
@@ -247,6 +262,7 @@ pub async fn handler_get_transactions_history(
                 id,
                 TransactionResponseHistory {
                     id,
+                    modified_by_uuid,
                     uuid,
                     description: desc,
                     modified_at,
@@ -294,6 +310,7 @@ pub async fn handler_get_transaction_history(
 
     let (
         id,
+        modified_by_uuid,
         uuid,
         description,
         created_at,
@@ -309,6 +326,7 @@ pub async fn handler_get_transaction_history(
         .inner_join(group_members::table.on(group_members::id.eq(transactions_history::paid_by)))
         .select((
             transactions_history::id,
+            transactions_history::modified_by_uuid,
             transactions_history::uuid,
             transactions_history::description,
             transactions_history::created_at,
@@ -326,6 +344,7 @@ pub async fn handler_get_transaction_history(
             i32,
             String,
             String,
+            String,
             NaiveDateTime,
             BigDecimal,
             BigDecimal,
@@ -338,6 +357,7 @@ pub async fn handler_get_transaction_history(
 
     let mut transaction_response = TransactionResponseHistory {
         id,
+        modified_by_uuid,
         amount,
         created_at,
         currency_id,

@@ -152,7 +152,7 @@ test("synchronize merges remote and local transactions correctly", async () => {
     // Mock remote fetch
     vi.spyOn(transactionsProxy, "_get_remote_transactions" as never).mockResolvedValue([remoteTr]);
 
-    const result = await transactionsProxy.synchronize(group_uuid);
+    const result = await transactionsProxy.synchronize(group_uuid, members[0].uuid);
 
     // Both transactions should be present locally now
     const all = await db.transactions.where("group_uuid").equals(group_uuid).toArray();

@@ -30,3 +30,17 @@ export interface Group {
     created_at: string,
     currency_id: string,
 }
+
+
+export interface TransactionHistory {
+    uuid: string,
+    description: string,
+    currency_id: string,
+    paid_by: GroupMember,
+    created_at: string,
+    amount: string,
+    exchange_rate: string,
+    debtors: Debt[],
+    modified_at: string,
+    operation: string,
+}

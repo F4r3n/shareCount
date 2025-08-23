@@ -25,9 +25,11 @@
       transactions = await transactionsProxy.synchronize_local(
         $current_user.group_uuid
       );
-      transactionsProxy.synchronize($current_user.group_uuid).then((trs) => {
-        transactions = trs;
-      });
+      transactionsProxy
+        .synchronize($current_user.group_uuid, $current_user.member_uuid)
+        .then((trs) => {
+          transactions = trs;
+        });
     } else {
       goto(base + menus[MENU.GROUPS]);
     }

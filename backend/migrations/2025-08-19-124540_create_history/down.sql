@@ -6,5 +6,3 @@ drop TABLE IF EXISTS transaction_debts_history;
 
 DROP TRIGGER IF EXISTS trg_groups_history ON groups;
 DROP TRIGGER IF EXISTS trg_group_members_history ON group_members;
-DROP TRIGGER IF EXISTS trg_transactions_history ON transactions;
-DROP TRIGGER IF EXISTS trg_transaction_debts_history ON transaction_debts;

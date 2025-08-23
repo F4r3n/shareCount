@@ -18,6 +18,7 @@
     type Amount,
     type Settlement,
   } from "@stores/settlement";
+  import { current_user } from "@stores/groupUsernames";
   let {
     members,
     transactions,
@@ -67,9 +68,14 @@
         uuid: uuidv4(),
       } as Transaction;
       await transactionsProxy.add_transaction(group_uuid, transaction);
-      transactionsProxy.synchronize(group_uuid);
+      transactionsProxy.synchronize(
+        group_uuid,
+        $current_user?.member_uuid ?? null
+      );
       transactions.push(transaction);
-      balances = compute_balance(await create_amounts(members, transactions));
+      const balances = compute_balance(
+        await create_amounts(members, transactions)
+      );
       settlements = compute_settlements(balances).filter(
         (settlement: Settlement) => {
           return !settlement.amount.eq(new Big(0));

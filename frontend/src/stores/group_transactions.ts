@@ -121,7 +121,7 @@ export class TransactionsProxy {
         return false
     }
 
-    async synchronize(group_uuid: string): Promise<Transaction[]> {
+    async synchronize(group_uuid: string, modified_by_uuid: string | null): Promise<Transaction[]> {
 
         const original_transactions = await this._get_local_transactionsDB(group_uuid);
         const to_send_transactions: Transaction[] = [];
@@ -176,12 +176,12 @@ export class TransactionsProxy {
         } catch { /* empty */ }
 
         try {
-            this._update_remote_transaction(group_uuid, to_send_transactions);
+            this._update_remote_transaction(group_uuid, to_send_transactions, modified_by_uuid);
 
             for (const tr of to_send_transactions) {
                 await db.transactions.where("uuid").equals(tr.uuid).modify({ status: STATUS.NOTHING });
             }
-            this._delete_remote_transaction(group_uuid, to_delete_transactions);
+            this._delete_remote_transaction(group_uuid, to_delete_transactions, modified_by_uuid);
 
         } catch { /* empty */ }
         return await this.synchronize_local(group_uuid);
@@ -271,8 +271,11 @@ export class TransactionsProxy {
     }
 
 
-    private async _update_remote_transaction(tokenID: string, inTransaction: Transaction[]) {
-        const url = `${getFullBackendURL()}/v2/groups/${tokenID}/transactions`
+    private async _update_remote_transaction(tokenID: string, inTransaction: Transaction[], modified_by: string | null) {
+        let url = `${getFullBackendURL()}/v2/groups/${tokenID}/transactions`
+        if (modified_by) {
+            url += `?modified_by=${modified_by}`
+        }
         try {
             await fetch(url, {
                 method: "POST",
@@ -287,8 +290,12 @@ export class TransactionsProxy {
         }
     }
 
-    private async _delete_remote_transaction(tokenID: string, inTransaction: Transaction[]) {
-        const res = await fetch(`${getFullBackendURL()}/v2/groups/${tokenID}/transactions`, {
+    private async _delete_remote_transaction(tokenID: string, inTransaction: Transaction[], modified_by: string | null) {
+        let url = `${getFullBackendURL()}/v2/groups/${tokenID}/transactions`
+        if (modified_by) {
+            url += `?modified_by=${modified_by}`
+        }
+        const res = await fetch(url, {
             method: "DELETE",
             credentials: "include",
             headers: {

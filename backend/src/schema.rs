@@ -83,6 +83,7 @@ diesel::table! {
 diesel::table! {
     transactions_history (id) {
         id -> Integer,
+        modified_by_uuid -> Text,
         group_id -> Integer,
         uuid -> Text,
         description -> Text,

@@ -22,6 +22,11 @@ use diesel::upsert::excluded;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 const MAX_DESCRIPTION_SIZE: usize = 250;
+use axum::extract::Query;
+#[derive(Deserialize, Debug)]
+pub struct TransactionParameters {
+    modified_by_uuid: String,
+}
 
 #[derive(Deserialize, Serialize, Queryable, Debug, Clone, Selectable, Insertable)]
 #[diesel(table_name = crate::schema::transactions)]
@@ -393,6 +398,7 @@ fn check_transaction_validity(transaction: &TransactionQuery) -> Result<(), Stri
 pub fn modify_create_transaction(
     token_id: String,
     transaction: TransactionQuery,
+    params: &TransactionParameters,
     conn: &mut PooledConnection<ConnectionManager<PgConnection>>,
 ) -> Result<(), anyhow::Error> {
     use unicode_truncate::UnicodeTruncateStr;
@@ -456,11 +462,15 @@ pub fn modify_create_transaction(
             .returning(TransactionDebtRow::as_select())
             .get_results::<TransactionDebtRow>(conn)?;
 
-        crate::entrypoint::history::transaction_history::add_transaction_history(
-            &transaction_row,
-            &debts,
-            conn,
-        )?;
+        if crate::entrypoint::group_members::validate_uuid(group_id, &params.modified_by_uuid, conn)
+        {
+            crate::entrypoint::history::transaction_history::add_transaction_history(
+                &transaction_row,
+                &params.modified_by_uuid,
+                &debts,
+                conn,
+            )?;
+        }
     }
 
     Ok(())
@@ -469,6 +479,7 @@ pub fn modify_create_transaction(
 pub async fn handler_modify_transaction(
     State(state_server): State<state_server::StateServer>,
     Path(token): Path<String>,
+    Query(params): Query<TransactionParameters>,
     Json(payload): Json<TransactionQuery>,
 ) -> Result<(), AppError<String>> {
     check_transaction_validity(&payload).map_err(|v| AppError {
@@ -477,8 +488,10 @@ pub async fn handler_modify_transaction(
     })?;
 
     let mut conn = state_server.pool.get()?;
-    conn.transaction::<_, anyhow::Error, _>(|conn| modify_create_transaction(token, payload, conn))
-        .map_err(AppError::from)?;
+    conn.transaction::<_, anyhow::Error, _>(|conn| {
+        modify_create_transaction(token, payload, &params, conn)
+    })
+    .map_err(AppError::from)?;
 
     Ok(())
 }
@@ -486,6 +499,7 @@ pub async fn handler_modify_transaction(
 pub async fn handler_modify_transactions(
     State(state_server): State<state_server::StateServer>,
     Path(token): Path<String>,
+    Query(params): Query<TransactionParameters>,
     Json(transactions): Json<Vec<TransactionQuery>>,
 ) -> Result<(), AppError<String>> {
     for transaction in transactions {
@@ -496,7 +510,7 @@ pub async fn handler_modify_transactions(
         })?;
         let mut conn = state_server.pool.get()?;
         conn.transaction::<_, anyhow::Error, _>(|conn| {
-            modify_create_transaction(t, transaction, conn)
+            modify_create_transaction(t, transaction, &params, conn)
         })
         .map_err(AppError::from)?;
     }
@@ -525,17 +539,31 @@ pub fn get_transaction_id(
 pub async fn handler_delete_transactions(
     State(state_server): State<state_server::StateServer>,
     Path(token): Path<String>,
+    Query(params): Query<TransactionParameters>,
     Json(transactions): Json<Vec<TransactionDelete>>,
 ) -> Result<(), AppError> {
     let mut conn = state_server.pool.get()?;
     let group_id = get_group_id(&token, &mut conn)?;
+
+    let mut modified_by_uuid = None;
+    if crate::entrypoint::group_members::validate_uuid(
+        group_id,
+        &params.modified_by_uuid,
+        &mut conn,
+    ) {
+        modified_by_uuid = Some(params.modified_by_uuid);
+    }
+
     conn.transaction::<_, anyhow::Error, _>(|conn| {
         let mut err = Ok(());
         for transaction in transactions {
             let id = get_transaction_id(&transaction.uuid, conn);
-            if let Some(id) = id {
-                delete_transaction_history(id, conn);
+            if let Some(ref modified_by_uuid) = modified_by_uuid {
+                if let Some(id) = id {
+                    delete_transaction_history(id, modified_by_uuid, conn);
+                }
             }
+
             let query = diesel::delete(transactions::table)
                 .filter(transactions::group_id.eq(group_id))
                 .filter(transactions::uuid.eq(&transaction.uuid))
