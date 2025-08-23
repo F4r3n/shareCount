@@ -160,7 +160,8 @@ CREATE TABLE transactions_history (
   exchange_rate NUMERIC NOT NULL DEFAULT 1,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   modified_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  operation TEXT -- 'INSERT', 'UPDATE', 'DELETE'
+  operation TEXT, -- 'INSERT', 'UPDATE', 'DELETE'
+  modified_by_uuid TEXT NOT NULL
 );
 
 

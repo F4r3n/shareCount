@@ -102,11 +102,13 @@ pub fn validate_uuid(
     uuid: &str,
     conn: &mut PooledConnection<ConnectionManager<PgConnection>>,
 ) -> bool {
+    dbg!("validate_uuid");
     let value = group_members::table
         .select(group_members::uuid)
         .filter(group_members::group_id.eq(in_group_id))
         .filter(group_members::uuid.eq(uuid))
         .execute(conn);
+    dbg!(&value);
     if let Ok(value) = value {
         value > 0
     } else {

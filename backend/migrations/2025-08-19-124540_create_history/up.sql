@@ -83,7 +83,6 @@ FOR EACH ROW EXECUTE FUNCTION log_group_members_history();
 -- TRANSACTIONS
 CREATE TABLE transactions_history (
   id SERIAL PRIMARY KEY,
-  modified_by_uuid TEXT NOT NULL,
   group_id INTEGER NOT NULL REFERENCES groups(id),
   uuid TEXT NOT NULL,
   description TEXT NOT NULL,
@@ -93,7 +92,8 @@ CREATE TABLE transactions_history (
   exchange_rate NUMERIC NOT NULL DEFAULT 1,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   modified_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  operation TEXT -- 'INSERT', 'UPDATE', 'DELETE'
+  operation TEXT, -- 'INSERT', 'UPDATE', 'DELETE'
+  modified_by_uuid TEXT NOT NULL
 );
 
 

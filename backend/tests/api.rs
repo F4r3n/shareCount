@@ -24,9 +24,26 @@ async fn get_group_members(
     Ok(response.json::<Vec<GroupMember>>())
 }
 
-async fn send_transaction(transaction_query: &TransactionQuery, token: &str, server: &TestServer) {
+async fn send_transaction(
+    transaction_query: &TransactionQuery,
+    token: &str,
+    modified_by: &str,
+    server: &TestServer,
+) {
     let response = server
-        .post(format!("/v2/groups/{token}/transactions").as_str())
+        .post(format!("/v2/groups/{token}/transactions?modified_by_uuid={modified_by}").as_str())
+        .json(&vec![transaction_query.clone()])
+        .await;
+}
+
+async fn delete_transaction(
+    transaction_query: &TransactionQuery,
+    token: &str,
+    modified_by: &str,
+    server: &TestServer,
+) {
+    let response = server
+        .delete(format!("/v2/groups/{token}/transactions?modified_by_uuid={modified_by}").as_str())
         .json(&vec![transaction_query.clone()])
         .await;
     assert_eq!(response.status_code(), 200);
@@ -425,20 +442,14 @@ async fn test_v2_transactions_flow() -> Result<(), anyhow::Error> {
     let tx = create_transaction(&members, "Lunch", "20", "10");
     let uuid = tx.get_uuid();
 
-    let response = server
-        .post(format!("/v2/groups/{token}/transactions").as_str())
-        .json(&vec![tx.clone()])
-        .await;
+    send_transaction(&tx, token, &tx.get_paid_by(), &server).await;
     assert_eq!(response.status_code(), 200);
 
     // Modify transaction
     let mut modified_tx = tx.clone();
     modified_tx.set_description("Dinner");
 
-    let response = server
-        .post(format!("/v2/groups/{token}/transactions").as_str())
-        .json(&vec![modified_tx.clone()])
-        .await;
+    send_transaction(&modified_tx, token, &modified_tx.get_paid_by(), &server).await;
     assert_eq!(response.status_code(), 200);
 
     // Get transaction
@@ -481,6 +492,7 @@ async fn test_historic() -> Result<(), anyhow::Error> {
         .into_iter()
         .map(GroupMember::new)
         .collect::<Vec<_>>();
+    let main_user = members.first().unwrap().uuid.clone();
 
     let response = server
         .post(format!("/groups/{token}/group_members").as_str())
@@ -490,9 +502,11 @@ async fn test_historic() -> Result<(), anyhow::Error> {
     let members: Vec<GroupMember> = response.json();
 
     // Create transaction
-    let mut tx: TransactionQuery = create_transaction(&members, "Lunch", "20", "10");
+    let mut tx: TransactionQuery = create_transaction(&members, "Lunch Historic", "20", "10");
+    dbg!(&main_user);
+    send_transaction(&tx, token, &main_user, &server).await;
+    assert_eq!(response.status_code(), 200);
 
-    send_transaction(&tx, token, &server).await;
     let values = get_transactions_history(token, &server, None, None).await;
     assert_eq!(values.len(), 1);
     let history_first = values.first().unwrap();
@@ -508,23 +522,18 @@ async fn test_historic() -> Result<(), anyhow::Error> {
         .checked_add_days(chrono::Days::new(1))
         .unwrap();
     tx.set_time(&new_datetime);
-    send_transaction(&tx, token, &server).await;
+    send_transaction(&tx, token, &main_user, &server).await;
+    assert_eq!(response.status_code(), 200);
+
     let values = get_transactions_history(token, &server, None, None).await;
     assert_eq!(values.len(), 2);
     assert_eq!(values[0].operation, "UPDATE");
 
-    server
-        .delete(format!("/v2/groups/{token}/transactions").as_str())
-        .json(&serde_json::to_value(vec![&tx])?)
-        .await;
+    delete_transaction(&tx, token, &main_user, &server).await;
     let values = get_transactions_history(token, &server, None, None).await;
     assert_eq!(values.len(), 3);
     assert_eq!(values.first().unwrap().operation, "DELETE");
 
-    server
-        .delete(format!("/v2/groups/{token}/transactions").as_str())
-        .json(&serde_json::to_value(vec![&tx])?)
-        .await;
     let values = get_transactions_history(token, &server, None, Some(until)).await;
     assert_eq!(values.len(), 1);
     assert_eq!(values.first().unwrap().operation, "INSERT");

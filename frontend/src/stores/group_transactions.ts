@@ -274,7 +274,7 @@ export class TransactionsProxy {
     private async _update_remote_transaction(tokenID: string, inTransaction: Transaction[], modified_by: string | null) {
         let url = `${getFullBackendURL()}/v2/groups/${tokenID}/transactions`
         if (modified_by) {
-            url += `?modified_by=${modified_by}`
+            url += `?modified_by_uuid=${modified_by}`
         }
         try {
             await fetch(url, {
@@ -293,7 +293,7 @@ export class TransactionsProxy {
     private async _delete_remote_transaction(tokenID: string, inTransaction: Transaction[], modified_by: string | null) {
         let url = `${getFullBackendURL()}/v2/groups/${tokenID}/transactions`
         if (modified_by) {
-            url += `?modified_by=${modified_by}`
+            url += `?modified_by_uuid=${modified_by}`
         }
         const res = await fetch(url, {
             method: "DELETE",

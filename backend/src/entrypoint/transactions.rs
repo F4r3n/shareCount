@@ -25,7 +25,7 @@ const MAX_DESCRIPTION_SIZE: usize = 250;
 use axum::extract::Query;
 #[derive(Deserialize, Debug)]
 pub struct TransactionParameters {
-    modified_by_uuid: String,
+    modified_by_uuid: Option<String>,
 }
 
 #[derive(Deserialize, Serialize, Queryable, Debug, Clone, Selectable, Insertable)]
@@ -368,6 +368,10 @@ impl TransactionQuery {
         self.uuid.clone()
     }
 
+    pub fn get_paid_by(&self) -> String {
+        self.paid_by.uuid.clone()
+    }
+
     pub fn get_description(&self) -> String {
         self.description.clone()
     }
@@ -462,14 +466,16 @@ pub fn modify_create_transaction(
             .returning(TransactionDebtRow::as_select())
             .get_results::<TransactionDebtRow>(conn)?;
 
-        if crate::entrypoint::group_members::validate_uuid(group_id, &params.modified_by_uuid, conn)
-        {
-            crate::entrypoint::history::transaction_history::add_transaction_history(
-                &transaction_row,
-                &params.modified_by_uuid,
-                &debts,
-                conn,
-            )?;
+        dbg!("Add transaction {}", &params.modified_by_uuid);
+        if let Some(modified_by_uuid) = &params.modified_by_uuid {
+            if crate::entrypoint::group_members::validate_uuid(group_id, modified_by_uuid, conn) {
+                crate::entrypoint::history::transaction_history::add_transaction_history(
+                    &transaction_row,
+                    modified_by_uuid,
+                    &debts,
+                    conn,
+                )?;
+            }
         }
     }
 
@@ -546,12 +552,11 @@ pub async fn handler_delete_transactions(
     let group_id = get_group_id(&token, &mut conn)?;
 
     let mut modified_by_uuid = None;
-    if crate::entrypoint::group_members::validate_uuid(
-        group_id,
-        &params.modified_by_uuid,
-        &mut conn,
-    ) {
-        modified_by_uuid = Some(params.modified_by_uuid);
+
+    if let Some(uuid) = params.modified_by_uuid {
+        if crate::entrypoint::group_members::validate_uuid(group_id, &uuid, &mut conn) {
+            modified_by_uuid = Some(uuid);
+        }
     }
 
     conn.transaction::<_, anyhow::Error, _>(|conn| {
