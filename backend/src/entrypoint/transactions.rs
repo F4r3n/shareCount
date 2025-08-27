@@ -466,7 +466,6 @@ pub fn modify_create_transaction(
             .returning(TransactionDebtRow::as_select())
             .get_results::<TransactionDebtRow>(conn)?;
 
-        dbg!("Add transaction {}", &params.modified_by_uuid);
         if let Some(modified_by_uuid) = &params.modified_by_uuid {
             if crate::entrypoint::group_members::validate_uuid(group_id, modified_by_uuid, conn) {
                 crate::entrypoint::history::transaction_history::add_transaction_history(

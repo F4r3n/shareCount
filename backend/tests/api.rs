@@ -503,7 +503,6 @@ async fn test_historic() -> Result<(), anyhow::Error> {
 
     // Create transaction
     let mut tx: TransactionQuery = create_transaction(&members, "Lunch Historic", "20", "10");
-    dbg!(&main_user);
     send_transaction(&tx, token, &main_user, &server).await;
     assert_eq!(response.status_code(), 200);
 

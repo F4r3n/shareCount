@@ -31,7 +31,6 @@ pub struct HistoryQuery {
 #[derive(Deserialize, Serialize, Queryable, Debug, PartialEq)]
 pub struct TransactionResponseHistory {
     pub id: i32,
-    pub modified_by_uuid: String,
     pub uuid: String,
     pub description: String,
     pub currency_id: String,
@@ -42,6 +41,7 @@ pub struct TransactionResponseHistory {
     pub exchange_rate: BigDecimal,
     pub debtors: Vec<TransactionDebtHistoryResponse>,
     pub operation: String,
+    pub modified_by: Option<GroupMemberNoDate>,
 }
 
 #[derive(Deserialize, Serialize, Queryable, Debug, PartialEq)]
@@ -233,7 +233,7 @@ pub async fn handler_get_transactions_history(
         .inner_join(transactions_history::table)
         .inner_join(group_members::table)
         .inner_join(groups::table.on(transactions_history::group_id.eq(groups::id)))
-        .filter(groups::token.eq(token))
+        .filter(groups::token.eq(&token))
         .select((
             transaction_debts_history::transaction_history_id,
             transaction_debts_history::amount,
@@ -241,6 +241,8 @@ pub async fn handler_get_transactions_history(
             group_members::uuid,
         ))
         .load::<(i32, BigDecimal, String, String)>(&mut conn)?;
+
+    let group_id = crate::entrypoint::groups::get_group_id(&token, &mut conn)?;
 
     let mut map: HashMap<i32, TransactionResponseHistory> = HashMap::new();
     transaction_result.into_iter().for_each(
@@ -262,7 +264,11 @@ pub async fn handler_get_transactions_history(
                 id,
                 TransactionResponseHistory {
                     id,
-                    modified_by_uuid,
+                    modified_by: crate::entrypoint::group_members::get_group_member(
+                        group_id,
+                        &modified_by_uuid,
+                        &mut conn,
+                    ),
                     uuid,
                     description: desc,
                     modified_at,
@@ -307,6 +313,7 @@ pub async fn handler_get_transaction_history(
     Path((token, transaction_uuid)): Path<(String, String)>,
 ) -> Result<Json<TransactionResponseHistory>, AppError> {
     let mut conn = state_server.pool.get()?;
+    let group_id = crate::entrypoint::groups::get_group_id(&token, &mut conn)?;
 
     let (
         id,
@@ -357,7 +364,11 @@ pub async fn handler_get_transaction_history(
 
     let mut transaction_response = TransactionResponseHistory {
         id,
-        modified_by_uuid,
+        modified_by: crate::entrypoint::group_members::get_group_member(
+            group_id,
+            &modified_by_uuid,
+            &mut conn,
+        ),
         amount,
         created_at,
         currency_id,

@@ -97,18 +97,35 @@ pub fn get_uuid(
         .map_err(|v| anyhow!(v))
 }
 
+pub fn get_group_member(
+    in_group_id: i32,
+    uuid: &str,
+    conn: &mut PooledConnection<ConnectionManager<PgConnection>>,
+) -> Option<GroupMemberNoDate> {
+    let nickname = group_members::table
+        .select(group_members::nickname)
+        .filter(group_members::group_id.eq(in_group_id))
+        .filter(group_members::uuid.eq(uuid))
+        .get_result::<String>(conn)
+        .optional()
+        .ok()
+        .flatten();
+    nickname.map(|nickname| GroupMemberNoDate {
+        nickname,
+        uuid: uuid.to_string(),
+    })
+}
+
 pub fn validate_uuid(
     in_group_id: i32,
     uuid: &str,
     conn: &mut PooledConnection<ConnectionManager<PgConnection>>,
 ) -> bool {
-    dbg!("validate_uuid");
     let value = group_members::table
         .select(group_members::uuid)
         .filter(group_members::group_id.eq(in_group_id))
         .filter(group_members::uuid.eq(uuid))
         .execute(conn);
-    dbg!(&value);
     if let Ok(value) = value {
         value > 0
     } else {

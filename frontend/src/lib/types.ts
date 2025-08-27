@@ -43,4 +43,5 @@ export interface TransactionHistory {
     debtors: Debt[],
     modified_at: string,
     operation: string,
+    modified_by?: GroupMember,
 }
