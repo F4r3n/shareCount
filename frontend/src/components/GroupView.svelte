@@ -107,8 +107,6 @@
     <button
       class="btn btn-primary"
       onclick={() => {
-        console.log("go");
-        console.log(group);
         goto(base + `/group?id=${group.token}`);
       }}
     >
