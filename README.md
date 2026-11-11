@@ -26,7 +26,7 @@ docker/deploy.sh --no-frontend   # backend and database only (or --no-backend)
 docker/deploy.sh --help          # all options
 ```
 
-Requires `git`, `curl`, `podman` and `podman-compose`. The frontend is built on the server in a Node container (tests run first) and installed as a release under `/var/www/html/sharecount-releases/`; `/var/www/html/sharecount` (the nginx root, override with `FRONTEND_ROOT`) is a symlink switched atomically once the backend is healthy. The last 5 releases are kept, and `.well-known/` is carried over from the current site.
+Requires `git`, `curl`, `rsync`, `podman` and `podman-compose`. Run it as your normal user, not with `sudo` (the podman containers belong to that user). The frontend is built on the server in a Node container (tests run first) and rsynced into `/var/www/html/sharecount` (the nginx root, override with `FRONTEND_ROOT`) once the backend is healthy; `.well-known/` is never deleted. Only that rsync uses `sudo` (asked once at the start), when the nginx root is not writable by your user.
 
 Database dumps are kept in `docker/backups/` (last 10). Migrations run automatically when the backend starts.
 

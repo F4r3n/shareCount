@@ -4,10 +4,11 @@
 #
 # Steps: update the code, build the frontend (here, in a Node container, after
 # running its tests), back up the database, rebuild and restart the backend,
-# wait until it answers, then switch the frontend to the new build. Database
-# migrations run at backend startup.
+# wait until it answers, then rsync the new frontend into the nginx root.
+# Database migrations run at backend startup.
 # Nothing visible changes until the frontend build is ready, and the frontend
-# is only switched once the new backend is healthy.
+# is only updated once the new backend is healthy. Run it as your normal user:
+# sudo is only used for the rsync, when the nginx root is not writable by you.
 #
 # Usage: docker/deploy.sh [options]
 #
@@ -19,7 +20,6 @@
 #
 # Environment overrides:
 #   FRONTEND_ROOT     directory served by nginx    (default /var/www/html/sharecount)
-#   FRONTEND_KEEP     frontend releases to keep    (default 5)
 #   NODE_IMAGE        image used to build          (default docker.io/library/node:22-slim)
 #   VITE_BACKEND_URL  baked into local builds, e.g. sharecount.faren.ovh/api (optional)
 #   HEALTH_URL        URL polled after start       (default http://127.0.0.1:4000/version)
@@ -40,8 +40,6 @@ HEALTH_TIMEOUT="${HEALTH_TIMEOUT:-180}"
 KEEP_BACKUPS="${KEEP_BACKUPS:-10}"
 FRONTEND_ROOT="${FRONTEND_ROOT:-/var/www/html/sharecount}"
 FRONTEND_ROOT="${FRONTEND_ROOT%/}"
-RELEASES_DIR="${FRONTEND_ROOT}-releases"
-FRONTEND_KEEP="${FRONTEND_KEEP:-5}"
 NODE_IMAGE="${NODE_IMAGE:-docker.io/library/node:22-slim}"
 
 REF=""
@@ -90,17 +88,19 @@ if ((DEPLOY_BACKEND)); then
     ((${#missing[@]} == 0)) || die "backend/.env is missing: ${missing[*]}"
 fi
 
-SUDO=()
 if ((DEPLOY_FRONTEND)); then
-    # Releases live next to FRONTEND_ROOT and the switch renames a symlink in
-    # its parent directory, so that directory must be writable.
-    frontend_parent="$(dirname "$FRONTEND_ROOT")"
-    [[ -d "$frontend_parent" ]] || die "$frontend_parent does not exist"
-    if [[ ! -w "$frontend_parent" ]]; then
-        command -v sudo >/dev/null 2>&1 || die "$frontend_parent is not writable and sudo is not available"
-        log "$frontend_parent needs root, using sudo"
+    command -v rsync >/dev/null 2>&1 || die "rsync is required"
+    # Only the rsync into the nginx root runs as root, and only when this user
+    # cannot write there itself. Ask for the password now rather than after
+    # the builds.
+    [[ -d "$FRONTEND_ROOT" ]] || die "$FRONTEND_ROOT does not exist (create it once: sudo mkdir -p $FRONTEND_ROOT)"
+    RSYNC=(rsync)
+    if [[ -n "$(find "$FRONTEND_ROOT" -path "$FRONTEND_ROOT/.well-known" \
+            -prune -o -type d ! -writable -print -quit)" ]]; then
+        command -v sudo >/dev/null 2>&1 || die "$FRONTEND_ROOT is not writable and sudo is not available"
+        log "Updating $FRONTEND_ROOT needs sudo (only for rsync)"
         sudo -v || die "sudo is required to update $FRONTEND_ROOT"
-        SUDO=(sudo)
+        RSYNC=(sudo rsync)
     fi
 fi
 
@@ -146,13 +146,6 @@ build_frontend() {
 if ((DEPLOY_FRONTEND)); then
     build_frontend || die "frontend build or tests failed, nothing was deployed"
     [[ -f "$FRONTEND_BUILD/index.html" ]] || die "frontend build has no index.html, nothing was deployed"
-
-    # The Android app links (.well-known/assetlinks.json) are generated from the
-    # app signing key, which is not on the server: keep the ones currently served.
-    if [[ ! -e "$FRONTEND_BUILD/.well-known" && -d "$FRONTEND_ROOT/.well-known" ]]; then
-        cp -a "$FRONTEND_ROOT/.well-known" "$FRONTEND_BUILD/"
-        log "Keeping the current .well-known (Android app links)"
-    fi
 fi
 
 # --- backend -----------------------------------------------------------------------
@@ -210,37 +203,21 @@ if ((DEPLOY_BACKEND)); then
 fi
 
 # --- frontend: switch ----------------------------------------------------------------
-# Each build is a release directory; FRONTEND_ROOT is a symlink to the current
-# one, replaced atomically (nginx never sees a half-copied site).
-PREVIOUS_RELEASE=""
+# Two passes so a page never references a file that is not there yet:
+#   1. add the new hashed assets (_app/) next to the current ones, delete nothing;
+#   2. update the pages and remove what the new build no longer has.
+# .well-known/ (Android app links, generated from the signing key that is not on
+# the server) is never deleted; it is only updated if the build contains one.
 if ((DEPLOY_FRONTEND)); then
-    release="$RELEASES_DIR/$(date -u +%Y%m%dT%H%M%SZ)-$COMMIT"
-    log "Installing frontend to ${release}"
-    "${SUDO[@]}" mkdir -p "$RELEASES_DIR"
-    "${SUDO[@]}" cp -a "$FRONTEND_BUILD" "$release"
-    "${SUDO[@]}" chmod -R a+rX "$release"
-
-    link_tmp="$FRONTEND_ROOT.new-$$"
-    "${SUDO[@]}" ln -sfn "$release" "$link_tmp"
-    if [[ -L "$FRONTEND_ROOT" ]]; then
-        PREVIOUS_RELEASE="$(readlink -f "$FRONTEND_ROOT")"
-    elif [[ -e "$FRONTEND_ROOT" ]]; then
-        # First run: the current site is a plain directory, keep it as a release.
-        PREVIOUS_RELEASE="$RELEASES_DIR/$(date -u +%Y%m%dT%H%M%SZ)-before-releases"
-        log "Moving the current site to $PREVIOUS_RELEASE"
-        "${SUDO[@]}" mv "$FRONTEND_ROOT" "$PREVIOUS_RELEASE"
+    # -rlt: no owner/group copied, so files written via sudo belong to root.
+    rsync_opts=(-rlt --chmod=D755,F644)
+    log "Updating frontend in $FRONTEND_ROOT"
+    if [[ -d "$FRONTEND_BUILD/_app" ]]; then
+        "${RSYNC[@]}" "${rsync_opts[@]}" "$FRONTEND_BUILD/_app/" "$FRONTEND_ROOT/_app/"
     fi
-    "${SUDO[@]}" mv -Tf "$link_tmp" "$FRONTEND_ROOT"
-    log "Frontend switched to $COMMIT"
-
-    # Keep the most recent releases, never the current or previous one.
-    current_release="$(readlink -f "$FRONTEND_ROOT")"
-    find "$RELEASES_DIR" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' | sort -r \
-        | tail -n +"$((FRONTEND_KEEP + 1))" | while read -r name; do
-            path="$RELEASES_DIR/$name"
-            [[ "$path" == "$current_release" || "$path" == "$PREVIOUS_RELEASE" ]] && continue
-            "${SUDO[@]}" rm -rf -- "$path"
-        done
+    "${RSYNC[@]}" "${rsync_opts[@]}" --delete-delay --delay-updates --filter='P /.well-known/' \
+        "$FRONTEND_BUILD/" "$FRONTEND_ROOT/"
+    log "Frontend updated to $COMMIT"
 fi
 
 # --- summary ---------------------------------------------------------------------
@@ -251,11 +228,6 @@ Database backup: ${BACKUP_FILE#"$ROOT"/}
   restore: ${COMPOSE[*]} exec -T db sh -c 'pg_restore --clean --if-exists -U "\$POSTGRES_USER" -d "\$POSTGRES_DB"' < $BACKUP_FILE
 EOF
 fi
-if [[ -n "$PREVIOUS_RELEASE" ]]; then
-    sudo_prefix=""
-    ((${#SUDO[@]})) && sudo_prefix="sudo "
-    cat <<EOF
-Previous frontend: $PREVIOUS_RELEASE
-  roll back: ${sudo_prefix}ln -sfn $PREVIOUS_RELEASE $FRONTEND_ROOT
-EOF
+if [[ "$PREVIOUS_COMMIT" != "$COMMIT" ]]; then
+    echo "To roll back: $0 --ref $PREVIOUS_COMMIT --no-pull"
 fi
