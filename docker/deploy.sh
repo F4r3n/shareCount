@@ -57,6 +57,12 @@ else
     die "neither 'podman compose' nor 'docker compose' is available"
 fi
 COMPOSE+=(-f "$COMPOSE_FILE")
+# Machine-specific tweaks (e.g. exposing the database port) go in an untracked
+# override file, so they never block `git pull`.
+OVERRIDE_FILE="$ROOT/docker/docker-compose.override.yml"
+if [[ -f "$OVERRIDE_FILE" ]]; then
+    COMPOSE+=(-f "$OVERRIDE_FILE")
+fi
 command -v curl >/dev/null 2>&1 || die "curl is required"
 
 # --- configuration -------------------------------------------------------------
@@ -84,6 +90,7 @@ elif [[ -n "$REF" ]]; then
 fi
 COMMIT="$(git rev-parse --short HEAD)"
 log "Deploying $COMMIT (previously $PREVIOUS_COMMIT)"
+[[ -f "$OVERRIDE_FILE" ]] && log "Using local overrides from ${OVERRIDE_FILE#"$ROOT"/}"
 
 # --- backup --------------------------------------------------------------------
 BACKUP_FILE=""

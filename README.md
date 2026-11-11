@@ -27,6 +27,8 @@ docker/deploy.sh --help          # all options
 
 Database dumps are kept in `docker/backups/` (last 10). Migrations run automatically when the backend starts.
 
+Machine-specific compose changes (e.g. exposing the database port) go in `docker/docker-compose.override.yml`, which is git-ignored and loaded by `deploy.sh`. Start from `docker/docker-compose.override.example.yml`.
+
 ## Getting Started
 
 ### 1. Clone the repository
