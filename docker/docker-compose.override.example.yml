@@ -1,0 +1,8 @@
+# Local, machine-specific additions to docker-compose.yml.
+# Copy to docker-compose.override.yml (git-ignored); deploy.sh loads it automatically.
+# With compose directly: podman-compose -f docker/docker-compose.yml -f docker/docker-compose.override.yml up -d
+services:
+  db:
+    ports:
+      # Bind to localhost only: "5432:5432" would expose Postgres on every interface.
+      - "127.0.0.1:5432:5432"

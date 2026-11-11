@@ -154,3 +154,14 @@ test('Synchronize: sends local TO_CREATE members to remote', async () => {
     const updated = await db.group_members.get(member.uuid);
     expect(updated?.status).eq(STATUS.NOTHING);
 });
+
+test('Synchronize: keeps TO_CREATE members pending when the remote add fails', async () => {
+    const group_uuid = ((await groupsProxy.get_local_groups())[0]).token;
+    const member = groupMembersProxy.create_group_member("Paul");
+    await groupMembersProxy.add_members(group_uuid, [member]);
+    vi.spyOn(groupMembersProxy as never, '_get_remote_GroupMembers').mockResolvedValue([]);
+    vi.spyOn(groupMembersProxy as never, '_add_remote_GroupMembers').mockRejectedValue(new Error("Network error"));
+    await groupMembersProxy.synchronize(group_uuid);
+    const dbMember = await db.group_members.get(member.uuid);
+    expect(dbMember?.status).eq(STATUS.TO_CREATE);
+});

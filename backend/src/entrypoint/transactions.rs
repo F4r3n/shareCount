@@ -1,12 +1,11 @@
 use crate::entrypoint::group_members::get_member_id;
 use crate::entrypoint::group_members::GroupMemberNoDate;
-use crate::entrypoint::AppError;
+use crate::entrypoint::{AppError, BadRequest};
 use crate::schema::group_members;
 use crate::schema::groups;
 use crate::schema::transaction_debts;
 use crate::schema::transactions;
 pub use crate::state_server;
-use axum::http::StatusCode;
 use axum::{
     extract::{Path, State},
     response::Json,
@@ -19,7 +18,7 @@ use chrono::NaiveDateTime;
 use diesel::prelude::*;
 use diesel::upsert::excluded;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 const MAX_DESCRIPTION_SIZE: usize = 250;
 
 #[derive(Deserialize, Serialize, Queryable, Debug, Clone)]
@@ -269,7 +268,6 @@ pub struct TransactionDebtChangeset {
 #[derive(Insertable, AsChangeset, Clone, Debug)]
 #[diesel(table_name = transaction_debts)]
 pub struct TransactionDebtUpsert {
-    id: Option<i32>,
     transaction_id: i32,
     group_member_id: i32,
     amount: BigDecimal,
@@ -348,9 +346,19 @@ fn check_transaction_validity(transaction: &TransactionQuery) -> Result<(), Stri
     if transaction.amount.le(&BigDecimal::zero()) {
         return Err("An amount should be strictly positive".to_string());
     }
+    if transaction.exchange_rate.le(&BigDecimal::zero()) {
+        return Err("An exchange rate should be strictly positive".to_string());
+    }
+    let mut seen_members = HashSet::new();
     for debt in &transaction.debtors {
         if debt.amount.lt(&BigDecimal::zero()) {
             return Err("An amount cannot be negative".to_string());
+        }
+        if !seen_members.insert(debt.member.uuid.as_str()) {
+            return Err(format!(
+                "Member {} appears more than once in debtors",
+                debt.member.nickname
+            ));
         }
     }
     let debt_amount = transaction
@@ -366,14 +374,38 @@ fn check_transaction_validity(transaction: &TransactionQuery) -> Result<(), Stri
         ))
     }
 }
+/// Resolve a member of the group, turning "not found" into a client error.
+fn get_group_member_id(
+    group_id: i32,
+    member: &GroupMemberNoDate,
+    conn: &mut PooledConnection<ConnectionManager<PgConnection>>,
+) -> Result<i32, anyhow::Error> {
+    get_member_id(group_id, member.uuid.clone(), conn).map_err(|e| {
+        if matches!(e.downcast_ref::<diesel::result::Error>(), Some(diesel::NotFound)) {
+            BadRequest(format!(
+                "Member {} ({}) is not part of the group",
+                member.nickname, member.uuid
+            ))
+            .into()
+        } else {
+            e
+        }
+    })
+}
+
+fn validate_transaction(transaction: &TransactionQuery) -> Result<(), AppError<String>> {
+    check_transaction_validity(transaction)
+        .map_err(|v| AppError::bad_request(v.clone(), Some(v)))
+}
+
 pub fn modify_create_transaction(
-    token_id: String,
+    token_id: &str,
     transaction: TransactionQuery,
     conn: &mut PooledConnection<ConnectionManager<PgConnection>>,
 ) -> Result<(), anyhow::Error> {
     use unicode_truncate::UnicodeTruncateStr;
-    let group_id = get_group_id(&token_id, conn)?;
-    let member_id = get_member_id(group_id, transaction.paid_by.uuid, conn)?;
+    let group_id = get_group_id(token_id, conn)?;
+    let member_id = get_group_member_id(group_id, &transaction.paid_by, conn)?;
     let changeset = TransactionChangeset {
         uuid: transaction.uuid,
         description: transaction
@@ -391,36 +423,44 @@ pub fn modify_create_transaction(
         group_id,
     };
     use diesel::query_dsl::methods::FilterDsl;
-    if let Ok(transaction_id) = diesel::insert_into(transactions::table)
+    // Only overwrite an existing row if it is older AND belongs to this group:
+    // a uuid owned by another group must never be moved into this one.
+    let upserted = diesel::insert_into(transactions::table)
         .values(&changeset)
         .on_conflict(transactions::uuid)
         .do_update()
         .set(&changeset)
-        .filter(transactions::modified_at.lt(excluded(transactions::modified_at)))
+        .filter(
+            transactions::modified_at
+                .lt(excluded(transactions::modified_at))
+                .and(transactions::group_id.eq(group_id)),
+        )
         .returning(transactions::id)
         .get_result::<i32>(conn)
-    {
-        let debts = transaction
-            .debtors
-            .into_iter()
-            .map(|debt| {
-                let id: Option<i32> = if debt.id.is_some_and(|v| v > 0) {
-                    debt.id
-                } else {
-                    None
-                };
-                let member_id = get_member_id(group_id, debt.member.uuid, conn);
+        .optional()?;
 
-                TransactionDebtUpsert {
-                    transaction_id,
-                    group_member_id: member_id.unwrap_or(0),
-                    amount: debt.amount,
-                    // Include ID only for updates
-                    id, //can be optional,
-                }
-            })
-            .collect::<Vec<_>>();
+    // None: the stored version is newer (or owned by another group), keep it.
+    let Some(transaction_id) = upserted else {
+        return Ok(());
+    };
 
+    let mut debts = Vec::with_capacity(transaction.debtors.len());
+    for debt in transaction.debtors {
+        debts.push(TransactionDebtUpsert {
+            transaction_id,
+            group_member_id: get_group_member_id(group_id, &debt.member, conn)?,
+            amount: debt.amount,
+        });
+    }
+
+    // Debtors removed from the transaction must not keep their old share.
+    let member_ids = debts.iter().map(|d| d.group_member_id).collect::<Vec<_>>();
+    diesel::delete(transaction_debts::table)
+        .filter(transaction_debts::transaction_id.eq(transaction_id))
+        .filter(transaction_debts::group_member_id.ne_all(&member_ids))
+        .execute(conn)?;
+
+    if !debts.is_empty() {
         diesel::insert_into(transaction_debts::table)
             .values(&debts)
             .on_conflict((
@@ -428,47 +468,31 @@ pub fn modify_create_transaction(
                 transaction_debts::group_member_id,
             ))
             .do_update()
-            .set(transaction_debts::amount.eq(diesel::upsert::excluded(transaction_debts::amount)))
+            .set(transaction_debts::amount.eq(excluded(transaction_debts::amount)))
             .execute(conn)?;
     }
 
     Ok(())
 }
 
-pub async fn handler_modify_transaction(
-    State(state_server): State<state_server::StateServer>,
-    Path(token): Path<String>,
-    Json(payload): Json<TransactionQuery>,
-) -> Result<(), AppError<String>> {
-    check_transaction_validity(&payload).map_err(|v| AppError {
-        content: Some(v),
-        error: anyhow::anyhow!(StatusCode::INTERNAL_SERVER_ERROR),
-    })?;
-
-    let mut conn = state_server.pool.get()?;
-    conn.transaction::<_, anyhow::Error, _>(|conn| modify_create_transaction(token, payload, conn))
-        .map_err(AppError::from)?;
-
-    Ok(())
-}
-
+/// Applies all transactions atomically: either every one is stored, or none.
 pub async fn handler_modify_transactions(
     State(state_server): State<state_server::StateServer>,
     Path(token): Path<String>,
     Json(transactions): Json<Vec<TransactionQuery>>,
 ) -> Result<(), AppError<String>> {
-    for transaction in transactions {
-        let t = token.clone();
-        check_transaction_validity(&transaction).map_err(|v| AppError {
-            content: Some(v),
-            error: anyhow::anyhow!(StatusCode::INTERNAL_SERVER_ERROR),
-        })?;
-        let mut conn = state_server.pool.get()?;
-        conn.transaction::<_, anyhow::Error, _>(|conn| {
-            modify_create_transaction(t, transaction, conn)
-        })
-        .map_err(AppError::from)?;
+    for transaction in &transactions {
+        validate_transaction(transaction)?;
     }
+
+    let mut conn = state_server.pool.get()?;
+    conn.transaction::<_, anyhow::Error, _>(|conn| {
+        for transaction in transactions {
+            modify_create_transaction(&token, transaction, conn)?;
+        }
+        Ok(())
+    })
+    .map_err(AppError::from)?;
 
     Ok(())
 }
@@ -476,28 +500,6 @@ pub async fn handler_modify_transactions(
 #[derive(Deserialize, Serialize, Queryable, Debug)]
 pub struct TransactionIDResponse {
     pub id: i32,
-}
-
-pub async fn handler_delete_transaction(
-    State(state_server): State<state_server::StateServer>,
-    Path(token): Path<String>,
-    Json(transaction): Json<TransactionDelete>,
-) -> Result<(), AppError> {
-    let mut conn = state_server.pool.get()?;
-    conn.transaction::<_, anyhow::Error, _>(|conn| {
-        let groud_id = get_group_id(&token, conn)?;
-
-        diesel::delete(transactions::table)
-            .filter(transactions::group_id.eq(groud_id))
-            .filter(transactions::uuid.eq(transaction.uuid))
-            .filter(transactions::modified_at.lt(transaction.modified_at))
-            .execute(conn)?;
-
-        Ok(())
-    })
-    .map_err(AppError::from)?;
-
-    Ok(())
 }
 
 pub async fn handler_delete_transactions(

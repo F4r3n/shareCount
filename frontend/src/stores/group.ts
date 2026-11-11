@@ -93,7 +93,7 @@ export class GroupsProxy {
         if (status == STATUS.NOTHING) {
             status = STATUS.TO_UPDATE;
         }
-        db.groups.where("uuid").equals(inGroup.token).modify(
+        await db.groups.where("uuid").equals(inGroup.token).modify(
             {
                 currency_id: inGroup.currency_id,
                 name: inGroup.name,
@@ -133,7 +133,7 @@ export class GroupsProxy {
             headers: {
                 "Content-Type": "application/json",
             },
-            body: JSON.stringify(group)
+            body: JSON.stringify([group])
         });
 
         if (!res.ok) {
@@ -178,21 +178,26 @@ export class GroupsProxy {
 
     async synchronize() {
 
-        try {
-            for (const group of await db.groups.toArray()) {
-                if (group.status === STATUS.TO_DELETE) {
-                    //Do not delete a group, just hide it
-                    db.groups.delete(group.uuid);
-                }
-                else {
-                    await this._add_remote_group(this._convert_DB_to_Group(group));
-                }
+        for (const group of await db.groups.toArray()) {
+            if (group.status === STATUS.TO_DELETE) {
+                //Do not delete a group on the server, just forget it locally
+                await db.groups.delete(group.uuid);
             }
-        } catch {/** */
+            else if (group.status === STATUS.TO_CREATE || group.status === STATUS.TO_UPDATE) {
+                // One failing group must not prevent the others from being sent,
+                // and the status is only cleared once the server confirmed it.
+                try {
+                    await this._add_remote_group(this._convert_DB_to_Group(group));
+                    await db.groups.where("uuid").equals(group.uuid).modify({ status: STATUS.NOTHING });
+                } catch {/* stays pending */ }
+            }
         }
 
-
         for (const group of await db.groups.toArray()) {
+            // Don't overwrite a local change that could not be sent yet.
+            if (group.status !== STATUS.NOTHING) {
+                continue;
+            }
             try {
                 const new_group = await this._getGroup(group.uuid);
                 await db.groups.where("uuid").equals(new_group.token).modify(this._convert_Group_to_DB(new_group));

@@ -4,14 +4,20 @@ services:
     build:
       context: ../
       dockerfile: docker/backend/Dockerfile.yml
+    restart: unless-stopped
     ports:
       - "127.0.0.1:4000:4000"
     env_file:
       - ../backend/.env
+    # Container-specific values; they take precedence over backend/.env,
+    # which keeps the values for running the backend locally (cargo run).
     environment:
       DATABASE_SERVER: db
+      LISTENING_URL: 0.0.0.0:4000
+      POSTGRES_PORT: 5432
     depends_on:
-      - db
+      db:
+        condition: service_healthy
   db:
     image: postgres:17
     restart: always
@@ -19,7 +25,14 @@ services:
       - ../backend/.env
     expose:
       - "5432"
+    # The schema is created by the backend's embedded migrations at startup.
+    # Do NOT mount docker/db/init/init.sql here: it drops tables and seeds test data.
     volumes:
-      - ./db/init/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
 volumes:
   pgdata: {}

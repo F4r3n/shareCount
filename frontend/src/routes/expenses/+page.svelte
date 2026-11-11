@@ -17,17 +17,17 @@
 
   onMount(async () => {
     if ($current_user?.group_uuid) {
-      groupMembersProxy.synchronize($current_user.group_uuid);
-      group_members = await groupMembersProxy.get_local_members(
-        $current_user.group_uuid
-      );
+      const group_uuid = $current_user.group_uuid;
+      group_members = await groupMembersProxy.get_local_members(group_uuid);
 
-      transactions = await transactionsProxy.synchronize_local(
-        $current_user.group_uuid
-      );
-      transactionsProxy.synchronize($current_user.group_uuid).then((trs) => {
-        transactions = trs;
-      });
+      transactions = await transactionsProxy.synchronize_local(group_uuid);
+      // Members first: the server rejects transactions referencing unknown members.
+      groupMembersProxy
+        .synchronize(group_uuid)
+        .then(() => transactionsProxy.synchronize(group_uuid))
+        .then((trs) => {
+          transactions = trs;
+        });
     } else {
       goto(base + menus[MENU.GROUPS]);
     }

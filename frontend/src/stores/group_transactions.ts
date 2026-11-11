@@ -4,7 +4,7 @@ import { getFullBackendURL } from '$lib/shareCountAPI';
 import { db, STATUS, type Debt_DB, type Transaction_DB } from '../db/db';
 import { groupMembersProxy } from './group_members';
 import { getUTC } from '$lib/UTCDate';
-import { withTimeout } from './SynchroHelper';
+import { RemoteRequestError, withTimeout } from './SynchroHelper';
 
 
 
@@ -94,6 +94,7 @@ export class TransactionsProxy {
         }
         else {
             await db.transactions.where("uuid").equals(transaction_uuid).delete();
+            await this._delete_local_debts(transaction_uuid);
         }
 
     }
@@ -131,60 +132,100 @@ export class TransactionsProxy {
             map.set(transaction.uuid, transaction);
         }
 
-        let remote_transactions: Transaction[] = [];
-
         try {
-            remote_transactions = await withTimeout(this._get_remote_transactions(group_uuid), 7000);
+            const remote_transactions = await withTimeout(this._get_remote_transactions(group_uuid), 7000);
             for (const remote_transaction of remote_transactions) {
                 const local_transaction = map.get(remote_transaction.uuid);
-                if (local_transaction) {
-                    if (local_transaction.status === STATUS.TO_UPDATE) {
-                        //If local is newer we send it
-                        if (new Date(remote_transaction.modified_at) < new Date(local_transaction?.modified_at)) {
+                // If transaction is not present we add it
+                if (!local_transaction) {
+                    await this._add_local_transaction(group_uuid, remote_transaction, STATUS.NOTHING);
+                    continue;
+                }
+                map.delete(local_transaction.uuid);
+
+                const local_is_newer = new Date(remote_transaction.modified_at) < new Date(local_transaction.modified_at);
+                switch (local_transaction.status) {
+                    case STATUS.TO_CREATE:
+                    case STATUS.TO_UPDATE:
+                        if (local_is_newer) {
                             to_send_transactions.push(await this._convert_transactionDB_transaction(local_transaction));
-                        }
-                        else {
+                        } else {
                             await this._modify_local_transaction(group_uuid, remote_transaction, STATUS.NOTHING);
                         }
-                    }
-                    else if (local_transaction.status === STATUS.NOTHING) {
+                        break;
+                    case STATUS.TO_DELETE:
+                        // Someone edited it after our deletion: keep their version.
+                        if (local_is_newer) {
+                            to_delete_transactions.push(await this._convert_transactionDB_transaction(local_transaction));
+                        } else {
+                            await this._modify_local_transaction(group_uuid, remote_transaction, STATUS.NOTHING);
+                        }
+                        break;
+                    default:
                         await this._modify_local_transaction(group_uuid, remote_transaction, STATUS.NOTHING);
-                    }
-                    else if (local_transaction.status === STATUS.TO_DELETE) {
-                        to_delete_transactions.push(await this._convert_transactionDB_transaction(local_transaction));
-                    }
-                    else if (local_transaction.status === STATUS.TO_CREATE) {
-                        to_send_transactions.push(await this._convert_transactionDB_transaction(local_transaction));
-                    }
-                    map.delete(local_transaction.uuid);
-                }// If transaction is not present we add it
-                else {
-                    await this._add_local_transaction(group_uuid, remote_transaction, STATUS.NOTHING)
                 }
             }
 
-            //The ones not mentioned are deleted
+            // Not on the server: deleted remotely, unless we created it and haven't sent it yet.
             for (const [uuid, tr] of map) {
-                if (tr.status != STATUS.TO_CREATE) {
+                if (tr.status === STATUS.TO_CREATE) {
+                    to_send_transactions.push(await this._convert_transactionDB_transaction(tr));
+                } else {
                     await this._delete_local_transaction(uuid, false);
                 }
-                else if (tr.status === STATUS.TO_CREATE) {
-                    to_send_transactions.push(await this._convert_transactionDB_transaction(tr));
-                }
             }
+        } catch {
+            // Offline or server error: keep every pending change for the next synchronization.
+            return await this.synchronize_local(group_uuid);
+        }
 
-        } catch { /* empty */ }
+        // Only clear a pending status once the server has confirmed the change.
+        try {
+            const sent = await this._send_transactions(group_uuid, to_send_transactions);
+            for (const uuid of sent) {
+                await db.transactions.where("uuid").equals(uuid).modify({ status: STATUS.NOTHING });
+            }
+        } catch { /* stays pending */ }
 
         try {
-            this._update_remote_transaction(group_uuid, to_send_transactions);
-
-            for (const tr of to_send_transactions) {
-                await db.transactions.where("uuid").equals(tr.uuid).modify({ status: STATUS.NOTHING });
+            if (to_delete_transactions.length > 0) {
+                await this._delete_remote_transaction(group_uuid, to_delete_transactions);
+                for (const tr of to_delete_transactions) {
+                    await this._delete_local_transaction(tr.uuid, false);
+                }
             }
-            this._delete_remote_transaction(group_uuid, to_delete_transactions);
+        } catch { /* stays pending */ }
 
-        } catch { /* empty */ }
         return await this.synchronize_local(group_uuid);
+    }
+
+    /**
+     * Send transactions to the server and return the uuids it accepted.
+     * The batch endpoint is atomic, so if the server rejects the batch (e.g. one
+     * invalid transaction) retry them one by one so a single bad entry cannot
+     * block every other pending change.
+     */
+    private async _send_transactions(group_uuid: string, transactions: Transaction[]): Promise<string[]> {
+        if (transactions.length === 0) {
+            return [];
+        }
+        try {
+            await this._update_remote_transaction(group_uuid, transactions);
+            return transactions.map((tr) => tr.uuid);
+        } catch (error) {
+            if (!(error instanceof RemoteRequestError) || error.status !== 400 || transactions.length === 1) {
+                throw error;
+            }
+        }
+
+        const sent: string[] = [];
+        for (const tr of transactions) {
+            try {
+                await this._update_remote_transaction(group_uuid, [tr]);
+                sent.push(tr.uuid);
+            } catch { /* this one stays pending */ }
+        }
+        return sent;
     }
     async get_status_transation(uuid: string): Promise<STATUS> {
         const tr = await db.transactions.where("uuid").equals(uuid).first();
@@ -272,23 +313,23 @@ export class TransactionsProxy {
 
 
     private async _update_remote_transaction(tokenID: string, inTransaction: Transaction[]) {
-        const url = `${getFullBackendURL()}/v2/groups/${tokenID}/transactions`
-        try {
-            await fetch(url, {
-                method: "POST",
-                credentials: "include",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify(inTransaction)
-            });
-        } catch (error) {
-            throw new Error(`Request failed ${error}`);
+        const url = `${getFullBackendURL()}/groups/${tokenID}/transactions`
+        const res = await fetch(url, {
+            method: "POST",
+            credentials: "include",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify(inTransaction)
+        });
+
+        if (!res.ok) {
+            throw new RemoteRequestError(res.status);
         }
     }
 
     private async _delete_remote_transaction(tokenID: string, inTransaction: Transaction[]) {
-        const res = await fetch(`${getFullBackendURL()}/v2/groups/${tokenID}/transactions`, {
+        const res = await fetch(`${getFullBackendURL()}/groups/${tokenID}/transactions`, {
             method: "DELETE",
             credentials: "include",
             headers: {
