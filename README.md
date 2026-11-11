@@ -15,6 +15,18 @@ ShareCount is a tool for tracking and managing shared expenses among groups. Eas
 podman compose -f docker/docker-compose.yml up
 ```
 
+### Deploy
+
+Create `backend/.env` (`POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB`, `POSTGRES_PORT=5432`, `FRONT_URL`, `LISTENING_URL=0.0.0.0:4000`), then:
+
+```bash
+docker/deploy.sh                 # pull, back up the DB, rebuild, restart, health check
+docker/deploy.sh --ref v1.2.0    # deploy a specific branch, tag or commit
+docker/deploy.sh --help          # all options
+```
+
+Database dumps are kept in `docker/backups/` (last 10). Migrations run automatically when the backend starts.
+
 ## Getting Started
 
 ### 1. Clone the repository
