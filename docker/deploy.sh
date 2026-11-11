@@ -20,7 +20,8 @@
 #
 # Environment overrides:
 #   FRONTEND_ROOT     directory served by nginx    (default /var/www/html/sharecount)
-#   NODE_IMAGE        image used to build          (default docker.io/library/node:22-slim)
+#   NODE_IMAGE        image used to build          (default docker.io/library/node:24-slim)
+#                     keep it on the Node major you use locally, or npm ci rejects the lock file
 #   VITE_BACKEND_URL  baked into local builds, e.g. sharecount.faren.ovh/api (optional)
 #   HEALTH_URL        URL polled after start       (default http://127.0.0.1:4000/version)
 #   HEALTH_TIMEOUT    seconds to wait for it       (default 180)
@@ -40,7 +41,7 @@ HEALTH_TIMEOUT="${HEALTH_TIMEOUT:-180}"
 KEEP_BACKUPS="${KEEP_BACKUPS:-10}"
 FRONTEND_ROOT="${FRONTEND_ROOT:-/var/www/html/sharecount}"
 FRONTEND_ROOT="${FRONTEND_ROOT%/}"
-NODE_IMAGE="${NODE_IMAGE:-docker.io/library/node:22-slim}"
+NODE_IMAGE="${NODE_IMAGE:-docker.io/library/node:24-slim}"
 
 REF=""
 PULL=1
