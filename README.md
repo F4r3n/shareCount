@@ -17,7 +17,7 @@ podman compose -f docker/docker-compose.yml up
 
 ### Deploy
 
-Create `backend/.env` (`POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB`, `POSTGRES_PORT=5432`, `FRONT_URL`, `LISTENING_URL=0.0.0.0:4000`), then:
+Create `backend/.env` (`POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB`, `POSTGRES_PORT`, `FRONT_URL`, `LISTENING_URL`). In the containers, `DATABASE_SERVER`, `LISTENING_URL` and `POSTGRES_PORT` are overridden by `docker/docker-compose.yml`. `FRONT_URL` must be the origin of the deployed frontend (e.g. `https://<user>.github.io`, no path). Then:
 
 ```bash
 docker/deploy.sh                 # pull, back up the DB, rebuild, restart, health check

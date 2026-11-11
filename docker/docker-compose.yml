@@ -9,8 +9,12 @@ services:
       - "127.0.0.1:4000:4000"
     env_file:
       - ../backend/.env
+    # Container-specific values; they take precedence over backend/.env,
+    # which keeps the values for running the backend locally (cargo run).
     environment:
       DATABASE_SERVER: db
+      LISTENING_URL: 0.0.0.0:4000
+      POSTGRES_PORT: 5432
     depends_on:
       db:
         condition: service_healthy
