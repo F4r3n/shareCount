@@ -1,15 +1,12 @@
-# docker-compose.yml
+# Throwaway database for the backend tests; started by backend/launch_test.sh.
 services:
   test_db:
-    image: postgres:17
+    image: docker.io/library/postgres:17
     environment:
       POSTGRES_USER: testuser
       POSTGRES_PASSWORD: testpass
       POSTGRES_DB: testdb
     ports:
-      - "5433:5432"
+      - "127.0.0.1:5433:5432"
     volumes:
       - ./init/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
-
-volumes:
-  db_test:
