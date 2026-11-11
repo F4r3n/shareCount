@@ -12,7 +12,7 @@ ShareCount is a tool for tracking and managing shared expenses among groups. Eas
 ## How to use:
 
 ```bash
-podman compose -f docker/docker-compose.yml up
+podman-compose -f docker/docker-compose.yml up
 ```
 
 ### Deploy
@@ -26,7 +26,7 @@ docker/deploy.sh --no-frontend   # backend and database only (or --no-backend)
 docker/deploy.sh --help          # all options
 ```
 
-Requires `git`, `curl` and podman (or docker) with compose. The frontend is built on the server in a Node container (tests run first) and installed as a release under `/var/www/html/sharecount-releases/`; `/var/www/html/sharecount` (the nginx root, override with `FRONTEND_ROOT`) is a symlink switched atomically once the backend is healthy. The last 5 releases are kept, and `.well-known/` is carried over from the current site.
+Requires `git`, `curl`, `podman` and `podman-compose`. The frontend is built on the server in a Node container (tests run first) and installed as a release under `/var/www/html/sharecount-releases/`; `/var/www/html/sharecount` (the nginx root, override with `FRONTEND_ROOT`) is a symlink switched atomically once the backend is healthy. The last 5 releases are kept, and `.well-known/` is carried over from the current site.
 
 Database dumps are kept in `docker/backups/` (last 10). Migrations run automatically when the backend starts.
 

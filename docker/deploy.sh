@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Deploy ShareCount: the backend and its database (compose) and the frontend
-# (static files served by nginx).
+# Deploy ShareCount with podman: the backend and its database (podman-compose)
+# and the frontend (static files served by nginx).
 #
 # Steps: update the code, build the frontend (here, in a Node container, after
 # running its tests), back up the database, rebuild and restart the backend,
@@ -72,17 +72,11 @@ STAGE="$(mktemp -d)"
 trap 'rm -rf "$STAGE"' EXIT
 
 # --- tooling -----------------------------------------------------------------
-if command -v podman >/dev/null 2>&1; then
-    RUNTIME=podman
-elif command -v docker >/dev/null 2>&1; then
-    RUNTIME=docker
-else
-    die "neither podman nor docker is installed"
-fi
+command -v podman >/dev/null 2>&1 || die "podman is required"
 
 if ((DEPLOY_BACKEND)); then
-    "$RUNTIME" compose version >/dev/null 2>&1 || die "'$RUNTIME compose' is not available"
-    COMPOSE=("$RUNTIME" compose -f "$COMPOSE_FILE")
+    command -v podman-compose >/dev/null 2>&1 || die "podman-compose is required"
+    COMPOSE=(podman-compose -f "$COMPOSE_FILE")
     # Machine-specific tweaks (e.g. exposing the database port) go in an
     # untracked override file, so they never block `git pull`.
     [[ -f "$OVERRIDE_FILE" ]] && COMPOSE+=(-f "$OVERRIDE_FILE")
@@ -127,24 +121,21 @@ elif [[ -n "$REF" ]]; then
 fi
 COMMIT="$(git rev-parse --short HEAD)"
 log "Deploying $COMMIT (previously $PREVIOUS_COMMIT)"
+((DEPLOY_BACKEND)) && log "Using $(podman-compose version 2>/dev/null | tail -n 1)"
 [[ -f "$OVERRIDE_FILE" ]] && ((DEPLOY_BACKEND)) && log "Using local overrides from ${OVERRIDE_FILE#"$ROOT"/}"
 
 # --- frontend: prepare (nothing is changed yet) ------------------------------------
 FRONTEND_BUILD="$STAGE/frontend-build"
 
 build_frontend() {
-    local src="$STAGE/frontend-src" user_args
+    local src="$STAGE/frontend-src"
     log "Building frontend in $NODE_IMAGE"
     mkdir -p "$src"
     # Copy the sources as they are on disk, without local build outputs.
     tar -C "$ROOT/frontend" --exclude=./node_modules --exclude=./build --exclude=./.svelte-kit -cf - . \
         | tar -C "$src" -xf -
-    if [[ "$RUNTIME" == podman ]]; then
-        user_args=(--userns=keep-id)
-    else
-        user_args=(--user "$(id -u):$(id -g)")
-    fi
-    "$RUNTIME" run --rm "${user_args[@]}" \
+    # keep-id: files written by the build belong to the current user.
+    podman run --rm --userns=keep-id \
         -e HOME=/tmp -e CI=true -e VITE_BACKEND_URL="${VITE_BACKEND_URL:-}" \
         -v "$src:/app:Z" -w /app "$NODE_IMAGE" \
         sh -c 'npm ci --no-audit --no-fund --loglevel=error && npx vitest run --silent && npm run build' \
