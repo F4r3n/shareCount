@@ -1,5 +1,5 @@
 # Build stage
-FROM rust:1.88-slim as builder
+FROM docker.io/library/rust:1.97-slim-trixie AS builder
 WORKDIR /app
 COPY backend .
 
@@ -11,7 +11,7 @@ RUN apt-get update && apt-get install -y \
 RUN cargo build --release
 
 # Production stage
-FROM debian:stable-slim
+FROM docker.io/library/debian:trixie-slim
 RUN apt-get update && apt-get install -y \
   libpq-dev \
   libpq5 \

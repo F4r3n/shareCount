@@ -1,3 +1,4 @@
+use super::state_server;
 use crate::entrypoint::group_members::get_member_id;
 use crate::entrypoint::group_members::GroupMemberNoDate;
 use crate::entrypoint::{AppError, BadRequest};
@@ -5,7 +6,6 @@ use crate::schema::group_members;
 use crate::schema::groups;
 use crate::schema::transaction_debts;
 use crate::schema::transactions;
-pub use crate::state_server;
 use axum::{
     extract::{Path, State},
     response::Json,
@@ -147,7 +147,7 @@ pub async fn handler_get_all_transactions(
         });
 
     let mut v = map.into_values().collect::<Vec<TransactionResponse>>();
-    v.sort_by(|a: &TransactionResponse, b: &TransactionResponse| a.created_at.cmp(&b.created_at));
+    v.sort_by_key(|a| a.created_at);
     Ok(Json(v))
 }
 
@@ -381,7 +381,10 @@ fn get_group_member_id(
     conn: &mut PooledConnection<ConnectionManager<PgConnection>>,
 ) -> Result<i32, anyhow::Error> {
     get_member_id(group_id, member.uuid.clone(), conn).map_err(|e| {
-        if matches!(e.downcast_ref::<diesel::result::Error>(), Some(diesel::NotFound)) {
+        if matches!(
+            e.downcast_ref::<diesel::result::Error>(),
+            Some(diesel::NotFound)
+        ) {
             BadRequest(format!(
                 "Member {} ({}) is not part of the group",
                 member.nickname, member.uuid
@@ -394,8 +397,7 @@ fn get_group_member_id(
 }
 
 fn validate_transaction(transaction: &TransactionQuery) -> Result<(), AppError<String>> {
-    check_transaction_validity(transaction)
-        .map_err(|v| AppError::bad_request(v.clone(), Some(v)))
+    check_transaction_validity(transaction).map_err(|v| AppError::bad_request(v.clone(), Some(v)))
 }
 
 pub fn modify_create_transaction(

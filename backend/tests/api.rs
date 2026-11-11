@@ -1,12 +1,12 @@
 use axum_test::TestServer;
 use chrono::{self, Datelike};
 use serde_json::json;
+use share_count::entrypoint::group_members::{GroupMember, GroupMemberNoDate};
 use share_count::entrypoint::groups::GroupNoID;
+use share_count::entrypoint::transactions::{TransactionQuery, TransactionResponse};
 use share_count::router::create_router;
 use share_count::state_server;
 use std::env;
-use share_count::entrypoint::group_members::{GroupMember, GroupMemberNoDate};
-use share_count::entrypoint::transactions::{TransactionQuery, TransactionResponse};
 use std::sync::Arc;
 use uuid::Uuid;
 
@@ -41,7 +41,7 @@ async fn create_group(
         .map(|name| GroupMember::new(name))
         .collect::<Vec<GroupMember>>();
     let response = server
-        .post(format!("/groups/{}/group_members", &group.token).as_str())
+        .post(format!("/groups/{}/group_members", group.token).as_str())
         .json(&serde_json::to_value(&members)?)
         .await;
     assert_eq!(response.status_code(), 200);
@@ -317,8 +317,8 @@ async fn manage_transactions() -> Result<(), anyhow::Error> {
         .get(
             format!(
                 "/groups/{}/transactions/{}",
-                &token,
-                &new_transaction.get_uuid()
+                token,
+                new_transaction.get_uuid()
             )
             .as_str(),
         )
@@ -442,7 +442,10 @@ async fn removed_debtor_is_deleted() -> Result<(), anyhow::Error> {
         .json(&vec![&tx])
         .await;
     assert_eq!(response.status_code(), 200);
-    assert_eq!(get_transaction(&token, &uuid, &server).await?.debtors.len(), 3);
+    assert_eq!(
+        get_transaction(&token, &uuid, &server).await?.debtors.len(),
+        3
+    );
 
     // Same transaction, now only split between the first two members.
     let mut tx = create_transaction(&members[..2], "Split 2", "3", "1.5");
@@ -512,7 +515,8 @@ async fn transactions_batch_is_atomic() -> Result<(), anyhow::Error> {
 async fn transaction_cannot_be_moved_to_another_group() -> Result<(), anyhow::Error> {
     let server = create_server().await;
     let (victim, victim_members) = create_group("Victim", "EUR", &["A", "B"], &server).await?;
-    let (attacker, attacker_members) = create_group("Attacker", "EUR", &["X", "Y"], &server).await?;
+    let (attacker, attacker_members) =
+        create_group("Attacker", "EUR", &["X", "Y"], &server).await?;
 
     let tx = create_transaction(&victim_members, "Original", "2", "1");
     let uuid = tx.get_uuid();

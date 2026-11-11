@@ -1,5 +1,5 @@
 pub mod entrypoint;
-pub mod models;
+mod models;
 pub mod router;
-pub mod schema;
+mod schema;
 pub mod state_server;

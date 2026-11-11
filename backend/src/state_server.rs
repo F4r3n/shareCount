@@ -28,7 +28,7 @@ pub fn establish_connection() -> anyhow::Result<Arc<DbPool>> {
         std::env::var("POSTGRES_DB")?
     )
     .to_string();
-    println!("Database url {}", &database_url);
+    println!("Database url {}", database_url);
 
     let manager = ConnectionManager::<PgConnection>::new(&database_url);
     let pool = r2d2::Pool::builder().build(manager)?;
