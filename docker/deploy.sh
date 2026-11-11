@@ -74,7 +74,10 @@ command -v podman >/dev/null 2>&1 || die "podman is required"
 
 if ((DEPLOY_BACKEND)); then
     command -v podman-compose >/dev/null 2>&1 || die "podman-compose is required"
-    COMPOSE=(podman-compose -f "$COMPOSE_FILE")
+    # Pass the project name explicitly: podman-compose 1.0.x ignores
+    # COMPOSE_PROJECT_NAME. The default is the compose file's directory name.
+    PROJECT="${COMPOSE_PROJECT_NAME:-$(basename "$(dirname "$COMPOSE_FILE")")}"
+    COMPOSE=(podman-compose -p "$PROJECT" -f "$COMPOSE_FILE")
     # Machine-specific tweaks (e.g. exposing the database port) go in an
     # untracked override file, so they never block `git pull`.
     [[ -f "$OVERRIDE_FILE" ]] && COMPOSE+=(-f "$OVERRIDE_FILE")
@@ -121,7 +124,7 @@ elif [[ -n "$REF" ]]; then
 fi
 COMMIT="$(git rev-parse --short HEAD)"
 log "Deploying $COMMIT (previously $PREVIOUS_COMMIT)"
-((DEPLOY_BACKEND)) && log "Using $(podman-compose version 2>/dev/null | tail -n 1)"
+((DEPLOY_BACKEND)) && log "Using $(podman-compose version 2>/dev/null | grep -m 1 'podman-compose version' || echo podman-compose), project $PROJECT"
 [[ -f "$OVERRIDE_FILE" ]] && ((DEPLOY_BACKEND)) && log "Using local overrides from ${OVERRIDE_FILE#"$ROOT"/}"
 
 # --- frontend: prepare (nothing is changed yet) ------------------------------------
@@ -149,61 +152,86 @@ if ((DEPLOY_FRONTEND)); then
 fi
 
 # --- backend -----------------------------------------------------------------------
+# podman-compose is only used to build the image and to create containers.
+# Every check, exec, stop and removal goes through podman itself, on the exact
+# container: podman-compose 1.0.x (Debian 12) always exits 0 from `exec` and
+# ignores --no-deps, which would make failures look like successes.
+NEW_VOLUME="${PROJECT:-}_pgdata"
+
+container_of() {    # container id of a compose service, in any state
+    podman ps -aq --filter "label=io.podman.compose.project=$PROJECT" \
+        --filter "label=com.docker.compose.service=$1" | head -n 1
+}
+is_running() {
+    [[ -n "$1" && "$(podman inspect -f '{{.State.Running}}' "$1" 2>/dev/null)" == true ]]
+}
+data_volume_of() {
+    podman inspect -f \
+        '{{range .Mounts}}{{if eq .Destination "/var/lib/postgresql/data"}}{{.Name}}{{end}}{{end}}' "$1"
+}
+db_sh() {           # run a shell command in the database container
+    local id; id="$(container_of db)"
+    [[ -n "$id" ]] || return 1
+    podman exec "$id" sh -c "$1"
+}
+dump_db() {         # dump_db <file>: fails unless a non-empty dump was written
+    if db_sh 'pg_dump --format=custom -U "$POSTGRES_USER" -d "$POSTGRES_DB"' >"$1" && [[ -s "$1" ]]; then
+        return 0
+    fi
+    rm -f "$1"
+    return 1
+}
+table_count() {
+    db_sh 'psql -tAq -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "select count(*) from pg_tables where schemaname = '"'public'"'"' \
+        | tr -d '[:space:]'
+}
 # Wait until Postgres accepts TCP connections. Over the unix socket, the
 # temporary server the image runs while initialising a new volume would
 # already answer, and a restore started then would be cut off.
 wait_for_db() {
     local deadline=$((SECONDS + HEALTH_TIMEOUT))
-    until "${COMPOSE[@]}" exec -T db sh -c \
-        'pg_isready -q -h 127.0.0.1 -U "$POSTGRES_USER" -d "$POSTGRES_DB"' >/dev/null 2>&1; do
+    until db_sh 'pg_isready -q -h 127.0.0.1 -U "$POSTGRES_USER" -d "$POSTGRES_DB"' >/dev/null 2>&1; do
         ((SECONDS < deadline)) || die "database did not become ready within ${HEALTH_TIMEOUT}s"
         sleep 2
     done
 }
-
-# One-time move from the old layout: the first compose file kept the database
-# in an anonymous volume, the current one uses the named volume <project>_pgdata.
-project="${COMPOSE_PROJECT_NAME:-$(basename "$(dirname "$COMPOSE_FILE")")}"
-NEW_VOLUME="${project}_pgdata"
-compose_container() {
-    podman ps -aq --filter "label=io.podman.compose.project=$project" \
-        --filter "label=com.docker.compose.service=$1" | head -n 1
-}
-db_volume() {
-    podman inspect -f \
-        '{{range .Mounts}}{{if eq .Destination "/var/lib/postgresql/data"}}{{.Name}}{{end}}{{end}}' "$1"
+remove_container() {    # remove_container <service>; volumes are kept
+    local id; id="$(container_of "$1")"
+    [[ -z "$id" ]] || podman rm -f "$id" >/dev/null
 }
 
 OLD_VOLUME=""
+BACKUP_FILE=""
 if ((DEPLOY_BACKEND)); then
-    db_container="$(compose_container db)"
-    if [[ -n "$db_container" ]] && podman inspect -f '{{.State.Running}}' "$db_container" | grep -q true; then
-        data_volume="$(db_volume "$db_container")"
+    db_id="$(container_of db)"
+    if [[ -n "$db_id" ]]; then
+        # One-time move from the old layout: the first compose file kept the
+        # database in an anonymous volume, the current one uses <project>_pgdata.
+        data_volume="$(data_volume_of "$db_id")"
         if [[ -n "$data_volume" && "$data_volume" != "$NEW_VOLUME" ]]; then
             OLD_VOLUME="$data_volume"
             log "The database is on the old volume $OLD_VOLUME: its data will be moved to $NEW_VOLUME"
         fi
+        # A stopped database is started, so it can be backed up (and moved).
+        if ! is_running "$db_id"; then
+            log "Starting the existing database container"
+            podman start "$db_id" >/dev/null || die "could not start the database container, nothing was deployed"
+            wait_for_db
+        fi
     fi
-fi
 
-BACKUP_FILE=""
-if ((DEPLOY_BACKEND)); then
     if ((BACKUP)); then
-        if "${COMPOSE[@]}" exec -T db true >/dev/null 2>&1; then
+        if [[ -n "$db_id" ]]; then
             mkdir -p "$BACKUP_DIR"
             BACKUP_FILE="$BACKUP_DIR/sharecount-$(date -u +%Y%m%dT%H%M%SZ)-$PREVIOUS_COMMIT.dump"
             log "Backing up database to ${BACKUP_FILE#"$ROOT"/}"
-            if ! "${COMPOSE[@]}" exec -T db sh -c \
-                'pg_dump --format=custom -U "$POSTGRES_USER" -d "$POSTGRES_DB"' >"$BACKUP_FILE"; then
-                rm -f "$BACKUP_FILE"
-                die "database backup failed, nothing was deployed"
-            fi
+            dump_db "$BACKUP_FILE" || die "database backup failed, nothing was deployed"
             # Keep only the most recent dumps.
             find "$BACKUP_DIR" -maxdepth 1 -name 'sharecount-*.dump' -printf '%T@ %p\n' \
                 | sort -rn | tail -n +"$((KEEP_BACKUPS + 1))" | cut -d' ' -f2- \
                 | xargs -r rm -f --
         else
-            warn "database is not running, skipping backup (first deploy?)"
+            warn "no database container yet, skipping backup (first deploy?)"
         fi
     fi
 
@@ -212,55 +240,60 @@ if ((DEPLOY_BACKEND)); then
 
     if [[ -n "$OLD_VOLUME" ]]; then
         # Stop writes, dump, recreate the database on the new volume, restore.
-        migration_dump="$BACKUP_DIR/sharecount-$(date -u +%Y%m%dT%H%M%SZ)-volume-migration.dump"
         mkdir -p "$BACKUP_DIR"
+        migration_dump="$BACKUP_DIR/sharecount-$(date -u +%Y%m%dT%H%M%SZ)-volume-migration.dump"
         recover="Your data is untouched in volume $OLD_VOLUME and in $migration_dump"
         log "Stopping backend to move the data"
-        "${COMPOSE[@]}" stop backend
+        backend_id="$(container_of backend)"
+        [[ -z "$backend_id" ]] || podman stop "$backend_id" >/dev/null
         log "Dumping database to ${migration_dump#"$ROOT"/}"
-        if ! "${COMPOSE[@]}" exec -T db sh -c \
-            'pg_dump --format=custom -U "$POSTGRES_USER" -d "$POSTGRES_DB"' >"$migration_dump" \
-            || [[ ! -s "$migration_dump" ]]; then
-            "${COMPOSE[@]}" start backend || true
+        if ! dump_db "$migration_dump"; then
+            [[ -z "$backend_id" ]] || podman start "$backend_id" >/dev/null || true
             die "dump failed, nothing was changed (backend restarted)"
         fi
 
-        # podman refuses to recreate the database while the backend container
-        # depends on it, so remove that container first (it is recreated below).
-        backend_container="$(compose_container backend)"
-        [[ -z "$backend_container" ]] || podman rm -f "$backend_container" >/dev/null
-        log "Recreating database on volume $NEW_VOLUME"
-        "${COMPOSE[@]}" up -d --no-deps --force-recreate db
-        db_container="$(compose_container db)"
-        [[ -n "$db_container" && "$(db_volume "$db_container")" == "$NEW_VOLUME" ]] \
+        # The backend container depends on the database one, so both go; the
+        # old volume itself is kept. The backend is recreated below.
+        remove_container backend
+        remove_container db
+        log "Creating database on volume $NEW_VOLUME"
+        "${COMPOSE[@]}" up -d db
+        db_id="$(container_of db)"
+        [[ -n "$db_id" && "$(data_volume_of "$db_id")" == "$NEW_VOLUME" ]] \
             || die "the database was not moved to $NEW_VOLUME. $recover"
         wait_for_db
-        tables="$("${COMPOSE[@]}" exec -T db sh -c \
-            'psql -tAq -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "select count(*) from pg_tables where schemaname = '"'public'"'"')"
-        [[ "$(echo "$tables" | tr -d '[:space:]')" == 0 ]] \
-            || die "$NEW_VOLUME already contains tables, not restoring over them. $recover"
+        tables="$(table_count)" || die "could not inspect $NEW_VOLUME. $recover"
+        [[ "$tables" == 0 ]] || die "$NEW_VOLUME already contains tables, not restoring over them. $recover"
 
         log "Restoring data"
-        "${COMPOSE[@]}" exec -T db sh -c \
+        podman exec -i "$db_id" sh -c \
             'pg_restore --no-owner --exit-on-error -U "$POSTGRES_USER" -d "$POSTGRES_DB"' <"$migration_dump" \
             || die "restore failed. $recover"
-        log "Data moved; the old volume $OLD_VOLUME is kept (podman volume rm $OLD_VOLUME once all is fine)"
-    else
-        log "Starting database"
+        tables="$(table_count)" || true
+        [[ "$tables" =~ ^[1-9][0-9]*$ ]] || die "restore left no tables in $NEW_VOLUME. $recover"
+        log "Data moved ($tables tables); the old volume $OLD_VOLUME is kept (podman volume rm $OLD_VOLUME once all is fine)"
+    elif [[ -z "$(container_of db)" ]]; then
+        log "Creating database"
         "${COMPOSE[@]}" up -d db
+        wait_for_db
+    else
         wait_for_db
     fi
 
-    # Always recreate the backend: podman-compose does not reliably pick up a
-    # new image or a changed env file on a plain `up -d`. The database keeps running.
+    # Recreate the backend from the new image by removing its container and
+    # creating it again; `up --force-recreate --no-deps backend` would also
+    # recreate the database with podman-compose 1.0.x. The database container
+    # already exists, so `up` leaves it as it is.
     log "Restarting backend"
-    "${COMPOSE[@]}" up -d --no-deps --force-recreate backend
+    remove_container backend
+    "${COMPOSE[@]}" up -d --no-deps backend
 
     log "Waiting for backend at $HEALTH_URL"
     deadline=$((SECONDS + HEALTH_TIMEOUT))
     until version="$(curl -fsS --max-time 5 "$HEALTH_URL" 2>/dev/null)"; do
         if ((SECONDS >= deadline)); then
-            "${COMPOSE[@]}" logs --tail 50 backend >&2 || true
+            backend_id="$(container_of backend)"
+            [[ -z "$backend_id" ]] || podman logs --tail 50 "$backend_id" >&2 || true
             echo >&2
             [[ -n "$BACKUP_FILE" ]] && echo "Backup taken before this deploy: $BACKUP_FILE" >&2
             echo "To roll back the code: $0 --ref $PREVIOUS_COMMIT --no-pull" >&2
@@ -295,7 +328,7 @@ log "Deployed $COMMIT"
 if [[ -n "$BACKUP_FILE" ]]; then
     cat <<EOF
 Database backup: ${BACKUP_FILE#"$ROOT"/}
-  restore: ${COMPOSE[*]} exec -T db sh -c 'pg_restore --clean --if-exists -U "\$POSTGRES_USER" -d "\$POSTGRES_DB"' < $BACKUP_FILE
+  restore: podman exec -i $(podman inspect -f '{{.Name}}' "$(container_of db)") sh -c 'pg_restore --clean --if-exists --no-owner -U "\$POSTGRES_USER" -d "\$POSTGRES_DB"' < $BACKUP_FILE
 EOF
 fi
 if [[ "$PREVIOUS_COMMIT" != "$COMMIT" ]]; then
