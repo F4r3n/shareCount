@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount } from "svelte";
+  import { onMount, untrack } from "svelte";
   import { goto } from "$app/navigation";
   import type { Group, GroupMember } from "$lib/types";
   import { groupMembersProxy } from "@stores/group_members";
@@ -8,7 +8,7 @@
   import { userProxy, users } from "@stores/groupUsernames";
   import { transactionsProxy } from "@stores/group_transactions";
   import Modal from "./Modal.svelte";
-  import { base } from "$app/paths";
+  import { resolve } from "$app/paths";
   import CurrencySelector from "./CurrencySelector.svelte";
   import { fade } from "svelte/transition";
 
@@ -23,7 +23,9 @@
   } = $props();
   let modified_members: GroupMember[] = $state([]);
   let original_members: GroupMember[];
-  let group_modified = $state(structuredClone($state.snapshot(group)));
+  let group_modified = $state(
+    untrack(() => structuredClone($state.snapshot(group)))
+  );
   let modal: Modal | null = $state(null);
   let current_user_uuid = $state("");
   onMount(async () => {
@@ -216,7 +218,7 @@
         }
         onDone();
         clean();
-        goto(base + "/");
+        goto(resolve("/"));
       }
     }}
     >Validate

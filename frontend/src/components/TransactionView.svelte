@@ -4,7 +4,7 @@
   import { SvelteMap } from "svelte/reactivity";
   import { getCurrencySymbol } from "$lib/currencyFormat";
   import { goto } from "$app/navigation";
-  import { base } from "$app/paths";
+  import { resolve } from "$app/paths";
   let {
     transaction,
     members,
@@ -12,9 +12,8 @@
     transaction: Transaction;
     members: GroupMember[];
   } = $props();
-  let modified_transaction = $state(
-    structuredClone($state.snapshot(transaction))
-  );
+  // Read-only view: follow the prop so updates (e.g. after a sync) show up.
+  const modified_transaction = $derived(transaction);
 
   class DebtContainer {
     activated: boolean = $state(false);
@@ -56,9 +55,9 @@
   <div class="flex justify-between w-full items-center">
     <div class="flex flex-col w-full">
       <button
-        class="flex gap-x-2 flex-grow bg-base-200 shadow rounded-md hover:cursor-pointer p-3"
+        class="flex gap-x-2 grow bg-base-200 shadow rounded-md hover:cursor-pointer p-3"
         onclick={() => {
-          goto(base + `/transaction?id=${transaction.uuid}`);
+          goto(resolve(`/transaction?id=${transaction.uuid}`));
         }}
       >
         <div

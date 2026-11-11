@@ -6,7 +6,7 @@
   import { groupMembersProxy } from "@stores/group_members";
   import { transactionsProxy } from "@stores/group_transactions";
   import { goto } from "$app/navigation";
-  import { base } from "$app/paths";
+  import { resolve } from "$app/paths";
   import { MENU, menus } from "$lib/menus";
   import { fade } from "svelte/transition";
 
@@ -29,7 +29,7 @@
           transactions = trs;
         });
     } else {
-      goto(base + menus[MENU.GROUPS]);
+      goto(resolve(menus[MENU.GROUPS].path));
     }
 
     loading = false;

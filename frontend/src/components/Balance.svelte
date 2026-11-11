@@ -69,7 +69,7 @@
       await transactionsProxy.add_transaction(group_uuid, transaction);
       transactionsProxy.synchronize(group_uuid);
       transactions.push(transaction);
-      balances = compute_balance(await create_amounts(members, transactions));
+      balances = compute_balance(create_amounts(members, transactions));
       settlements = compute_settlements(balances).filter(
         (settlement: Settlement) => {
           return !settlement.amount.eq(new Big(0));
@@ -78,8 +78,8 @@
     }
   }
 
-  const currency_symbol = getCurrencySymbol(currency_id);
-  const currency_fixed = getLengthOfFraction(currency_id);
+  const currency_symbol = $derived(getCurrencySymbol(currency_id));
+  const currency_fixed = $derived(getLengthOfFraction(currency_id));
 </script>
 
 <main class="w-full sm:w-2/3 mx-auto">

@@ -1,12 +1,13 @@
 <script lang="ts">
   import type { Transaction, Debt, GroupMember } from "$lib/types";
-  import { onMount } from "svelte";
+  import { onMount, untrack } from "svelte";
   import { SvelteMap } from "svelte/reactivity";
   import Big from "big.js";
   import { getUTC } from "$lib/UTCDate";
   import InputNumber from "./InputNumber.svelte";
   import { getLengthOfFraction } from "$lib/currencyFormat";
   import CurrencySelector from "./CurrencySelector.svelte";
+  import { splitAmount } from "$lib/split";
 
   let {
     transaction,
@@ -25,8 +26,9 @@
     onDelete?: (tx: Transaction) => void;
     onCancel: (tx: Transaction) => void;
   } = $props();
+
   let modified_transaction = $state(
-    structuredClone($state.snapshot(transaction))
+    untrack(() => structuredClone($state.snapshot(transaction)))
   );
 
   class DebtContainer {
@@ -64,22 +66,13 @@
       return;
     }
 
-    // Calculate base amount and remainder
-    const baseAmount = amount.div(number_people).round(2, Big.roundDown);
-    const totalBase = baseAmount.times(number_people - 1);
-    const lastAmount = amount.minus(totalBase);
+    // Keep the decimals; the last person absorbs the remainder
+    const shares = splitAmount(amount, number_people);
 
     let activatedCount = 0;
     for (const [, debtContainer] of mapDebt) {
       if (debtContainer.activated) {
-        activatedCount++;
-
-        if (activatedCount < number_people) {
-          debtContainer.debt.amount = baseAmount.toFixed(currency_fixed);
-        } else {
-          // Last person gets the remainder
-          debtContainer.debt.amount = lastAmount.toFixed(currency_fixed);
-        }
+        debtContainer.debt.amount = shares[activatedCount++].toString();
       } else {
         debtContainer.debt.amount = "0";
       }
@@ -270,7 +263,7 @@
             <legend class="fieldset-legend">When</legend>
             <input
               type="date"
-              class="input input-bordered w-full max-w-[10rem] sm:max-w-xs"
+              class="input input-bordered w-full max-w-40 sm:max-w-xs"
               aria-label="Transaction date"
               bind:value={date_value}
               onchange={() => {
@@ -300,7 +293,6 @@
             <div class="max-w-1/3">
               <InputNumber
                 title="Debtor amount"
-                number_decimal={currency_fixed}
                 is_editing={true}
                 bind:value={debtContainer.debt.amount}
               ></InputNumber>

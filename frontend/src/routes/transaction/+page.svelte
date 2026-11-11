@@ -8,7 +8,7 @@
   import { groupMembersProxy } from "@stores/group_members";
   import { current_groupStore } from "@stores/group";
   import TransactionEditor from "@components/TransactionEditor.svelte";
-  import { base } from "$app/paths";
+  import { resolve } from "$app/paths";
   import { goto } from "$app/navigation";
   import { fade } from "svelte/transition";
 
@@ -79,7 +79,7 @@
           if ($current_groupStore) {
             transactionsProxy.delete_transaction($current_groupStore.token, tx);
           }
-          goto(base + "/expenses");
+          goto(resolve("/expenses"));
         }}
         onSave={async (newTransaction: Transaction) => {
           const token = $current_groupStore?.token;
@@ -91,7 +91,7 @@
               await transactionsProxy.modify_transaction(token, newTransaction);
             }
           }
-          goto(base + "/expenses");
+          goto(resolve("/expenses"));
         }}
       ></TransactionEditor>
     </div>

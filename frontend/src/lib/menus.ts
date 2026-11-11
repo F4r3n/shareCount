@@ -1,3 +1,5 @@
+import type { Pathname } from "$app/types";
+
 export enum MENU {
     GROUPS = 0,
     EXPENSES = 1,
@@ -7,8 +9,8 @@ export enum MENU {
 export interface MenuNavigation {
     type: MENU,
     name: string,
-    return_path: string,
-    path: string,
+    return_path: Pathname | "",
+    path: Pathname,
     display_tab: boolean
 }
 

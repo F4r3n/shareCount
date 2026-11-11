@@ -3,7 +3,7 @@
   import TransactionView from "./TransactionView.svelte";
   import { fade } from "svelte/transition";
   import { goto } from "$app/navigation";
-  import { base } from "$app/paths";
+  import { resolve } from "$app/paths";
   let {
     members,
     transactions,
@@ -51,7 +51,7 @@
 <button
   class="btn btn-primary md:w-1/3 add-button"
   onclick={async () => {
-    goto(base + `/transaction?id=`);
+    goto(resolve("/transaction?id="));
   }}
 >
   Add transaction

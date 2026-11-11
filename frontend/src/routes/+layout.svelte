@@ -4,7 +4,7 @@
   import { onMount } from "svelte";
   import { type MenuNavigation, menus } from "$lib/menus";
   import { current_groupStore } from "@stores/group";
-  import { base } from "$app/paths";
+  import { resolve } from "$app/paths";
   import { page } from "$app/state";
   let { children } = $props();
 
@@ -41,7 +41,9 @@
       <button
         class="banner-arrow"
         aria-label="Go to main page"
-        onclick={() => goto(base + current_menu?.return_path)}
+        onclick={() => {
+          if (current_menu?.return_path) goto(resolve(current_menu.return_path));
+        }}
         style="background: none; border: none; padding: 0; margin-right: 1rem; cursor: pointer;"
       >
         <svg
@@ -76,7 +78,7 @@
           class="tab text-base md:text-lg lg:text-lg"
           class:tab-active={page.route.id == sub.path}
           onclick={() => {
-            goto(base + `${sub.path}?id=${token_id}`);
+            goto(resolve(`${sub.path}?id=${token_id}`));
           }}
         >
           {sub.name}

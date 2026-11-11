@@ -6,7 +6,7 @@
   import { groupMembersProxy } from "@stores/group_members";
   import { current_groupStore, groupsProxy } from "@stores/group";
   import Modal from "./Modal.svelte";
-  import { base } from "$app/paths";
+  import { base, resolve } from "$app/paths";
   import { getBackendURL } from "$lib/shareCountAPI";
   import Share from "./Share.svelte";
   import { fade } from "svelte/transition";
@@ -58,7 +58,7 @@
       if (!edit && current_user_uuid) {
         current_groupStore.set(group);
         current_user.set($users[group.token]);
-        goto(base + `${menus[MENU.EXPENSES].path}?id=${group.token}`);
+        goto(resolve(`${menus[MENU.EXPENSES].path}?id=${group.token}`));
       }
     }}
     disabled={edit || !current_user_uuid}
@@ -109,7 +109,7 @@
       onclick={() => {
         console.log("go");
         console.log(group);
-        goto(base + `/group?id=${group.token}`);
+        goto(resolve(`/group?id=${group.token}`));
       }}
     >
       {edit ? "Cancel Edit" : "Edit"}

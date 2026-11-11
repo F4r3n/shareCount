@@ -22,7 +22,7 @@
       return `[0-9]+(${decimal}[0-9]{1,${number_decimal}})?`;
     }
   }
-  const regex = create_regex(number_decimal);
+  const regex = $derived(create_regex(number_decimal));
   let input: HTMLInputElement | null = null;
 </script>
 

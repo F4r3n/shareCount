@@ -5,7 +5,7 @@
   import type { Group } from "$lib/types";
   import { goto } from "$app/navigation";
   import { store_url } from "$lib/shareCountAPI";
-  import { base } from "$app/paths";
+  import { resolve } from "$app/paths";
   let current_error: string = $state("");
   onMount(async () => {
     current_groupStore.set(null);
@@ -71,7 +71,7 @@
   </div>
   <button
     onclick={() => {
-      goto(base + `/group`);
+      goto(resolve("/group"));
     }}
     class="btn btn-primary add-group-bottom">Add Group</button
   >

@@ -8,7 +8,7 @@
   import type { GroupMember, Transaction } from "$lib/types";
   import { current_groupStore } from "@stores/group";
   import { MENU, menus } from "$lib/menus";
-  import { base } from "$app/paths";
+  import { resolve } from "$app/paths";
   import { goto } from "$app/navigation";
   import { fade } from "svelte/transition";
 
@@ -25,7 +25,7 @@
         $current_user.group_uuid
       );
     } else {
-      goto(base + menus[MENU.GROUPS]);
+      goto(resolve(menus[MENU.GROUPS].path));
     }
 
     loading = false;

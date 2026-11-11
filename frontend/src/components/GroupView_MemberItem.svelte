@@ -2,6 +2,7 @@
     import type { GroupMember } from "$lib/types";
     import { CheckIcon, XIcon } from "lucide-svelte";
     import { fade } from "svelte/transition";
+    import { untrack } from "svelte";
     let {
         current_member,
         member_me,
@@ -15,7 +16,10 @@
         onChange: (member: GroupMember) => boolean;
         onMESelect: () => void;
     } = $props();
-    let member = $state(structuredClone($state.snapshot(current_member)));
+
+    let member = $state(
+        untrack(() => structuredClone($state.snapshot(current_member))),
+    );
     let error_message = $state("");
 </script>
 
