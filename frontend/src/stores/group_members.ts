@@ -184,8 +184,8 @@ export class GroupMemberProxy {
     async synchronize(group_uuid: string): Promise<GroupMember[]> {
         const original = await this._fetch_local_members(group_uuid);
 
-        const to_send = [];
-        const to_delete = [];
+        const to_send: GroupMember[] = [];
+        const to_delete: GroupMember[] = [];
         const map: Map<string, GroupMember_DB> = new Map();
         for (const o of original) {
             map.set(o.uuid, o);
@@ -229,19 +229,31 @@ export class GroupMemberProxy {
                 if (m.status != STATUS.TO_CREATE)
                     await this._delete_local_member(m, false);
                 else if (m.status == STATUS.TO_CREATE)
-                    to_send.push(m);
+                    to_send.push(this._convert_memberDB_member(m));
             }
 
-        } catch { /* empty */ }
+        } catch {
+            // Offline or server error: keep every pending change for the next synchronization.
+            return await this.get_group_members(group_uuid);
+        }
 
+        // Only clear a pending status once the server has confirmed the change.
         try {
-            this._add_remote_GroupMembers(group_uuid, to_send);
-            this._delete_remote_GroupMembers(group_uuid, to_delete);
-
+            await this._add_remote_GroupMembers(group_uuid, to_send);
             for (const member of to_send) {
                 await db.group_members.where("uuid").equals(member.uuid).modify({ status: STATUS.NOTHING })
             }
-        } catch { /* empty */ }
+        } catch { /* stays pending */ }
+
+        try {
+            await this._delete_remote_GroupMembers(group_uuid, to_delete);
+            // The server keeps members that still have expenses; if so they come
+            // back as regular members on the next synchronization.
+            for (const member of to_delete) {
+                await this._delete_local_member(member, false);
+            }
+        } catch { /* stays pending */ }
+
         const members = await this.get_group_members(group_uuid);
         return members;
     }

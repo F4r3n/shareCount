@@ -14,6 +14,7 @@ async fn main() -> anyhow::Result<()> {
     println!("Start server...");
     let connection = state_server::establish_connection()?;
     println!("Connection established...");
+    state_server::run_migrations(&connection)?;
 
     let state_server = state_server::StateServer { pool: connection };
     let front_url = env::var("FRONT_URL")?;

@@ -139,7 +139,12 @@ pub fn add_group_members(
                 group_members::nickname.eq(&new_member.nickname),
                 group_members::uuid.eq(&new_member.uuid),
             ))
-            .filter(group_members::modified_at.lt(excluded(group_members::modified_at)))
+            // Never move a member owned by another group into this one.
+            .filter(
+                group_members::modified_at
+                    .lt(excluded(group_members::modified_at))
+                    .and(group_members::group_id.eq(group_id)),
+            )
             .returning(GroupMember::as_returning())
             .execute(conn)?;
     }

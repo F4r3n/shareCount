@@ -13,6 +13,27 @@ pub struct AppError<T: Serialize = ()> {
     content: Option<T>,
 }
 
+/// Error raised when the client sent an invalid payload. Mapped to HTTP 400.
+#[derive(Debug)]
+pub struct BadRequest(pub String);
+
+impl std::fmt::Display for BadRequest {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+impl std::error::Error for BadRequest {}
+
+impl<T: Serialize> AppError<T> {
+    pub fn bad_request(message: String, content: Option<T>) -> Self {
+        Self {
+            error: BadRequest(message).into(),
+            content,
+        }
+    }
+}
+
 impl<T: Serialize> AppError<T> {
     fn convert_content(&self) -> serde_json::value::Value {
         match &self.content {
@@ -28,6 +49,9 @@ impl<T: Serialize> AppError<T> {
     }
 
     pub fn convert_message(&self) -> (StatusCode, String) {
+        if self.error.downcast_ref::<BadRequest>().is_some() {
+            return (StatusCode::BAD_REQUEST, self.message());
+        }
         if let Some(diesel_error) = self.error.downcast_ref() {
             return match diesel_error {
                 diesel::NotFound => (StatusCode::NOT_FOUND, self.message()),

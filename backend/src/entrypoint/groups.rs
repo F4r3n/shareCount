@@ -91,10 +91,12 @@ pub async fn handler_groups(
     Ok(Json(results))
 }
 
-fn create_group(
+/// Insert the group, or update it if the stored version is older.
+/// Must be called inside a database transaction.
+fn upsert_group(
     conn: &mut PooledConnection<ConnectionManager<PgConnection>>,
     group_query: GroupNoID,
-) -> Result<GroupNoID, AppError> {
+) -> Result<GroupNoID, anyhow::Error> {
     #[derive(Queryable, PartialEq, Debug, Selectable, Serialize, Insertable, AsChangeset)]
     struct Group {
         name: String,
@@ -103,51 +105,48 @@ fn create_group(
         created_at: NaiveDateTime,
         modified_at: NaiveDateTime,
     }
-    conn.transaction::<GroupNoID, anyhow::Error, _>(|conn| {
-        let to_insert = Group {
-            created_at: group_query.created_at,
-            currency_id: group_query.currency_id,
-            name: group_query.name,
-            token: group_query.token.clone(),
-            modified_at: group_query.modified_at,
-        };
-        use diesel::query_dsl::methods::FilterDsl;
-        use diesel::upsert::excluded;
-        let group_id = insert_into(groups::table)
-            .values(&to_insert)
-            .on_conflict(groups::token)
-            .do_update()
-            .set(&to_insert)
-            .filter(groups::modified_at.lt(excluded(groups::modified_at)))
-            .returning(groups::id)
-            .get_result::<i32>(conn)
-            .or(get_group_id(&group_query.token, conn))?;
+    let to_insert = Group {
+        created_at: group_query.created_at,
+        currency_id: group_query.currency_id,
+        name: group_query.name,
+        token: group_query.token.clone(),
+        modified_at: group_query.modified_at,
+    };
+    use diesel::query_dsl::methods::FilterDsl;
+    use diesel::upsert::excluded;
+    let upserted = insert_into(groups::table)
+        .values(&to_insert)
+        .on_conflict(groups::token)
+        .do_update()
+        .set(&to_insert)
+        .filter(groups::modified_at.lt(excluded(groups::modified_at)))
+        .returning(groups::id)
+        .get_result::<i32>(conn)
+        .optional()?;
 
-        get_group(group_id, conn)
-    })
-    .map_err(AppError::from)
+    // None: the stored group is newer, return it unchanged.
+    let group_id = match upserted {
+        Some(id) => id,
+        None => get_group_id(&group_query.token, conn)?,
+    };
+
+    get_group(group_id, conn)
 }
 
-///groups
-pub async fn handler_create_group(
-    State(state_server): State<state_server::StateServer>,
-    Json(group_query): Json<GroupNoID>,
-) -> Result<Json<GroupNoID>, AppError> {
-    let mut conn = state_server.pool.get()?;
-    let group = create_group(&mut conn, group_query);
-
-    Ok(Json(group?))
-}
-
+/// Applies all groups atomically: either every one is stored, or none.
 pub async fn handler_create_groups(
     State(state_server): State<state_server::StateServer>,
     Json(group_query): Json<Vec<GroupNoID>>,
 ) -> Result<Json<Vec<GroupNoID>>, AppError> {
     let mut conn = state_server.pool.get()?;
-    let mut results = vec![];
-    for group in group_query {
-        results.push(create_group(&mut conn, group)?);
-    }
+    let results = conn
+        .transaction::<_, anyhow::Error, _>(|conn| {
+            group_query
+                .into_iter()
+                .map(|group| upsert_group(conn, group))
+                .collect::<Result<Vec<_>, _>>()
+        })
+        .map_err(AppError::from)?;
 
     Ok(Json(results))
 }
@@ -156,32 +155,14 @@ pub async fn handler_delete_groups(
     State(state_server): State<state_server::StateServer>,
     Json(groups): Json<Vec<GroupNoID>>,
 ) -> Result<(), AppError> {
-    for group in groups {
-        let mut conn = state_server.pool.get()?;
-
-        conn.transaction::<(), anyhow::Error, _>(|conn| {
+    let mut conn = state_server.pool.get()?;
+    conn.transaction::<(), anyhow::Error, _>(|conn| {
+        for group in groups {
             diesel::delete(groups::table)
                 .filter(groups::modified_at.lt(group.modified_at))
                 .filter(groups::token.eq(group.token))
                 .execute(conn)?;
-            Ok(())
-        })
-        .map_err(AppError::from)?;
-    }
-    Ok(())
-}
-
-pub async fn handler_delete_group(
-    State(state_server): State<state_server::StateServer>,
-    Json(group_query): Json<GroupNoID>,
-) -> Result<(), AppError> {
-    let mut conn = state_server.pool.get()?;
-
-    conn.transaction::<(), anyhow::Error, _>(|conn| {
-        diesel::delete(groups::table)
-            .filter(groups::modified_at.lt(group_query.modified_at))
-            .filter(groups::token.eq(group_query.token))
-            .execute(conn)?;
+        }
         Ok(())
     })
     .map_err(AppError::from)

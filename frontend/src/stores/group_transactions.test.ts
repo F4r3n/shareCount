@@ -7,6 +7,7 @@ import { getUTC } from "$lib/UTCDate";
 import { groupsProxy } from "./group";
 import type { Group, GroupMember, Transaction } from "$lib/types";
 import { groupMembersProxy } from "./group_members";
+import { RemoteRequestError } from "./SynchroHelper";
 
 vi.mock("./group_transactions", async (importOriginal) => {
     const originalModule = await importOriginal<typeof import("./group_transactions")>();
@@ -161,3 +162,64 @@ test("synchronize merges remote and local transactions correctly", async () => {
     expect(result.find((t) => t.uuid === localTr.uuid)).toBeDefined();
 });
 
+
+test("synchronize keeps local changes pending when the remote update fails", async () => {
+    const group_uuid = ((await groupsProxy.get_local_groups())[0]).token;
+    const members = await groupMembersProxy.get_group_members(group_uuid);
+    const transaction = makeTransaction(members[0], members[1]);
+    await transactionsProxy.add_transaction(group_uuid, transaction);
+
+    vi.spyOn(transactionsProxy, "_get_remote_transactions" as never).mockResolvedValue([]);
+    vi.spyOn(transactionsProxy, "_update_remote_transaction" as never).mockRejectedValue(new RemoteRequestError(500));
+
+    await transactionsProxy.synchronize(group_uuid);
+
+    const dbTr = await db.transactions.get(transaction.uuid);
+    expect(dbTr?.status).toBe(STATUS.TO_CREATE);
+
+    // A second synchronization (remote still empty) must not drop it either.
+    await transactionsProxy.synchronize(group_uuid);
+    expect((await db.transactions.get(transaction.uuid))?.status).toBe(STATUS.TO_CREATE);
+});
+
+test("synchronize retries one by one when the batch is rejected", async () => {
+    const group_uuid = ((await groupsProxy.get_local_groups())[0]).token;
+    const members = await groupMembersProxy.get_group_members(group_uuid);
+    const valid = makeTransaction(members[0], members[1]);
+    const invalid = makeTransaction(members[0], members[1], { description: "invalid" });
+    await transactionsProxy.add_transaction(group_uuid, valid);
+    await transactionsProxy.add_transaction(group_uuid, invalid);
+
+    vi.spyOn(transactionsProxy, "_get_remote_transactions" as never).mockResolvedValue([]);
+    vi.spyOn(transactionsProxy, "_update_remote_transaction" as never).mockImplementation(
+        (async (_group: string, trs: Transaction[]) => {
+            if (trs.some((tr) => tr.description === "invalid")) {
+                throw new RemoteRequestError(400);
+            }
+        }) as never
+    );
+
+    await transactionsProxy.synchronize(group_uuid);
+
+    expect((await db.transactions.get(valid.uuid))?.status).toBe(STATUS.NOTHING);
+    expect((await db.transactions.get(invalid.uuid))?.status).toBe(STATUS.TO_CREATE);
+});
+
+test("synchronize removes a deleted transaction locally only after the server confirmed", async () => {
+    const group_uuid = ((await groupsProxy.get_local_groups())[0]).token;
+    const members = await groupMembersProxy.get_group_members(group_uuid);
+    const old = new Date(Date.now() - 60_000).toISOString().replace("Z", "");
+    const remote = makeTransaction(members[0], members[1], { modified_at: old });
+    await transactionsProxy.add_transaction(group_uuid, remote);
+    await transactionsProxy.delete_transaction(group_uuid, remote);
+
+    vi.spyOn(transactionsProxy, "_get_remote_transactions" as never).mockResolvedValue([{ ...remote, modified_at: old }]);
+    const deleteSpy = vi.spyOn(transactionsProxy, "_delete_remote_transaction" as never).mockRejectedValue(new Error("offline"));
+
+    await transactionsProxy.synchronize(group_uuid);
+    expect((await db.transactions.get(remote.uuid))?.status).toBe(STATUS.TO_DELETE);
+
+    deleteSpy.mockResolvedValue(undefined as never);
+    await transactionsProxy.synchronize(group_uuid);
+    expect(await db.transactions.get(remote.uuid)).toBeUndefined();
+});

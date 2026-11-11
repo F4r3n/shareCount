@@ -1,6 +1,5 @@
 use crate::entrypoint::{group_members, groups, status, transactions};
 use crate::state_server;
-use axum::routing::delete;
 use axum::{
     http::HeaderValue,
     routing::{get, post},
@@ -25,18 +24,20 @@ pub fn create_router(url: &str, state_server: StateServer) -> Result<Router, any
             axum::http::Method::PATCH,
         ])
         .allow_headers([axum::http::header::CONTENT_TYPE]);
-    let v1 = Router::new()
+    // Every write endpoint takes an array and is applied atomically.
+    let app = Router::new()
+        .route("/version", get(status::handler_version))
         .route("/users/{user_id}/groups", get(groups::handler_users_groups))
         .route(
             "/groups",
-            post(groups::handler_create_group).delete(groups::handler_delete_group),
+            post(groups::handler_create_groups).delete(groups::handler_delete_groups),
         )
         .route("/groups/{token_id}", get(groups::handler_groups))
         .route(
             "/groups/{token_id}/transactions",
             get(transactions::handler_get_all_transactions)
-                .delete(transactions::handler_delete_transaction)
-                .post(transactions::handler_modify_transaction),
+                .post(transactions::handler_modify_transactions)
+                .delete(transactions::handler_delete_transactions),
         )
         .route(
             "/groups/{token_id}/transactions/{transaction_uuid}",
@@ -47,24 +48,7 @@ pub fn create_router(url: &str, state_server: StateServer) -> Result<Router, any
             get(group_members::handler_group_members)
                 .post(group_members::handler_add_group_members)
                 .delete(group_members::handler_delete_group_members),
-        );
-    let v2 = Router::new()
-        .route(
-            "/groups",
-            post(groups::handler_create_groups).delete(groups::handler_delete_groups),
         )
-        .route(
-            "/groups/{token_id}/transactions",
-            delete(transactions::handler_delete_transactions)
-                .post(transactions::handler_modify_transactions),
-        );
-
-    let status = Router::new().route("/version", get(status::handler_version));
-
-    let app = Router::new()
-        .merge(v1)
-        .merge(status)
-        .nest("/v2", v2)
         .with_state(state_server)
         .layer(cors_layer);
     Ok(app)
