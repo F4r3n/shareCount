@@ -39,14 +39,14 @@ export function create_amounts(members: GroupMember[], transactions: Transaction
 }
 
 /**
- * Merge transactions by member.nickname, summing their amounts.
+ * Merge transactions by member.uuid, summing their amounts.
  * Amounts can be positive (credit) or negative (debt).
  */
 export function compute_balance(transactions: Amount[]): Amount[] {
     const map = new Map<string, Amount>();
 
     for (const transaction of transactions) {
-        const key = transaction.member.nickname;
+        const key = transaction.member.uuid;
         const existing = map.get(key);
 
         if (existing) {

@@ -5,12 +5,14 @@
     title,
     onChange,
     value = $bindable(),
+    class: className = "",
   }: {
     is_editing: boolean;
     number_decimal?: number;
     title: string;
     onChange?: (value: string, valid: boolean) => void;
     value: string;
+    class?: string;
   } = $props();
   const decimal = "(\\.|,)";
   function create_regex(number_decimal: number | undefined) {
@@ -34,7 +36,7 @@
   inputmode="numeric"
   placeholder="0"
   pattern={regex}
-  class="input validator md:input-md lg:input-lg"
+  class="input validator {className}"
   bind:value={() => value, (v) => (value = v.replaceAll(",", "."))}
   onchange={() => {
     if (onChange) {

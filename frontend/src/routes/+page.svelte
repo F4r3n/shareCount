@@ -6,6 +6,7 @@
   import { goto } from "$app/navigation";
   import { store_url } from "$lib/shareCountAPI";
   import { resolve } from "$app/paths";
+  import { PlusIcon, UsersIcon } from "lucide-svelte";
   let current_error: string = $state("");
   onMount(async () => {
     current_groupStore.set(null);
@@ -61,37 +62,38 @@
   </div>
 {/if}
 
-<main class="w-full mx-auto flex flex-col items-center">
-  <div class="mt-4">
-    {#each sortedGroup as group (group.token)}
-      <div class="mb-5">
+<main class="mx-auto w-full max-w-2xl px-4 pt-5 pb-28">
+  <h1 class="mb-3 px-1 text-2xl font-semibold tracking-tight">Your groups</h1>
+
+  {#if sortedGroup.length === 0}
+    <div
+      class="flex flex-col items-center text-center gap-2 py-16 px-6 bg-base-100 border border-base-300 rounded-box"
+    >
+      <UsersIcon size={36} class="text-base-content/40" />
+      <p class="font-medium">No groups yet</p>
+      <p class="text-sm text-base-content/60">
+        Create a group for your next trip, flat or dinner and start sharing
+        expenses.
+      </p>
+    </div>
+  {:else}
+    <div class="flex flex-col gap-3">
+      {#each sortedGroup as group (group.token)}
         <GroupView {group} onDone={() => {}}></GroupView>
-      </div>
-    {/each}
-  </div>
+      {/each}
+    </div>
+  {/if}
+</main>
+
+<div
+  class="fixed inset-x-0 bottom-0 z-10 flex justify-center pointer-events-none pb-[calc(1.25rem+env(safe-area-inset-bottom))]"
+>
   <button
     onclick={() => {
       goto(resolve("/group"));
     }}
-    class="btn btn-primary add-group-bottom">Add Group</button
+    class="btn btn-primary btn-lg rounded-full shadow-lg px-6 pointer-events-auto"
   >
-</main>
-
-<style>
-  main {
-    display: flex;
-    width: 100%;
-    justify-content: center;
-  }
-
-  .add-group-bottom {
-    position: fixed;
-    bottom: 0;
-    left: 50%;
-    transform: translateX(-50%);
-    z-index: 100;
-    width: 66vw;
-    max-width: 400px;
-    margin-bottom: 1rem;
-  }
-</style>
+    <PlusIcon size={20} /> New group
+  </button>
+</div>

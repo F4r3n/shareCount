@@ -3,14 +3,19 @@
     let {
         current_currency = $bindable(),
         onChange,
-    }: { current_currency: string; onChange?: (value: string) => void } =
-        $props();
+        class: className = "",
+    }: {
+        current_currency: string;
+        onChange?: (value: string) => void;
+        class?: string;
+    } = $props();
 
     let list_currencies = Intl.supportedValuesOf("currency");
 </script>
 
 <select
-    class="select"
+    class="select {className}"
+    aria-label="Currency"
     bind:value={current_currency}
     onchange={() => {
         if (onChange) {

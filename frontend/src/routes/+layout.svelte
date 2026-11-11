@@ -6,6 +6,7 @@
   import { current_groupStore } from "@stores/group";
   import { resolve } from "$app/paths";
   import { page } from "$app/state";
+  import { ChevronLeftIcon } from "lucide-svelte";
   let { children } = $props();
 
   let token_id = $state("");
@@ -35,76 +36,55 @@
   {/if}
 </svelte:head>
 
-<div class="top">
-  <div class="navbar bg-neutral text-neutral-content banner">
-    {#if current_menu?.return_path && current_menu.return_path.length > 0}
+<header
+  class="sticky top-0 z-20 bg-base-100/85 backdrop-blur border-b border-base-300"
+>
+  <div class="mx-auto max-w-2xl h-14 px-2 flex items-center gap-1">
+    {#if current_menu?.return_path}
       <button
-        class="banner-arrow"
-        aria-label="Go to main page"
+        class="btn btn-ghost btn-circle btn-sm"
+        aria-label="Back"
         onclick={() => {
-          if (current_menu?.return_path) goto(resolve(current_menu.return_path));
+          if (current_menu?.return_path)
+            goto(resolve(current_menu.return_path));
         }}
-        style="background: none; border: none; padding: 0; margin-right: 1rem; cursor: pointer;"
       >
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          width="28"
-          height="28"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-        >
-          <path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="2"
-            d="M15 19l-7-7 7-7"
-          />
-        </svg>
+        <ChevronLeftIcon size={22} />
       </button>
+    {:else}
+      <div class="w-3"></div>
     {/if}
-    <div class="text-xl">
-      {`ShareCount${$current_groupStore !== null ? ": " + $current_groupStore.name : ""}`}
+    <div class="min-w-0 leading-tight">
+      {#if $current_groupStore}
+        <div class="text-xs font-medium text-base-content/55">ShareCount</div>
+        <div class="font-semibold truncate">{$current_groupStore.name}</div>
+      {:else}
+        <div class="text-lg font-semibold tracking-tight">ShareCount</div>
+      {/if}
     </div>
   </div>
-</div>
 
-{#if $current_groupStore && current_menu?.display_tab}
-  <div role="tablist" class="tabs tabs-border justify-center">
-    {#each menus as sub (sub.name)}
-      {#if sub.display_tab}
-        <button
-          role="tab"
-          class="tab text-base md:text-lg lg:text-lg"
-          class:tab-active={page.route.id == sub.path}
-          onclick={() => {
-            goto(resolve(`${sub.path}?id=${token_id}`));
-          }}
-        >
-          {sub.name}
-        </button>
-      {/if}
-    {/each}
-  </div>
-{/if}
+  {#if $current_groupStore && current_menu?.display_tab}
+    <div class="mx-auto max-w-2xl px-4 pb-3">
+      <div role="tablist" class="tabs tabs-box tabs-sm grid grid-flow-col auto-cols-fr bg-base-200">
+        {#each menus as sub (sub.name)}
+          {#if sub.display_tab}
+            <button
+              role="tab"
+              class="tab font-medium"
+              class:tab-active={page.route.id == sub.path}
+              aria-selected={page.route.id == sub.path}
+              onclick={() => {
+                goto(resolve(`${sub.path}?id=${token_id}`));
+              }}
+            >
+              {sub.name}
+            </button>
+          {/if}
+        {/each}
+      </div>
+    </div>
+  {/if}
+</header>
 
 {@render children()}
-
-<style>
-  .banner-arrow {
-    display: inline-flex;
-    align-items: center;
-    height: 100%;
-    color: var(--color-primary-content);
-  }
-  .top {
-    position: sticky;
-    top: 0;
-    z-index: 10;
-  }
-
-  .banner {
-    background-color: var(--color-primary);
-    color: var(--color-primary-content);
-  }
-</style>

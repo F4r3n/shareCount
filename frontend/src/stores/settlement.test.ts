@@ -54,7 +54,7 @@ describe("Settlement computation", () => {
         expect(carolAmount.amount.eq(-20)).toBe(true);
     });
 
-    it("compute_balance should merge amounts by nickname", () => {
+    it("compute_balance should merge amounts by member uuid", () => {
         const input: Amount[] = [
             { member: alice, amount: new Big(10) },
             { member: alice, amount: new Big(5) },

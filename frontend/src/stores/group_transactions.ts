@@ -3,7 +3,7 @@ import type { Debt, Transaction } from '$lib/types';
 import { getFullBackendURL } from '$lib/shareCountAPI';
 import { db, STATUS, type Debt_DB, type Transaction_DB } from '../db/db';
 import { groupMembersProxy } from './group_members';
-import { getUTC } from '$lib/UTCDate';
+import { getUTC, parseUTC } from '$lib/UTCDate';
 import { RemoteRequestError, withTimeout } from './SynchroHelper';
 
 
@@ -32,8 +32,14 @@ export class TransactionsProxy {
     }
 
     public async synchronize_local(group_uuid: string): Promise<Transaction[]> {
-        const trs = this._sort_transactions(await this.get_local_transactions(group_uuid));
-        return trs;
+        // Hide transactions deleted locally but not yet synchronized.
+        const rows = (await this._get_local_transactionsDB(group_uuid))
+            .filter((t) => t.status !== STATUS.TO_DELETE);
+        const result: Transaction[] = [];
+        for (const t of rows) {
+            result.push(await this._convert_transactionDB_transaction(t));
+        }
+        return this._sort_transactions(result);
     }
 
     private async _get_local_transactionsDB(group_uuid: string): Promise<Transaction_DB[]> {
@@ -82,9 +88,7 @@ export class TransactionsProxy {
 
     _sort_transactions(inTransactions: Transaction[]): Transaction[] {
         return inTransactions.toSorted(
-            (a, b) =>
-                new Date(b.created_at).getTime() -
-                new Date(a.created_at).getTime(),
+            (a, b) => parseUTC(b.created_at) - parseUTC(a.created_at),
         );
     }
 

@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import type { GroupMember, Transaction } from "$lib/types";
+  import type { Transaction } from "$lib/types";
   import TransactionsView from "@components/TransactionsView.svelte";
   import { current_user } from "@stores/groupUsernames";
   import { groupMembersProxy } from "@stores/group_members";
@@ -12,14 +12,11 @@
 
   let loading = $state(true);
   let current_error: string = $state("");
-  let group_members: GroupMember[] = $state([]);
   let transactions: Transaction[] = $state([]);
 
   onMount(async () => {
     if ($current_user?.group_uuid) {
       const group_uuid = $current_user.group_uuid;
-      group_members = await groupMembersProxy.get_local_members(group_uuid);
-
       transactions = await transactionsProxy.synchronize_local(group_uuid);
       // Members first: the server rejects transactions referencing unknown members.
       groupMembersProxy
@@ -57,16 +54,14 @@
 
 <div in:fade>
   {#if loading}
-    <div class="flex justify-center items-center h-full">
-      <div class="flex w-full flex-col gap-4">
-        <div class="skeleton h-32 w-full"></div>
-        <div class="skeleton h-4 w-28"></div>
-        <div class="skeleton h-64 w-full"></div>
-        <div class="skeleton h-32 w-full"></div>
-      </div>
+    <div class="mx-auto w-full max-w-2xl px-4 pt-4 flex flex-col gap-3">
+      <div class="skeleton h-3 w-32"></div>
+      <div class="skeleton h-40 w-full rounded-box"></div>
+      <div class="skeleton h-3 w-28"></div>
+      <div class="skeleton h-24 w-full rounded-box"></div>
     </div>
   {:else}
-    <TransactionsView members={group_members} {transactions}></TransactionsView>
+    <TransactionsView {transactions}></TransactionsView>
   {/if}
 </div>
 

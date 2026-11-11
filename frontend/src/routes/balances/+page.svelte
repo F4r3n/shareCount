@@ -58,16 +58,13 @@
       {transactions}
     ></Balance>
   {:else}
-    <div class="flex justify-center items-center h-full">
-      <div class="flex w-full flex-col gap-4">
-        <div class="skeleton h-32 w-full"></div>
-        <div class="skeleton h-4 w-28"></div>
-        <div class="skeleton h-64 w-full"></div>
-        <div class="skeleton h-32 w-full"></div>
-      </div>
+    <div class="mx-auto w-full max-w-2xl px-4 pt-4 flex flex-col gap-3">
+      <div class="skeleton h-24 w-full rounded-box"></div>
+      <div class="skeleton h-3 w-32"></div>
+      <div class="skeleton h-32 w-full rounded-box"></div>
+      <div class="skeleton h-3 w-24"></div>
+      <div class="skeleton h-40 w-full rounded-box"></div>
     </div>
   {/if}
 </div>
 
-<style>
-</style>

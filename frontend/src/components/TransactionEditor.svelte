@@ -8,6 +8,7 @@
   import { getLengthOfFraction } from "$lib/currencyFormat";
   import CurrencySelector from "./CurrencySelector.svelte";
   import { splitAmount } from "$lib/split";
+  import { CircleAlertIcon, Trash2Icon } from "lucide-svelte";
 
   let {
     transaction,
@@ -189,192 +190,204 @@
   }
 </script>
 
-<main>
-  <form onsubmit={handleSubmit}>
-    <div class="flex flex-col p-3 rounded-md">
-      <div class="flex items-center">
-        <fieldset class="fieldset w-full">
-          <legend class="fieldset-legend">Title</legend>
+<form
+  onsubmit={handleSubmit}
+  class="mx-auto w-full max-w-2xl px-4 pt-4 pb-32 flex flex-col gap-4"
+>
+  <h1 class="px-1 text-2xl font-semibold tracking-tight">
+    {is_creating ? "New expense" : "Edit expense"}
+  </h1>
 
-          <input
-            type="text"
-            placeholder="Hotel"
-            maxlength="250"
-            class="input w-full"
-            bind:value={modified_transaction.description}
-            onchange={() => {
-              modified_transaction.modified_at = getUTC();
-            }}
-          />
-          <legend class="fieldset-legend">Amount</legend>
-          <div class="join">
-            <InputNumber
-              title="Transaction amount"
-              is_editing={true}
-              bind:value={modified_transaction.amount}
-              number_decimal={currency_fixed}
-              onChange={(value: string, valid: boolean) => {
-                if (valid) updateDebtors(value);
-              }}
-            ></InputNumber>
-            <CurrencySelector
-              bind:current_currency={modified_transaction.currency_id}
-              onChange={(newCurrency) => {
-                if (newCurrency != group_currency) {
-                  getExchangeRate(
-                    newCurrency,
-                    group_currency,
-                    new Date(modified_transaction.created_at)
-                  ).then((value: number) => {
-                    modified_transaction.exchange_rate = value.toString();
-                  });
-                } else {
-                  modified_transaction.exchange_rate = "1";
-                }
-              }}
-            ></CurrencySelector>
-          </div>
-          {#if modified_transaction.currency_id != group_currency}
-            <legend class="fieldset-legend">Exchange rate</legend>
-            <InputNumber
-              is_editing={true}
-              bind:value={modified_transaction.exchange_rate}
-              title="Exchange rate"
-            ></InputNumber>
-          {/if}
-        </fieldset>
-      </div>
-      <div class="flex flex-col sm:flex-row sm:items-center sm:gap-4">
-        <div class="flex items-center sm:space-x-8 space-x-4">
-          <fieldset class="fieldset">
-            <legend class="fieldset-legend">Paid by</legend>
-            <select class="select" bind:value={modified_transaction.paid_by}>
-              <option disabled selected value={modified_transaction.paid_by}>
-                {modified_transaction.paid_by.nickname}
-              </option>
-              {#each members as member (member.uuid)}
-                <option value={member}>
-                  {member.nickname}
-                </option>
-              {/each}
-            </select>
-          </fieldset>
-          <fieldset class="fieldset">
-            <legend class="fieldset-legend">When</legend>
-            <input
-              type="date"
-              class="input input-bordered w-full max-w-40 sm:max-w-xs"
-              aria-label="Transaction date"
-              bind:value={date_value}
-              onchange={() => {
-                const date = new Date();
-                modified_transaction.created_at =
-                  date_value +
-                  `T${date.getUTCHours()}:${date.getUTCMinutes()}:${date.getSeconds()}.000000`;
-              }}
-            />
-          </fieldset>
-        </div>
-      </div>
-      <div class="flex flex-col justify-between w-full pl-4 pr-4">
-        {#each mapDebt as [nickname, debtContainer] (nickname)}
-          <div class="flex flex-row mt-2 justify-between w-full items-center">
-            <label class="label mr-2">
-              <input
-                type="checkbox"
-                class="checkbox checkbox-accent"
-                bind:checked={debtContainer.activated}
-                onchange={() => {
-                  updateDebtors(modified_transaction.amount);
-                }}
-              />
-              {nickname}
-            </label>
-            <div class="max-w-1/3">
-              <InputNumber
-                title="Debtor amount"
-                is_editing={true}
-                bind:value={debtContainer.debt.amount}
-              ></InputNumber>
-            </div>
-          </div>
-        {/each}
+  <section
+    class="bg-base-100 border border-base-300 rounded-box p-4 flex flex-col gap-4"
+  >
+    <label class="flex flex-col gap-1.5">
+      <span class="text-sm font-medium text-base-content/70">Title</span>
+      <input
+        type="text"
+        placeholder="Hotel, groceries, dinner…"
+        maxlength="250"
+        class="input w-full"
+        bind:value={modified_transaction.description}
+        onchange={() => {
+          modified_transaction.modified_at = getUTC();
+        }}
+      />
+    </label>
+
+    <div class="flex flex-col gap-1.5">
+      <span class="text-sm font-medium text-base-content/70">Amount</span>
+      <div class="join w-full">
+        <InputNumber
+          title="Transaction amount"
+          is_editing={true}
+          bind:value={modified_transaction.amount}
+          number_decimal={currency_fixed}
+          class="join-item flex-1 text-lg font-semibold tabular-nums"
+          onChange={(value: string, valid: boolean) => {
+            if (valid) updateDebtors(value);
+          }}
+        ></InputNumber>
+        <CurrencySelector
+          class="join-item w-32"
+          bind:current_currency={modified_transaction.currency_id}
+          onChange={(newCurrency) => {
+            if (newCurrency != group_currency) {
+              getExchangeRate(
+                newCurrency,
+                group_currency,
+                new Date(modified_transaction.created_at)
+              ).then((value: number) => {
+                modified_transaction.exchange_rate = value.toString();
+              });
+            } else {
+              modified_transaction.exchange_rate = "1";
+            }
+          }}
+        ></CurrencySelector>
       </div>
     </div>
-    {#if error}
-      <div role="alert" class="alert alert-error">
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          class="h-6 w-6 shrink-0 stroke-current"
-          fill="none"
-          viewBox="0 0 24 24"
-        >
-          <path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="2"
-            d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"
-          />
-        </svg>
-        <span>{error.message}</span>
+
+    {#if modified_transaction.currency_id != group_currency}
+      <div class="flex flex-col gap-1.5">
+        <span class="text-sm font-medium text-base-content/70">
+          Exchange rate
+          <span class="font-normal text-base-content/50">
+            (1 {modified_transaction.currency_id} = ? {group_currency})
+          </span>
+        </span>
+        <InputNumber
+          is_editing={true}
+          bind:value={modified_transaction.exchange_rate}
+          title="Exchange rate"
+          class="w-full"
+        ></InputNumber>
       </div>
     {/if}
-    <div class="flex flex-row justify-between gap-x-2 m-2">
-      <!-- Left side: Delete and Reset -->
+
+    <div class="grid grid-cols-2 gap-3">
+      <label class="flex flex-col gap-1.5 min-w-0">
+        <span class="text-sm font-medium text-base-content/70">Paid by</span>
+        <select class="select w-full" bind:value={modified_transaction.paid_by}>
+          <option disabled selected value={modified_transaction.paid_by}>
+            {modified_transaction.paid_by.nickname}
+          </option>
+          {#each members as member (member.uuid)}
+            <option value={member}>
+              {member.nickname}
+            </option>
+          {/each}
+        </select>
+      </label>
+      <label class="flex flex-col gap-1.5 min-w-0">
+        <span class="text-sm font-medium text-base-content/70">When</span>
+        <input
+          type="date"
+          class="input w-full"
+          aria-label="Transaction date"
+          bind:value={date_value}
+          onchange={() => {
+            // Keep the picked day, with the current (zero-padded) UTC time.
+            const time = getUTC().split("T")[1];
+            modified_transaction.created_at = `${date_value}T${time}`;
+          }}
+        />
+      </label>
+    </div>
+  </section>
+
+  <section class="bg-base-100 border border-base-300 rounded-box">
+    <div class="flex items-baseline justify-between px-4 pt-4 pb-2">
+      <h2 class="font-semibold">Split between</h2>
+      <span class="text-sm text-base-content/55">
+        {[...mapDebt.values()].filter((d) => d.activated).length} of {mapDebt.size}
+      </span>
+    </div>
+    <ul class="divide-y divide-base-300">
+      {#each mapDebt as [nickname, debtContainer] (nickname)}
+        <li class="flex items-center gap-3 px-4 py-2.5">
+          <label class="flex flex-1 min-w-0 items-center gap-3 cursor-pointer">
+            <input
+              type="checkbox"
+              class="checkbox checkbox-primary checkbox-sm"
+              bind:checked={debtContainer.activated}
+              onchange={() => {
+                updateDebtors(modified_transaction.amount);
+              }}
+            />
+            <span
+              class="truncate {debtContainer.activated
+                ? ''
+                : 'text-base-content/45'}">{nickname}</span
+            >
+          </label>
+          <InputNumber
+            title="Debtor amount"
+            is_editing={true}
+            bind:value={debtContainer.debt.amount}
+            class="input-sm w-28 text-right tabular-nums"
+          ></InputNumber>
+        </li>
+      {/each}
+    </ul>
+  </section>
+
+  {#if error}
+    <div role="alert" class="alert alert-error alert-soft">
+      <CircleAlertIcon size={20} />
+      <span>{error.message}</span>
+    </div>
+  {/if}
+
+  <div
+    class="fixed inset-x-0 bottom-0 z-10 bg-base-100/90 backdrop-blur border-t border-base-300 pb-[env(safe-area-inset-bottom)]"
+  >
+    <div class="mx-auto max-w-2xl px-4 py-3 flex items-center gap-2">
       {#if is_creating}
-        <button type="button" class="btn btn-sm btn-error" onclick={reset}>
+        <button type="button" class="btn btn-ghost" onclick={reset}>
           Cancel
         </button>
       {:else}
-        <div class="flex flex-row gap-x-2">
-          <button
-            type="button"
-            class="btn btn-error"
-            onclick={() => {
-              modal?.showModal();
-            }}
-          >
-            Delete
-          </button>
-          <button type="button" class="btn btn-error" onclick={reset}>
-            Reset
-          </button>
-        </div>
+        <button
+          type="button"
+          class="btn btn-ghost text-error"
+          onclick={() => {
+            modal?.showModal();
+          }}
+        >
+          <Trash2Icon size={18} /> Delete
+        </button>
+        <button type="button" class="btn btn-ghost" onclick={reset}>
+          Reset
+        </button>
       {/if}
-
-      <div>
-        <button type="submit" class="btn btn-primary"> Save </button>
-      </div>
+      <button type="submit" class="btn btn-primary ml-auto px-8">Save</button>
     </div>
-  </form>
-</main>
+  </div>
+</form>
 
 <dialog
-  id="my_modal_1"
-  class="modal"
+  class="modal modal-bottom sm:modal-middle"
   bind:this={modal}
   aria-modal="true"
   aria-labelledby="modal-title"
-  aria-describedby="modal-desc"
 >
-  <div class="modal-box w-full max-w-xs sm:max-w-lg p-6 rounded-lg">
-    <h3 id="modal-title" class="text-lg font-bold">
-      This transaction will be deleted, are you sure?
-    </h3>
-    <div class="modal-action flex flex-col sm:flex-row gap-2">
-      <button
-        class="btn btn-error w-full sm:w-auto"
-        type="button"
-        onclick={handleDelete}
-      >
-        Yes, Delete
-      </button>
-      <form method="dialog" class="w-full sm:w-auto">
-        <button class="btn w-full sm:w-auto" type="submit">Cancel</button>
+  <div class="modal-box">
+    <h3 id="modal-title" class="text-lg font-semibold">Delete this expense?</h3>
+    <p class="py-2 text-sm text-base-content/70">
+      “{modified_transaction.description}” will be removed for everyone in the
+      group.
+    </p>
+    <div class="modal-action">
+      <form method="dialog">
+        <button class="btn btn-ghost" type="submit">Cancel</button>
       </form>
+      <button class="btn btn-error" type="button" onclick={handleDelete}>
+        Delete
+      </button>
     </div>
   </div>
+  <form method="dialog" class="modal-backdrop">
+    <button aria-label="Close">close</button>
+  </form>
 </dialog>
-
-<style>
-</style>

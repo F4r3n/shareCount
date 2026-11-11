@@ -39,6 +39,8 @@
       current_user_uuid = $users[group.token]?.member_uuid ?? "";
     } else {
       members_to_add.push(create_unique_member());
+      // Default "me" to the first participant so the new group can be opened.
+      current_user_uuid = members_to_add[0].uuid;
     }
   });
   let members_to_delete: GroupMember[] = [];
@@ -199,6 +201,11 @@
             group.token,
             $state.snapshot(members_to_add)
           );
+          if (
+            members_to_add.some((member) => member.uuid === current_user_uuid)
+          ) {
+            await userProxy.set_user_group(group.token, current_user_uuid);
+          }
         } else {
           await userProxy.synchronize_store(group.token);
           await groupsProxy.modify_group(group_modified);

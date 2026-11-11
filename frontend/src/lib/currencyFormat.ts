@@ -15,6 +15,17 @@ export function getLengthOfFraction(currency: string, locale?: Intl.LocalesArgum
     ?.value.length ?? 0;
 }
 
+/** Format an amount for display, e.g. "12.5" + "EUR" -> "12,50 €" (locale dependent). */
+export function formatMoney(amount: string, currency: string, locale?: Intl.LocalesArgument): string {
+  const value = Number(amount);
+  if (!Number.isFinite(value)) return `${amount} ${currency}`;
+  try {
+    return new Intl.NumberFormat(locale, { style: "currency", currency }).format(value);
+  } catch {
+    return `${amount} ${currency}`;
+  }
+}
+
 export function getCurrencySymbol(currency: string, locale?: Intl.LocalesArgument) {
   let result = "";
   try {

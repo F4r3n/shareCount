@@ -3,13 +3,20 @@
 
     let modal: HTMLDialogElement | null = $state(null);
     let title = $state("");
+    let message = $state("");
     let yesButton: ModalButton | null = $state(null);
     let noButton: ModalButton | null = $state(null);
 
-    export function open(inTitle : string, yes : ModalButton, no : ModalButton) {
+    export function open(
+        inTitle: string,
+        yes: ModalButton,
+        no: ModalButton,
+        inMessage: string = "",
+    ) {
         yesButton = yes;
         noButton = no;
-        title = inTitle
+        title = inTitle;
+        message = inMessage;
         modal?.showModal();
     }
 
@@ -19,37 +26,42 @@
 </script>
 
 <dialog
-    id="my_modal_1"
-    class="modal"
+    class="modal modal-bottom sm:modal-middle"
     bind:this={modal}
     aria-modal="true"
     aria-labelledby="modal-title"
-    aria-describedby="modal-desc"
 >
-    <div class="modal-box w-full max-w-xs sm:max-w-lg p-6 rounded-lg">
-        <h3 id="modal-title" class="text-lg font-bold">
+    <div class="modal-box">
+        <h3 id="modal-title" class="text-lg font-semibold">
             {title}
         </h3>
-        <div class="modal-action flex flex-col sm:flex-row gap-2">
+        {#if message}
+            <p class="py-2 text-sm text-base-content/70">{message}</p>
+        {/if}
+        <div class="modal-action">
+            {#if noButton}
+                <form method="dialog">
+                    <button
+                        class="btn btn-ghost"
+                        type="submit"
+                        onclick={noButton.callback}>{noButton.text}</button
+                    >
+                </form>
+            {/if}
             {#if yesButton}
                 <button
-                    class="btn btn-error w-full sm:w-auto"
+                    class="btn {yesButton.variant === 'primary'
+                        ? 'btn-primary'
+                        : 'btn-error'}"
                     type="button"
                     onclick={yesButton.callback}
                 >
                     {yesButton.text}
                 </button>
             {/if}
-
-            {#if noButton}
-            <form method="dialog" class="w-full sm:w-auto">
-                <button
-                    class="btn w-full sm:w-auto"
-                    type="submit"
-                    onclick={noButton.callback}>{noButton.text}</button
-                >
-            </form>
-            {/if}
         </div>
     </div>
+    <form method="dialog" class="modal-backdrop">
+        <button aria-label="Close">close</button>
+    </form>
 </dialog>

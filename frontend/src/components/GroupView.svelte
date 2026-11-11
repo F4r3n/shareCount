@@ -10,6 +10,7 @@
   import { getBackendURL } from "$lib/shareCountAPI";
   import Share from "./Share.svelte";
   import { fade } from "svelte/transition";
+  import { PencilIcon, Trash2Icon } from "lucide-svelte";
   import { userProxy, users, current_user } from "@stores/groupUsernames";
   let {
     group,
@@ -22,9 +23,11 @@
   let original_members: GroupMember[] = $state([]);
   let modal: Modal | null = $state(null);
   let current_user_uuid = $state("");
+  let user_loaded = $state(false);
   onMount(async () => {
     await userProxy.synchronize_store(group.token);
     current_user_uuid = $users[group.token]?.member_uuid ?? "";
+    user_loaded = true;
 
     original_members = await groupMembersProxy.get_local_members(group.token);
     groupMembersProxy.synchronize(group.token).then((members) => {
@@ -42,49 +45,76 @@
   }
 
   function build_share_url() {
-    const newurl = `${window.location.origin}${base}/?url=${getBackendURL()}&id=${group.token}`;
-    return newurl;
+    const params = new URLSearchParams({
+      url: getBackendURL() ?? "",
+      id: group.token,
+    });
+    return `${window.location.origin}${base}/?${params}`;
   }
 </script>
 
-<main
+<div
   in:fade
-  class="flex flex-col w-full justify-center text-base md:text-md lg:text-lg"
+  class="flex items-center gap-2 bg-base-100 border border-base-300 rounded-box pr-2 transition-shadow hover:shadow-md"
 >
   <button
     type="button"
-    class="grid grid-rows-2 bg-base-100 w-sm sm:w-md shadow-md p-4 rounded-md hover:shadow-lg cursor-pointer transition-shadow text-left focus:outline-none focus:ring-2 focus:ring-primary"
+    class="flex-1 min-w-0 flex items-center gap-3 p-4 text-left cursor-pointer rounded-box focus:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-default"
     onclick={() => {
-      if (!edit && current_user_uuid) {
+      if (edit || !user_loaded) return;
+      if (current_user_uuid) {
         current_groupStore.set(group);
         current_user.set($users[group.token]);
         goto(resolve(`${menus[MENU.EXPENSES].path}?id=${group.token}`));
+      } else {
+        // No member chosen yet: open the settings to pick who "me" is.
+        goto(resolve(`/group?id=${group.token}`));
       }
     }}
-    disabled={edit || !current_user_uuid}
+    disabled={edit}
   >
-    <h1
-      class="row-start-1 text-xl font-semibold text-ellipsis whitespace-nowrap overflow-hidden"
-    >
-      {group.name}
-    </h1>
-
-    {#if current_user_uuid}
-      <div class="row-start-2 text-sm">
-        {`${get_member_from_uuid(current_user_uuid)?.nickname} (me)`}
-      </div>
-    {:else}
-      <div class="row-start-2 text-sm text-error">No user selected.</div>
-    {/if}
+    <div class="min-w-0">
+      <h2 class="font-semibold truncate">{group.name}</h2>
+      {#if !user_loaded}
+        <p class="text-sm text-base-content/60">&nbsp;</p>
+      {:else if current_user_uuid}
+        {@const me = get_member_from_uuid(current_user_uuid)}
+        <p class="text-sm text-base-content/60 truncate">
+          {#if me}You are {me.nickname}{/if}
+          {#if me && original_members.length > 0}·{/if}
+          {#if original_members.length > 0}
+            {original_members.length}
+            {original_members.length > 1 ? "members" : "member"}
+          {/if}
+        </p>
+      {:else}
+        <p class="text-sm text-warning-content dark:text-warning">
+          Tap to choose who you are
+        </p>
+      {/if}
+    </div>
   </button>
-  <div class="flex flex-row gap-2 mt-2 justify-end w-sm sm:w-md">
+
+  <div class="flex items-center">
     <Share
       text="Welcome to your new trip"
       title={`sharecount to ${group.name}`}
       url={build_share_url()}
     />
     <button
-      class="btn btn-secondary"
+      class="btn btn-ghost btn-circle btn-sm"
+      aria-label="Edit group"
+      title="Edit group"
+      onclick={() => {
+        goto(resolve(`/group?id=${group.token}`));
+      }}
+    >
+      <PencilIcon size={18} />
+    </button>
+    <button
+      class="btn btn-ghost btn-circle btn-sm text-error"
+      aria-label="Delete group"
+      title="Delete group"
       onclick={() => {
         modal?.open(
           "Should I delete this group?",
@@ -102,21 +132,9 @@
         );
       }}
     >
-      Delete
-    </button>
-    <button
-      class="btn btn-primary"
-      onclick={() => {
-        console.log("go");
-        console.log(group);
-        goto(resolve(`/group?id=${group.token}`));
-      }}
-    >
-      {edit ? "Cancel Edit" : "Edit"}
+      <Trash2Icon size={18} />
     </button>
   </div>
-</main>
+</div>
 <Modal bind:this={modal}></Modal>
 
-<style>
-</style>
