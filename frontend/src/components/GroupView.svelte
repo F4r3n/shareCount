@@ -46,7 +46,7 @@
 
   function build_share_url() {
     const params = new URLSearchParams({
-      url: getBackendURL() ?? "",
+      url: getBackendURL(),
       id: group.token,
     });
     return `${window.location.origin}${resolve("/")}?${params}`;
