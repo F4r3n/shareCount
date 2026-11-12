@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { getCurrencySymbol } from "$lib/currencyFormat";
+    import { getCurrencySymbol } from "#lib/currencyFormat";
     let {
         current_currency = $bindable(),
         onChange,

@@ -1,9 +1,9 @@
 // src/lib/stores/group_members.ts
 import { db, STATUS, type GroupMember_DB } from '../db/db';
-import type { GroupMember } from '$lib/types';
-import { getUTC } from '$lib/UTCDate';
+import type { GroupMember } from '#lib/types';
+import { getUTC } from '#lib/UTCDate';
 import { v4 as uuidv4 } from 'uuid';
-import { getFullBackendURL } from '$lib/shareCountAPI';
+import { getFullBackendURL } from '#lib/shareCountAPI';
 import { withTimeout } from './SynchroHelper';
 
 
@@ -191,7 +191,7 @@ export class GroupMemberProxy {
             map.set(o.uuid, o);
         }
 
-        let remotes = [];
+        let remotes: GroupMember[];
 
         try {
             remotes = await withTimeout(this._get_remote_GroupMembers(group_uuid), 7000);

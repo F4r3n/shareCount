@@ -1,6 +1,6 @@
 <script lang="ts">
-    import type { GroupMember } from "$lib/types";
-    import { CheckIcon, XIcon } from "lucide-svelte";
+    import type { GroupMember } from "#lib/types";
+    import { CheckIcon, XIcon } from "@lucide/svelte";
     import { fade } from "svelte/transition";
     import { untrack } from "svelte";
     let {

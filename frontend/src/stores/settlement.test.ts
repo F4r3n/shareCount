@@ -1,4 +1,4 @@
-import type { GroupMember, Transaction } from '$lib/types';
+import type { GroupMember, Transaction } from '#lib/types';
 import { expect, describe, it } from 'vitest';
 import { compute_balance, compute_settlements, create_amounts, type Amount } from './settlement';
 import Big from 'big.js';

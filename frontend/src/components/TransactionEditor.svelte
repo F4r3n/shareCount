@@ -1,14 +1,14 @@
 <script lang="ts">
-  import type { Transaction, Debt, GroupMember } from "$lib/types";
+  import type { Transaction, Debt, GroupMember } from "#lib/types";
   import { onMount, untrack } from "svelte";
   import { SvelteMap } from "svelte/reactivity";
   import Big from "big.js";
-  import { getUTC } from "$lib/UTCDate";
+  import { getUTC } from "#lib/UTCDate";
   import InputNumber from "./InputNumber.svelte";
-  import { getLengthOfFraction } from "$lib/currencyFormat";
+  import { getLengthOfFraction } from "#lib/currencyFormat";
   import CurrencySelector from "./CurrencySelector.svelte";
-  import { splitAmount } from "$lib/split";
-  import { CircleAlertIcon, Trash2Icon } from "lucide-svelte";
+  import { splitAmount } from "#lib/split";
+  import { CircleAlertIcon, Trash2Icon } from "@lucide/svelte";
 
   let {
     transaction,

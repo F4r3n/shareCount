@@ -1,13 +1,13 @@
 <script lang="ts">
   import { onMount } from "svelte";
 
-  import Balance from "@components/Balance.svelte";
-  import { groupMembersProxy } from "@stores/group_members";
-  import { current_user } from "@stores/groupUsernames";
-  import { transactionsProxy } from "@stores/group_transactions";
-  import type { GroupMember, Transaction } from "$lib/types";
-  import { current_groupStore } from "@stores/group";
-  import { MENU, menus } from "$lib/menus";
+  import Balance from "#components/Balance.svelte";
+  import { groupMembersProxy } from "#stores/group_members";
+  import { current_user } from "#stores/groupUsernames";
+  import { transactionsProxy } from "#stores/group_transactions";
+  import type { GroupMember, Transaction } from "#lib/types";
+  import { current_groupStore } from "#stores/group";
+  import { MENU, menus } from "#lib/menus";
   import { resolve } from "$app/paths";
   import { goto } from "$app/navigation";
   import { fade } from "svelte/transition";

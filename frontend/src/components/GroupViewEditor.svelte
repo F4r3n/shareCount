@@ -1,12 +1,12 @@
 <script lang="ts">
   import { onMount, untrack } from "svelte";
   import { goto } from "$app/navigation";
-  import type { Group, GroupMember } from "$lib/types";
-  import { groupMembersProxy } from "@stores/group_members";
+  import type { Group, GroupMember } from "#lib/types";
+  import { groupMembersProxy } from "#stores/group_members";
   import GroupViewMemberItem from "./GroupView_MemberItem.svelte";
-  import { groupsProxy } from "@stores/group";
-  import { userProxy, users } from "@stores/groupUsernames";
-  import { transactionsProxy } from "@stores/group_transactions";
+  import { groupsProxy } from "#stores/group";
+  import { userProxy, users } from "#stores/groupUsernames";
+  import { transactionsProxy } from "#stores/group_transactions";
   import Modal from "./Modal.svelte";
   import { resolve } from "$app/paths";
   import CurrencySelector from "./CurrencySelector.svelte";

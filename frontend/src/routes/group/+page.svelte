@@ -1,10 +1,10 @@
 <script lang="ts">
-  import { groupsStore } from "@stores/group";
-  import type { Group } from "$lib/types";
+  import { groupsStore } from "#stores/group";
+  import type { Group } from "#lib/types";
   import { onMount } from "svelte";
-  import { getUTC } from "$lib/UTCDate";
+  import { getUTC } from "#lib/UTCDate";
   import { v4 as uuidv4 } from "uuid";
-  import GroupViewEditor from "@components/GroupViewEditor.svelte";
+  import GroupViewEditor from "#components/GroupViewEditor.svelte";
   import { fade } from "svelte/transition";
 
   let group: Group | null = $state(null);

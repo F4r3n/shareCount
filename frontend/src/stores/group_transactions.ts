@@ -1,9 +1,9 @@
 // src/lib/stores/groupUsernames.ts
-import type { Debt, Transaction } from '$lib/types';
-import { getFullBackendURL } from '$lib/shareCountAPI';
+import type { Debt, Transaction } from '#lib/types';
+import { getFullBackendURL } from '#lib/shareCountAPI';
 import { db, STATUS, type Debt_DB, type Transaction_DB } from '../db/db';
 import { groupMembersProxy } from './group_members';
-import { getUTC, parseUTC } from '$lib/UTCDate';
+import { getUTC, parseUTC } from '#lib/UTCDate';
 import { RemoteRequestError, withTimeout } from './SynchroHelper';
 
 

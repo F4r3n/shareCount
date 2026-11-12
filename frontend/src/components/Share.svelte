@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { CheckIcon, Share2Icon } from "lucide-svelte";
+    import { CheckIcon, Share2Icon } from "@lucide/svelte";
     import { onDestroy } from "svelte";
     let { url, title, text }: { url: string; title: string; text: string } =
         $props();

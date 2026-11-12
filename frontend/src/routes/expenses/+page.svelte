@@ -1,13 +1,13 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import type { Transaction } from "$lib/types";
-  import TransactionsView from "@components/TransactionsView.svelte";
-  import { current_user } from "@stores/groupUsernames";
-  import { groupMembersProxy } from "@stores/group_members";
-  import { transactionsProxy } from "@stores/group_transactions";
+  import type { Transaction } from "#lib/types";
+  import TransactionsView from "#components/TransactionsView.svelte";
+  import { current_user } from "#stores/groupUsernames";
+  import { groupMembersProxy } from "#stores/group_members";
+  import { transactionsProxy } from "#stores/group_transactions";
   import { goto } from "$app/navigation";
   import { resolve } from "$app/paths";
-  import { MENU, menus } from "$lib/menus";
+  import { MENU, menus } from "#lib/menus";
   import { fade } from "svelte/transition";
 
   let loading = $state(true);

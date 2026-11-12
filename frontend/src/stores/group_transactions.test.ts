@@ -3,11 +3,14 @@ import { beforeEach, test, expect, vi, afterEach } from "vitest";
 import { transactionsProxy } from "./group_transactions";
 import { db, STATUS } from "../db/db";
 import { v4 as uuidv4 } from "uuid";
-import { getUTC } from "$lib/UTCDate";
+import { getUTC } from "#lib/UTCDate";
 import { groupsProxy } from "./group";
-import type { Group, GroupMember, Transaction } from "$lib/types";
+import type { Group, GroupMember, Transaction } from "#lib/types";
 import { groupMembersProxy } from "./group_members";
 import { RemoteRequestError } from "./SynchroHelper";
+
+/** Lets tests spy on private proxy methods. */
+type Spyable = Record<string, (...args: never[]) => Promise<unknown>>;
 
 vi.mock("./group_transactions", async (importOriginal) => {
     const originalModule = await importOriginal<typeof import("./group_transactions")>();
@@ -31,8 +34,8 @@ beforeEach(async () => {
     const token = uuidv4();
     const new_group = { created_at: getUTC(), currency_id: "EUR", modified_at: getUTC(), name: "TEST", token: token } as Group
     await groupsProxy.add_new_local_group(new_group);
-    vi.spyOn(groupsProxy as never, "_add_remote_group").mockResolvedValue("");
-    vi.spyOn(groupsProxy as never, "_getGroup").mockResolvedValue(new_group);
+    vi.spyOn(groupsProxy as unknown as Spyable, "_add_remote_group").mockResolvedValue("");
+    vi.spyOn(groupsProxy as unknown as Spyable, "_getGroup").mockResolvedValue(new_group);
 
     await groupsProxy.synchronize();
     const new_members = [
@@ -40,7 +43,7 @@ beforeEach(async () => {
         { nickname: "Debtor", modified_at: getUTC(), uuid: uuidv4() }
     ]
 
-    vi.spyOn(groupMembersProxy as never, "_add_remote_GroupMembers").mockResolvedValue("");
+    vi.spyOn(groupMembersProxy as unknown as Spyable, "_add_remote_GroupMembers").mockResolvedValue("");
 
     await groupMembersProxy.add_members(token, new_members)
 });
@@ -85,7 +88,7 @@ test("add_transaction handles remote failure and sets status", async () => {
     const members = await groupMembersProxy.get_group_members(group_uuid);
     const transaction = makeTransaction(members[0], members[1]);
 
-    vi.spyOn(transactionsProxy as never, "_update_remote_transaction").mockRejectedValue(new Error("fail"));
+    vi.spyOn(transactionsProxy as unknown as Spyable, "_update_remote_transaction").mockRejectedValue(new Error("fail"));
 
     await transactionsProxy.add_transaction(group_uuid, transaction);
 
@@ -129,7 +132,7 @@ test("has_spent returns true if user has paid or owes", async () => {
     const members = await groupMembersProxy.get_group_members(group_uuid);
     const transaction = makeTransaction(members[0], members[1]);
 
-    vi.spyOn(transactionsProxy as never, "get_local_transactions").mockResolvedValue([transaction]);
+    vi.spyOn(transactionsProxy as unknown as Spyable, "get_local_transactions").mockResolvedValue([transaction]);
 
     expect(await transactionsProxy.has_spent(group_uuid, members[0]?.uuid)).toBe(true);
     expect(await transactionsProxy.has_spent(group_uuid, members[1]?.uuid)).toBe(true);
@@ -151,7 +154,7 @@ test("synchronize merges remote and local transactions correctly", async () => {
     });
 
     // Mock remote fetch
-    vi.spyOn(transactionsProxy, "_get_remote_transactions" as never).mockResolvedValue([remoteTr]);
+    vi.spyOn(transactionsProxy as unknown as Spyable, "_get_remote_transactions").mockResolvedValue([remoteTr]);
 
     const result = await transactionsProxy.synchronize(group_uuid);
 
@@ -169,8 +172,8 @@ test("synchronize keeps local changes pending when the remote update fails", asy
     const transaction = makeTransaction(members[0], members[1]);
     await transactionsProxy.add_transaction(group_uuid, transaction);
 
-    vi.spyOn(transactionsProxy, "_get_remote_transactions" as never).mockResolvedValue([]);
-    vi.spyOn(transactionsProxy, "_update_remote_transaction" as never).mockRejectedValue(new RemoteRequestError(500));
+    vi.spyOn(transactionsProxy as unknown as Spyable, "_get_remote_transactions").mockResolvedValue([]);
+    vi.spyOn(transactionsProxy as unknown as Spyable, "_update_remote_transaction").mockRejectedValue(new RemoteRequestError(500));
 
     await transactionsProxy.synchronize(group_uuid);
 
@@ -190,8 +193,8 @@ test("synchronize retries one by one when the batch is rejected", async () => {
     await transactionsProxy.add_transaction(group_uuid, valid);
     await transactionsProxy.add_transaction(group_uuid, invalid);
 
-    vi.spyOn(transactionsProxy, "_get_remote_transactions" as never).mockResolvedValue([]);
-    vi.spyOn(transactionsProxy, "_update_remote_transaction" as never).mockImplementation(
+    vi.spyOn(transactionsProxy as unknown as Spyable, "_get_remote_transactions").mockResolvedValue([]);
+    vi.spyOn(transactionsProxy as unknown as Spyable, "_update_remote_transaction").mockImplementation(
         (async (_group: string, trs: Transaction[]) => {
             if (trs.some((tr) => tr.description === "invalid")) {
                 throw new RemoteRequestError(400);
@@ -213,8 +216,8 @@ test("synchronize removes a deleted transaction locally only after the server co
     await transactionsProxy.add_transaction(group_uuid, remote);
     await transactionsProxy.delete_transaction(group_uuid, remote);
 
-    vi.spyOn(transactionsProxy, "_get_remote_transactions" as never).mockResolvedValue([{ ...remote, modified_at: old }]);
-    const deleteSpy = vi.spyOn(transactionsProxy, "_delete_remote_transaction" as never).mockRejectedValue(new Error("offline"));
+    vi.spyOn(transactionsProxy as unknown as Spyable, "_get_remote_transactions").mockResolvedValue([{ ...remote, modified_at: old }]);
+    const deleteSpy = vi.spyOn(transactionsProxy as unknown as Spyable, "_delete_remote_transaction").mockRejectedValue(new Error("offline"));
 
     await transactionsProxy.synchronize(group_uuid);
     expect((await db.transactions.get(remote.uuid))?.status).toBe(STATUS.TO_DELETE);

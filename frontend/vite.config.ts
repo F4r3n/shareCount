@@ -1,20 +1,41 @@
+/// <reference types="vitest/config" />
 import tailwindcss from '@tailwindcss/vite';
 import { sveltekit } from '@sveltejs/kit/vite';
-import { defineConfig } from 'vite';
-import { SvelteKitPWA } from '@vite-pwa/sveltekit'
+import adapter from '@sveltejs/adapter-static';
+import { vitePreprocess } from '@sveltejs/vite-plugin-svelte';
+import { defineConfig, type PluginOption } from 'vite';
+import { withPwa } from '@vite-pwa/sveltekit';
 import { generateSW } from './generateSW.mjs';
 
 const host = process.env.TAURI_DEV_HOST;
 const IS_MOBILE = process.env.TAURI_ENV_PLATFORM != undefined;
-const plugins = [tailwindcss(),
-sveltekit()];
 
-if (!IS_MOBILE) {
-	plugins.push(SvelteKitPWA({
-		srcDir: './src',
+// SvelteKit 3: the configuration formerly in svelte.config.js lives here.
+const kitConfig: Parameters<typeof sveltekit>[0] = {
+	preprocess: vitePreprocess(),
+	adapter: adapter({
+		pages: 'build',
+		assets: 'build',
+		fallback: 'offline.html',
+		precompress: false,
+		strict: true,
+	}),
+	serviceWorker: {
+		register: false,
+	},
+	files: {
+		serviceWorker: generateSW ? undefined : 'src/sw.ts',
+	},
+};
+
+const plugins: PluginOption[] = [tailwindcss()];
+
+if (IS_MOBILE) {
+	plugins.push(sveltekit(kitConfig));
+} else {
+	plugins.push(withPwa(kitConfig, {
 		registerType: 'autoUpdate',
 		strategies: generateSW ? "generateSW" : "injectManifest",
-		filename: "sw.ts",
 		devOptions: {
 			enabled: process.env.NODE_ENV === "development",
 			type: 'module',
@@ -26,7 +47,7 @@ if (!IS_MOBILE) {
 			name: 'Share count',
 			display: 'standalone',
 		},
-		workbox: {
+		generateSW: {
 			navigateFallback: "/shareCount",
 			globPatterns: ['client/**/*.{js,css,ico,png,svg,webp,woff,woff2,wasm,html}'],
 		},

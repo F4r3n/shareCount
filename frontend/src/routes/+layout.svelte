@@ -2,11 +2,11 @@
   import "../app.css";
   import { goto } from "$app/navigation";
   import { onMount } from "svelte";
-  import { type MenuNavigation, menus } from "$lib/menus";
-  import { current_groupStore } from "@stores/group";
+  import { type MenuNavigation, menus } from "#lib/menus";
+  import { current_groupStore } from "#stores/group";
   import { resolve } from "$app/paths";
   import { page } from "$app/state";
-  import { ChevronLeftIcon } from "lucide-svelte";
+  import { ChevronLeftIcon } from "@lucide/svelte";
   let { children } = $props();
 
   let token_id = $state("");

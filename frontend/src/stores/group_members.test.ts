@@ -3,9 +3,12 @@ import { expect, test, beforeEach, vi, afterEach } from 'vitest';
 import { groupMembersProxy } from './group_members';
 import { db, STATUS } from '../db/db';
 import { v4 as uuidv4 } from "uuid";
-import { formatDate, getUTC } from '$lib/UTCDate';
-import type { Group, GroupMember } from "$lib/types";
+import { formatDate, getUTC } from '#lib/UTCDate';
+import type { Group, GroupMember } from "#lib/types";
 import { groupsProxy } from "./group";
+
+/** Lets tests spy on private proxy methods. */
+type Spyable = Record<string, (...args: never[]) => Promise<unknown>>;
 
 vi.mock("./group_members", async (importOriginal) => {
     const originalModule = await importOriginal<typeof import("./group_members")>();
@@ -26,7 +29,7 @@ beforeEach(async () => {
     vi.restoreAllMocks();
     const new_group = { created_at: getUTC(), currency_id: "EUR", modified_at: getUTC(), name: "TEST", token: uuidv4() } as Group
     await groupsProxy.add_new_local_group(new_group);
-    vi.spyOn(groupsProxy as never, "_getGroup").mockResolvedValue(new_group);
+    vi.spyOn(groupsProxy as unknown as Spyable, "_getGroup").mockResolvedValue(new_group);
     await groupsProxy.synchronize();
 });
 
@@ -84,7 +87,7 @@ test('Add members - remote failure falls back to local', async () => {
     const group_uuid = ((await groupsProxy.get_local_groups())[0]).token;
     const member = groupMembersProxy.create_group_member("Ivan");
     // Mock remote call to fail
-    vi.spyOn(groupMembersProxy as never, '_add_remote_GroupMembers').mockRejectedValue(new Error("Network error"));
+    vi.spyOn(groupMembersProxy as unknown as Spyable, '_add_remote_GroupMembers').mockRejectedValue(new Error("Network error"));
     await groupMembersProxy.add_members(group_uuid, [member]);
     const dbMember = await db.group_members.get(member.uuid);
     expect(dbMember?.status).eq(STATUS.TO_CREATE);
@@ -104,7 +107,7 @@ test('Synchronize: adds remote-only members locally', async () => {
     const group_uuid = ((await groupsProxy.get_local_groups())[0]).token;
     const remoteMember = { uuid: uuidv4(), nickname: "Kate", modified_at: getUTC() };
     // Mock remote fetch to return one member
-    vi.spyOn(groupMembersProxy as never, '_get_remote_GroupMembers').mockResolvedValue([remoteMember]);
+    vi.spyOn(groupMembersProxy as unknown as Spyable, '_get_remote_GroupMembers').mockResolvedValue([remoteMember]);
     // No local members initially
     await groupMembersProxy.synchronize(group_uuid);
     const members = await groupMembersProxy.get_local_members(group_uuid);
@@ -116,7 +119,7 @@ test('Synchronize: removes local-only members not in remote', async () => {
     const localMember = groupMembersProxy.create_group_member("Liam");
     await groupMembersProxy.add_members(group_uuid, [localMember]);
     // Mock remote fetch to return empty array
-    vi.spyOn(groupMembersProxy as never, '_get_remote_GroupMembers').mockResolvedValue([]);
+    vi.spyOn(groupMembersProxy as unknown as Spyable, '_get_remote_GroupMembers').mockResolvedValue([]);
     await groupMembersProxy.synchronize(group_uuid);
     const members = await groupMembersProxy.get_local_members(group_uuid);
     expect(members.length).eq(1);
@@ -129,7 +132,7 @@ test('Synchronize: updates local member if remote is newer', async () => {
     const member = { uuid: uuidv4(), nickname: "Mona", modified_at: formatDate(oldDate) } as GroupMember;
     await groupMembersProxy.add_members(group_uuid, [member]);
     const remoteMember = { ...member, nickname: "Nina", modified_at: formatDate(newDate) };
-    vi.spyOn(groupMembersProxy as never, '_get_remote_GroupMembers').mockResolvedValue([remoteMember]);
+    vi.spyOn(groupMembersProxy as unknown as Spyable, '_get_remote_GroupMembers').mockResolvedValue([remoteMember]);
     await groupMembersProxy.synchronize(group_uuid);
     const updated = await groupMembersProxy.get_local_member(member.uuid);
     expect(updated?.nickname).eq("Mona");
@@ -147,9 +150,9 @@ test('Synchronize: sends local TO_CREATE members to remote', async () => {
         status: STATUS.TO_CREATE
     });
     // Mock remote to return no members
-    vi.spyOn(groupMembersProxy as never, '_get_remote_GroupMembers').mockResolvedValue([]);
+    vi.spyOn(groupMembersProxy as unknown as Spyable, '_get_remote_GroupMembers').mockResolvedValue([]);
     // Mock remote add to succeed
-    vi.spyOn(groupMembersProxy as never, '_add_remote_GroupMembers').mockResolvedValue([member]);
+    vi.spyOn(groupMembersProxy as unknown as Spyable, '_add_remote_GroupMembers').mockResolvedValue([member]);
     await groupMembersProxy.synchronize(group_uuid);
     const updated = await db.group_members.get(member.uuid);
     expect(updated?.status).eq(STATUS.NOTHING);
@@ -159,8 +162,8 @@ test('Synchronize: keeps TO_CREATE members pending when the remote add fails', a
     const group_uuid = ((await groupsProxy.get_local_groups())[0]).token;
     const member = groupMembersProxy.create_group_member("Paul");
     await groupMembersProxy.add_members(group_uuid, [member]);
-    vi.spyOn(groupMembersProxy as never, '_get_remote_GroupMembers').mockResolvedValue([]);
-    vi.spyOn(groupMembersProxy as never, '_add_remote_GroupMembers').mockRejectedValue(new Error("Network error"));
+    vi.spyOn(groupMembersProxy as unknown as Spyable, '_get_remote_GroupMembers').mockResolvedValue([]);
+    vi.spyOn(groupMembersProxy as unknown as Spyable, '_add_remote_GroupMembers').mockRejectedValue(new Error("Network error"));
     await groupMembersProxy.synchronize(group_uuid);
     const dbMember = await db.group_members.get(member.uuid);
     expect(dbMember?.status).eq(STATUS.TO_CREATE);

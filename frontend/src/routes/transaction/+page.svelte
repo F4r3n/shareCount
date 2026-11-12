@@ -1,13 +1,13 @@
 <script lang="ts">
-  import type { Debt, GroupMember, Transaction } from "$lib/types";
+  import type { Debt, GroupMember, Transaction } from "#lib/types";
   import { onMount } from "svelte";
-  import { getUTC } from "$lib/UTCDate";
+  import { getUTC } from "#lib/UTCDate";
   import { v4 as uuidv4 } from "uuid";
-  import { transactionsProxy } from "@stores/group_transactions";
-  import { current_user } from "@stores/groupUsernames";
-  import { groupMembersProxy } from "@stores/group_members";
-  import { current_groupStore } from "@stores/group";
-  import TransactionEditor from "@components/TransactionEditor.svelte";
+  import { transactionsProxy } from "#stores/group_transactions";
+  import { current_user } from "#stores/groupUsernames";
+  import { groupMembersProxy } from "#stores/group_members";
+  import { current_groupStore } from "#stores/group";
+  import TransactionEditor from "#components/TransactionEditor.svelte";
   import { resolve } from "$app/paths";
   import { goto } from "$app/navigation";
   import { fade } from "svelte/transition";

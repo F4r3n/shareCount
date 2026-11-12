@@ -1,4 +1,4 @@
-import type { Transaction, GroupMember } from "$lib/types";
+import type { Transaction, GroupMember } from "#lib/types";
 import Big from "big.js";
 
 

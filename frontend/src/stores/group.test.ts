@@ -1,10 +1,13 @@
 import "fake-indexeddb/auto";
 import { expect, test, beforeEach, vi } from 'vitest';
 import { groupsProxy, groupsStore } from './group';
-import type { Group } from '$lib/types';
-import { getUTC } from '$lib/UTCDate';
+import type { Group } from '#lib/types';
+import { getUTC } from '#lib/UTCDate';
 import { v4 as uuidv4 } from "uuid";
 import { db } from "../db/db";
+
+/** Lets tests spy on private proxy methods. */
+type Spyable = Record<string, (...args: never[]) => Promise<unknown>>;
 
 beforeEach(async () => {
     vi.restoreAllMocks();
@@ -41,7 +44,7 @@ test('Create groups', async () => {
 test('Add group from ID', async () => {
     const new_id = uuidv4();
     const new_Group = { created_at: getUTC(), modified_at: getUTC(), currency_id: "EUR", name: "TEST", token: new_id } as Group;
-    vi.spyOn(groupsProxy as never, "_getGroup").mockResolvedValue(new_Group);
+    vi.spyOn(groupsProxy as unknown as Spyable, "_getGroup").mockResolvedValue(new_Group);
     await groupsProxy.add_group_from_id(new_id);
     const groups: Group[] = await groupsProxy.get_local_groups();
     const find = groups.find((value: Group) => { return value.token === new_id });
@@ -55,7 +58,7 @@ test('Modify group', async () => {
 
     // Modify the group
     const modified_Group = { ...new_Group, name: "MODIFIED", currency_id: "USD" };
-    vi.spyOn(groupsProxy as never, "_add_remote_group").mockResolvedValue("");
+    vi.spyOn(groupsProxy as unknown as Spyable, "_add_remote_group").mockResolvedValue("");
 
     await groupsProxy.modify_group(modified_Group);
 

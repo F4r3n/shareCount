@@ -1,16 +1,16 @@
 <script lang="ts">
-  import type { Debt, GroupMember, Transaction } from "$lib/types";
+  import type { Debt, GroupMember, Transaction } from "#lib/types";
   import Modal from "./Modal.svelte";
   import { type ModalButton } from "./ModalTypes";
-  import { transactionsProxy } from "@stores/group_transactions";
-  import { getUTC } from "$lib/UTCDate";
-  import { current_groupStore } from "@stores/group";
+  import { transactionsProxy } from "#stores/group_transactions";
+  import { getUTC } from "#lib/UTCDate";
+  import { current_groupStore } from "#stores/group";
   import { v4 as uuidv4 } from "uuid";
-  import { groupMembersProxy } from "@stores/group_members";
+  import { groupMembersProxy } from "#stores/group_members";
   import Big from "big.js";
-  import { formatMoney, getLengthOfFraction } from "$lib/currencyFormat";
-  import { current_user } from "@stores/groupUsernames";
-  import { ArrowRightIcon, CircleCheckIcon } from "lucide-svelte";
+  import { formatMoney, getLengthOfFraction } from "#lib/currencyFormat";
+  import { current_user } from "#stores/groupUsernames";
+  import { ArrowRightIcon, CircleCheckIcon } from "@lucide/svelte";
   import { fade } from "svelte/transition";
   import {
     create_amounts,
@@ -18,7 +18,7 @@
     compute_settlements,
     type Amount,
     type Settlement,
-  } from "@stores/settlement";
+  } from "#stores/settlement";
   let {
     members,
     transactions,

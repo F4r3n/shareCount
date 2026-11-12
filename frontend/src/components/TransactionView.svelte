@@ -1,6 +1,6 @@
 <script lang="ts">
-  import type { Transaction } from "$lib/types";
-  import { formatMoney } from "$lib/currencyFormat";
+  import type { Transaction } from "#lib/types";
+  import { formatMoney } from "#lib/currencyFormat";
   import { goto } from "$app/navigation";
   import { resolve } from "$app/paths";
   let { transaction }: { transaction: Transaction } = $props();

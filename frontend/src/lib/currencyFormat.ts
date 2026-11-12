@@ -27,7 +27,7 @@ export function formatMoney(amount: string, currency: string, locale?: Intl.Loca
 }
 
 export function getCurrencySymbol(currency: string, locale?: Intl.LocalesArgument) {
-  let result = "";
+  let result: string;
   try {
     result = (0).toLocaleString(
       locale,

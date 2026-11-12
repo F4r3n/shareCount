@@ -1,11 +1,11 @@
 <script lang="ts">
-  import type { Transaction } from "$lib/types";
+  import type { Transaction } from "#lib/types";
   import TransactionView from "./TransactionView.svelte";
   import { fade } from "svelte/transition";
   import { goto } from "$app/navigation";
   import { resolve } from "$app/paths";
-  import { PlusIcon, ReceiptIcon } from "lucide-svelte";
-  import { localDay } from "$lib/UTCDate";
+  import { PlusIcon, ReceiptIcon } from "@lucide/svelte";
+  import { localDay } from "#lib/UTCDate";
   let { transactions }: { transactions: Transaction[] } = $props();
 
   const options = {

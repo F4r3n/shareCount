@@ -1,4 +1,4 @@
-import type { Pathname } from "$app/types";
+import type { RouteId } from "$app/types";
 
 export enum MENU {
     GROUPS = 0,
@@ -9,8 +9,8 @@ export enum MENU {
 export interface MenuNavigation {
     type: MENU,
     name: string,
-    return_path: Pathname | "",
-    path: Pathname,
+    return_path: RouteId | "",
+    path: RouteId,
     display_tab: boolean
 }
 

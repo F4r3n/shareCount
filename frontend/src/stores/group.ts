@@ -1,10 +1,10 @@
 // src/lib/stores/group_members.ts
 import { writable, type Writable } from 'svelte/store';
 import { db, STATUS, type Group_DB } from '../db/db';
-import { getUTC } from '$lib/UTCDate';
-import type { Group } from "$lib/types";
-import { getFullBackendURL } from '$lib/shareCountAPI';
-import { browser } from '$app/environment';
+import { getUTC } from '#lib/UTCDate';
+import type { Group } from "#lib/types";
+import { getFullBackendURL } from '#lib/shareCountAPI';
+import { browser } from '$app/env';
 
 export const groupsStore: Writable<Group[]> = writable([]);
 

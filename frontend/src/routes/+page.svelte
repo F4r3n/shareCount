@@ -1,12 +1,12 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import GroupView from "@components/GroupView.svelte";
-  import { current_groupStore, groupsProxy, groupsStore } from "@stores/group";
-  import type { Group } from "$lib/types";
+  import GroupView from "#components/GroupView.svelte";
+  import { current_groupStore, groupsProxy, groupsStore } from "#stores/group";
+  import type { Group } from "#lib/types";
   import { goto } from "$app/navigation";
-  import { store_url } from "$lib/shareCountAPI";
+  import { store_url } from "#lib/shareCountAPI";
   import { resolve } from "$app/paths";
-  import { PlusIcon, UsersIcon } from "lucide-svelte";
+  import { PlusIcon, UsersIcon } from "@lucide/svelte";
   let current_error: string = $state("");
   onMount(async () => {
     current_groupStore.set(null);

@@ -1,17 +1,17 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { goto } from "$app/navigation";
-  import type { Group, GroupMember } from "$lib/types";
-  import { MENU, menus } from "$lib/menus";
-  import { groupMembersProxy } from "@stores/group_members";
-  import { current_groupStore, groupsProxy } from "@stores/group";
+  import type { Group, GroupMember } from "#lib/types";
+  import { MENU, menus } from "#lib/menus";
+  import { groupMembersProxy } from "#stores/group_members";
+  import { current_groupStore, groupsProxy } from "#stores/group";
   import Modal from "./Modal.svelte";
-  import { base, resolve } from "$app/paths";
-  import { getBackendURL } from "$lib/shareCountAPI";
+  import { resolve } from "$app/paths";
+  import { getBackendURL } from "#lib/shareCountAPI";
   import Share from "./Share.svelte";
   import { fade } from "svelte/transition";
-  import { PencilIcon, Trash2Icon } from "lucide-svelte";
-  import { userProxy, users, current_user } from "@stores/groupUsernames";
+  import { PencilIcon, Trash2Icon } from "@lucide/svelte";
+  import { userProxy, users, current_user } from "#stores/groupUsernames";
   let {
     group,
     onDone,
@@ -49,7 +49,7 @@
       url: getBackendURL() ?? "",
       id: group.token,
     });
-    return `${window.location.origin}${base}/?${params}`;
+    return `${window.location.origin}${resolve("/")}?${params}`;
   }
 </script>
 
