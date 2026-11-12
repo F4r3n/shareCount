@@ -151,8 +151,7 @@
         class="flex flex-col items-center text-center gap-2 py-10 px-6 bg-base-100 border border-base-300 rounded-box"
       >
         <CircleCheckIcon size={36} class="text-success" />
-        <p class="font-medium">Everyone is square</p>
-        <p class="text-sm text-base-content/60">Nobody owes anything.</p>
+        <p class="font-medium">All good</p>
       </div>
     {:else}
       <ul
