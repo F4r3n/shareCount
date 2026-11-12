@@ -21,24 +21,25 @@ export class TransactionsProxy {
         return result;
     }
 
-    public async get_local_transactions(group_uuid: string): Promise<Transaction[]> {
-        const tr = await this._get_local_transactionsDB(group_uuid)
-        const result: Transaction[] = [];
-        for (const t of tr) {
-            result.push(await this._convert_transactionDB_transaction(t));
-        }
 
-        return result;
+    private async _read_local_transactions(group_uuid: string, filter: (t: Transaction_DB) => boolean): Promise<Transaction[]> {
+        return db.transaction("r", db.transactions, db.debts, db.group_members, async () => {
+            const rows = (await this._get_local_transactionsDB(group_uuid)).filter(filter);
+            const result: Transaction[] = [];
+            for (const t of rows) {
+                result.push(await this._convert_transactionDB_transaction(t));
+            }
+            return result;
+        });
+    }
+
+    public async get_local_transactions(group_uuid: string): Promise<Transaction[]> {
+        return this._read_local_transactions(group_uuid, () => true);
     }
 
     public async synchronize_local(group_uuid: string): Promise<Transaction[]> {
         // Hide transactions deleted locally but not yet synchronized.
-        const rows = (await this._get_local_transactionsDB(group_uuid))
-            .filter((t) => t.status !== STATUS.TO_DELETE);
-        const result: Transaction[] = [];
-        for (const t of rows) {
-            result.push(await this._convert_transactionDB_transaction(t));
-        }
+        const result = await this._read_local_transactions(group_uuid, (t) => t.status !== STATUS.TO_DELETE);
         return this._sort_transactions(result);
     }
 
@@ -80,10 +81,12 @@ export class TransactionsProxy {
 
     private async _add_local_transaction(group_uuid: string, inTransaction: Transaction, status: STATUS) {
         const transaction_db = this._convert_transaction_transactionDB(group_uuid, inTransaction, status);
-        //If add multiple times
-        await this._delete_local_debts(transaction_db.uuid);
-        await this._add_local_debts(transaction_db.uuid, inTransaction.debtors);
-        await db.transactions.add(transaction_db);
+        await db.transaction("rw", db.transactions, db.debts, async () => {
+            //If add multiple times
+            await this._delete_local_debts(transaction_db.uuid);
+            await this._add_local_debts(transaction_db.uuid, inTransaction.debtors);
+            await db.transactions.add(transaction_db);
+        });
     }
 
     _sort_transactions(inTransactions: Transaction[]): Transaction[] {
@@ -97,18 +100,23 @@ export class TransactionsProxy {
             await db.transactions.where("uuid").equals(transaction_uuid).modify({ status: STATUS.TO_DELETE, modified_at: getUTC() });
         }
         else {
-            await db.transactions.where("uuid").equals(transaction_uuid).delete();
-            await this._delete_local_debts(transaction_uuid);
+            await db.transaction("rw", db.transactions, db.debts, async () => {
+                await db.transactions.where("uuid").equals(transaction_uuid).delete();
+                await this._delete_local_debts(transaction_uuid);
+            });
         }
 
     }
 
     private async _modify_local_transaction(group_uuid: string, transaction: Transaction, inStatus: STATUS) {
-        await this._delete_local_debts(transaction.uuid);
-        await this._add_local_debts(transaction.uuid, transaction.debtors);
         const new_tr_db = this._convert_transaction_transactionDB(group_uuid, transaction, inStatus);
         new_tr_db.modified_at = getUTC();
-        await db.transactions.where("uuid").equals(transaction.uuid).modify(new_tr_db);
+
+        await db.transaction("rw", db.transactions, db.debts, async () => {
+            await this._delete_local_debts(transaction.uuid);
+            await this._add_local_debts(transaction.uuid, transaction.debtors);
+            await db.transactions.where("uuid").equals(transaction.uuid).modify(new_tr_db);
+        });
     }
 
     async has_spent(group: string, user: string): Promise<boolean> {

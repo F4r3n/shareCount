@@ -223,3 +223,24 @@ test("synchronize removes a deleted transaction locally only after the server co
     await transactionsProxy.synchronize(group_uuid);
     expect(await db.transactions.get(remote.uuid)).toBeUndefined();
 });
+
+test("reading while a transaction is rewritten never sees it without its debts", async () => {
+    const group_uuid = ((await groupsProxy.get_local_groups())[0]).token;
+    const members = await groupMembersProxy.get_group_members(group_uuid);
+    const transaction = makeTransaction(members[0], members[1]);
+    await transactionsProxy.add_transaction(group_uuid, transaction);
+
+    // Synchronize deletes then re-adds the debts of every transaction; a balance
+    // computed in between used to count the payment without the matching debt.
+    const writes = [];
+    const reads = [];
+    for (let i = 0; i < 20; ++i) {
+        writes.push(transactionsProxy.modify_transaction(group_uuid, { ...transaction }));
+        reads.push(transactionsProxy.synchronize_local(group_uuid));
+    }
+    await Promise.all(writes);
+    for (const trs of await Promise.all(reads)) {
+        expect(trs).toHaveLength(1);
+        expect(trs[0].debtors).toHaveLength(1);
+    }
+});
