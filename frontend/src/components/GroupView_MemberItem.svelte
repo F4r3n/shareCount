@@ -1,6 +1,6 @@
 <script lang="ts">
     import type { GroupMember } from "#lib/types";
-    import { CheckIcon, XIcon } from "@lucide/svelte";
+    import { XIcon } from "@lucide/svelte";
     import { fade } from "svelte/transition";
     import { untrack } from "svelte";
     let {
@@ -21,53 +21,53 @@
         untrack(() => structuredClone($state.snapshot(current_member))),
     );
     let error_message = $state("");
+    let is_me = $derived(member_me == member.uuid);
 </script>
 
-<div class="join mt-2 items-center">
-    <button
-        class="btn-xs join-item rounded-full hover:cursor-pointer"
-        onclick={async () => {
-            let result = await onDelete();
-            if (!result) error_message = "Cannot be deleted";
-            setTimeout(() => {
-                error_message = "";
-            }, 1000);
-        }}><XIcon></XIcon></button
-    >
-    {#if error_message}
-        <div
-            out:fade={{ duration: 200 }}
-            class=" {error_message != ''
-                ? 'tooltip tooltip-open tooltip-top left-10 text-center'
-                : ''}"
-            data-tip={error_message != "" ? error_message : ""}
-        ></div>
-    {/if}
-    <input
-        type="text"
-        class="input join-item {error_message != ''
-            ? 'input-error'
-            : 'input'}"
-        bind:value={member.nickname}
-        onchange={() => {
-            let result = onChange(member);
-            if (!result) error_message = "The name is invalid";
-            setTimeout(() => {
-                error_message = "";
-            }, 1000);
-        }}
-    />
-
-    {#if member_me == member.uuid}
-        <div class="flex items-center align-middle">
-            <CheckIcon></CheckIcon>
-        </div>
-    {:else}
+<li class="px-4 py-2.5">
+    <div class="flex items-center gap-2">
+        <input
+            type="text"
+            class="input input-sm flex-1 min-w-0 {error_message
+                ? 'input-error'
+                : 'input-ghost'}"
+            aria-label="Participant name"
+            placeholder="Name"
+            bind:value={member.nickname}
+            onchange={() => {
+                error_message = onChange(member)
+                    ? ""
+                    : "This name is empty or already used";
+            }}
+        />
+        {#if is_me}
+            <span class="badge badge-primary badge-soft shrink-0">Me</span>
+        {:else}
+            <button
+                type="button"
+                class="btn btn-ghost btn-xs shrink-0 text-base-content/60"
+                onclick={onMESelect}
+            >
+                That's me
+            </button>
+        {/if}
         <button
-            class="btn join-item rounded-full"
-            onclick={() => {
-                onMESelect();
-            }}>Select</button
+            type="button"
+            class="btn btn-ghost btn-sm btn-square shrink-0 text-base-content/50 hover:text-error"
+            aria-label="Remove {member.nickname}"
+            onclick={async () => {
+                if (!(await onDelete())) {
+                    error_message = "Has expenses, so it cannot be removed";
+                    setTimeout(() => (error_message = ""), 2500);
+                }
+            }}
         >
+            <XIcon size={16} />
+        </button>
+    </div>
+    {#if error_message}
+        <p class="pt-1 text-xs text-error" transition:fade={{ duration: 150 }}>
+            {error_message}
+        </p>
     {/if}
-</div>
+</li>

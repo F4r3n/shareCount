@@ -5,7 +5,6 @@
   import { getUTC } from "#lib/UTCDate";
   import { v4 as uuidv4 } from "uuid";
   import GroupViewEditor from "#components/GroupViewEditor.svelte";
-  import { fade } from "svelte/transition";
 
   let group: Group | null = $state(null);
   let new_group = $state(false);
@@ -28,20 +27,6 @@
   }
 </script>
 
-<main in:fade class="w-full mx-auto flex flex-col items-center">
-  {#if group}
-    <div class="flex justify-center w-full">
-      <GroupViewEditor creating={new_group} {group} onDone={() => {}} />
-    </div>
-  {:else}
-    <div class="alert alert-error mt-5">Group not found.</div>
-  {/if}
-</main>
-
-<style>
-  main {
-    display: flex;
-    width: 100%;
-    justify-content: center;
-  }
-</style>
+{#if group}
+  <GroupViewEditor creating={new_group} {group} onDone={() => {}} />
+{/if}
